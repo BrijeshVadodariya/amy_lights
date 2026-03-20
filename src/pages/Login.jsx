@@ -3,8 +3,8 @@ import { Mail, Lock } from 'lucide-react';
 import './Login.css';
 
 const Login = ({ onLogin, loading }) => {
-  const [email, setEmail] = useState('dhruv');
-  const [password, setPassword] = useState('dhruv');
+  const [email, setEmail] = useState('admin');
+  const [password, setPassword] = useState('admin');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -24,12 +24,12 @@ const Login = ({ onLogin, loading }) => {
       </div>
 
       <div className="login-card">
-        <h1>Log in</h1>
+        <h1>Log in new</h1>
         <form onSubmit={handleSubmit}>
           <div className="input-group">
             <input 
               type="text" 
-              placeholder="Email / Phone" 
+              placeholder="admin" 
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -40,7 +40,7 @@ const Login = ({ onLogin, loading }) => {
           <div className="input-group">
             <input 
               type="password" 
-              placeholder="Password" 
+              placeholder="admin" 
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
