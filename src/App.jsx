@@ -8,7 +8,7 @@ import Products from './pages/Products';
 import PurchaseOrders from './pages/PurchaseOrders';
 import OrderDetail from './pages/OrderDetail';
 import ProductDetail from './pages/ProductDetail';
-import { odooService } from './services/odoo';
+import { getOdooErrorMessage, odooService } from './services/odoo';
 import CreateOrder from './CreateOrder';
 import CreateCustomer from './pages/CreateCustomer';
 import CreateProductPage from './pages/CreateProductPage';
@@ -87,8 +87,8 @@ function App() {
       } else {
         alert(res.error?.message || 'Invalid credentials');
       }
-    } catch {
-      alert('Network error connecting to Odoo');
+    } catch (error) {
+      alert(getOdooErrorMessage(error, 'Network error connecting to Odoo'));
     } finally {
       setLoading(false);
     }
