@@ -11,6 +11,10 @@ const api = axios.create({
   timeout: DEFAULT_TIMEOUT_MS,
 });
 
+if (import.meta.env.PROD) {
+  console.log('Production mode: API baseURL is', api.defaults.baseURL);
+}
+
 // Request interceptor to add session ID from localStorage
 api.interceptors.request.use((config) => {
   const sessionId = localStorage.getItem('odoo_session_id');
@@ -41,6 +45,7 @@ export const getOdooErrorMessage = (error, fallback = 'Request to Odoo failed.')
     return 'Unable to reach the Odoo server. Check the server URL, VPN/firewall, or Vite proxy target.';
   }
 
+  console.error('Odoo API Error:', error);
   return error?.message || fallback;
 };
 

@@ -1,16 +1,16 @@
 {
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "http://103.212.121.196:8069/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "http://103.212.121.196:8069/api/$1?db=stage"
     },
     {
-      "source": "/web/:path*",
-      "destination": "http://103.212.121.196:8069/web/:path*"
+      "source": "/web/(.*)",
+      "destination": "http://103.212.121.196:8069/web/$1?db=stage"
     },
     {
-      "source": "/my/:path*",
-      "destination": "http://103.212.121.196:8069/my/:path*"
+      "source": "/my/(.*)",
+      "destination": "http://103.212.121.196:8069/my/$1?db=stage"
     }
   ]
 }
