@@ -2,26 +2,15 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "http://103.212.121.196:8069/api/$1?db=stage"
+      "destination": "/api/proxy"
     },
     {
       "source": "/web/(.*)",
-      "destination": "http://103.212.121.196:8069/web/$1?db=stage"
+      "destination": "/api/proxy"
     },
     {
       "source": "/my/(.*)",
-      "destination": "http://103.212.121.196:8069/my/$1?db=stage"
-    },
-    {
-      "source": "/odoo/(.*)",
-      "destination": "http://103.212.121.196:8069/odoo/$1?db=stage"
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/test-redirect",
-      "destination": "https://www.google.com",
-      "permanent": false
+      "destination": "/api/proxy"
     }
   ]
 }
