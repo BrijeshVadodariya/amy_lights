@@ -11,7 +11,7 @@ const api = axios.create({
 export const odooService = {
   login: async (login, password) => {
     const res = await api.post('/api/login', {
-      params: { login, password, db: 'amy_lights' }
+      params: { login, password, db: 'stage' }
     });
     return res.data.result;
   },

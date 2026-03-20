@@ -7,17 +7,16 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    allowedHosts: ['.ngrok-free.dev'],
+    allowedHosts: ['.', 'localhost'],
     proxy: {
       '/api': {
-        target: 'http://localhost:8073',
+        target: 'http://103.212.121.196:8069/',
         changeOrigin: true,
       },
       '/web': {
-        target: 'http://localhost:8073',
+        target: 'http://103.212.121.196:8069/',
         changeOrigin: true,
       }
     }
   }
 })
-
