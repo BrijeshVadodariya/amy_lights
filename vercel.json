@@ -11,6 +11,10 @@
     {
       "source": "/my/(.*)",
       "destination": "http://103.212.121.196:8069/my/$1?db=stage"
+    },
+    {
+      "source": "/odoo/(.*)",
+      "destination": "http://103.212.121.196:8069/odoo/$1?db=stage"
     }
   ]
 }

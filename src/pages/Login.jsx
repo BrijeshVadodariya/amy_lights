@@ -24,7 +24,7 @@ const Login = ({ onLogin, loading }) => {
       </div>
 
       <div className="login-card">
-        <h1>Log in</h1>
+        <h1>Log in new</h1>
         <form onSubmit={handleSubmit}>
           <div className="input-group">
             <input 

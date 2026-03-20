@@ -11,8 +11,11 @@ const api = axios.create({
   timeout: DEFAULT_TIMEOUT_MS,
 });
 
+const BUILD_ID = '2026-03-20-1858'; // Manual build tag to verify deployment
+console.log(`[OdooService] Deployment Build: ${BUILD_ID}`);
+
 if (import.meta.env.PROD) {
-  console.log('Production mode: API baseURL is', api.defaults.baseURL);
+  console.log('[OdooService] Production mode: API baseURL is', api.defaults.baseURL);
 }
 
 // Request interceptor to add session ID from localStorage
@@ -24,8 +27,31 @@ api.interceptors.request.use((config) => {
     // Fallback for custom backend checks
     config.headers['X-Odoo-Session-ID'] = sessionId;
   }
+  
+  console.log(`[OdooService] Request: ${config.method?.toUpperCase()} ${config.url}`, {
+    fullURL: `${config.baseURL}${config.url}`,
+    params: config.params,
+    headers: config.headers
+  });
+  
   return config;
 });
+
+// Response interceptor for detailed logging
+api.interceptors.response.use(
+  (response) => {
+    console.log(`[OdooService] Response: ${response.status} from ${response.config.url}`, response.data);
+    return response;
+  },
+  (error) => {
+    console.error(`[OdooService] Error: ${error.response?.status || 'Network Error'} from ${error.config?.url}`, {
+      message: error.message,
+      data: error.response?.data,
+      headers: error.response?.headers
+    });
+    return Promise.reject(error);
+  }
+);
 
 export const getOdooErrorMessage = (error, fallback = 'Request to Odoo failed.') => {
   const backendMessage =
