@@ -3,7 +3,7 @@ import axios from 'axios';
 const DEFAULT_TIMEOUT_MS = 15000;
 
 const api = axios.create({
-  baseURL: '/', // Use relative path to trigger Vite proxy or Vercel rewrites
+  baseURL: '', // Use empty string to avoid "//" prefix, keeping paths relative to origin
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,7 +11,7 @@ const api = axios.create({
   timeout: DEFAULT_TIMEOUT_MS,
 });
 
-const BUILD_ID = '2026-03-20-1858'; // Manual build tag to verify deployment
+const BUILD_ID = '2026-03-20-1917'; // Manual build tag to verify deployment
 console.log(`[OdooService] Deployment Build: ${BUILD_ID}`);
 
 if (import.meta.env.PROD) {
