@@ -11,7 +11,7 @@ const api = axios.create({
   timeout: DEFAULT_TIMEOUT_MS,
 });
 
-const BUILD_ID = '2026-03-20-1925'; // Manual build tag to verify deployment
+const BUILD_ID = '2026-03-20-1920'; // Manual build tag to verify deployment
 console.log(`[OdooService] Deployment Build: ${BUILD_ID}`);
 
 if (import.meta.env.PROD) {

@@ -30,9 +30,11 @@ export default async function handler(req, res) {
         'X-Odoo-Database': 'stage',
         'Origin': odooTarget,
         'Referer': `${odooTarget}/web/login?db=stage`,
-        // Forward parts of original headers if needed, but be careful with Host
         'User-Agent': headers['user-agent'],
         'Cookie': headers['cookie'],
+        // Forward Authentication headers from frontend
+        'Authorization': headers['authorization'],
+        'X-Odoo-Session-ID': headers['x-odoo-session-id'],
       },
       timeout: 10000,
       validateStatus: () => true, // Handle all status codes
