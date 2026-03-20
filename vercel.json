@@ -16,5 +16,12 @@
       "source": "/odoo/(.*)",
       "destination": "http://103.212.121.196:8069/odoo/$1?db=stage"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/test-redirect",
+      "destination": "https://www.google.com",
+      "permanent": false
+    }
   ]
 }
