@@ -3,7 +3,7 @@ import axios from 'axios';
 const DEFAULT_TIMEOUT_MS = 15000;
 
 const api = axios.create({
-  baseURL: '/', // Use relative path to trigger Vite proxy
+  baseURL: '/', // Use relative path to trigger Vite proxy or Vercel rewrites
   headers: {
     'Content-Type': 'application/json',
   },
