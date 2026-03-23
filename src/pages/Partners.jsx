@@ -11,12 +11,35 @@ const Partners = () => {
     const fetchPartners = async () => {
         setLoading(true);
         try {
-            const data = await odooService.getMasterData();
-            // Combine all partner types for a unified view
+            const [masterRes, partnerRes] = await Promise.all([
+                odooService.getMasterData().catch(() => null),
+                odooService.getPartners().catch(() => null)
+            ]);
+
+            let allPartners = [];
+            let architects = [];
+            let electricians = [];
+
+            if (masterRes) {
+                allPartners = masterRes.partners || [];
+                architects = masterRes.architects || [];
+                electricians = masterRes.electricians || [];
+                if (masterRes.data) {
+                    allPartners = masterRes.data.partners || allPartners;
+                    architects = masterRes.data.architects || architects;
+                    electricians = masterRes.data.electricians || electricians;
+                }
+            }
+
+            // Fallback for partners
+            if (allPartners.length === 0 && partnerRes) {
+                allPartners = Array.isArray(partnerRes) ? partnerRes : (partnerRes.partners || []);
+            }
+
             const all = [
-                ...(data.partners || []).map(p => ({ ...p, type: 'Company' })),
-                ...(data.architects || []).map(a => ({ ...a, type: 'Architect' })),
-                ...(data.electricians || []).map(e => ({ ...e, type: 'Electrician' }))
+                ...(allPartners || []).map(p => ({ ...p, type: 'Company' })),
+                ...(architects || []).map(a => ({ ...a, type: 'Architect' })),
+                ...(electricians || []).map(e => ({ ...e, type: 'Electrician' }))
             ].reduce((acc, current) => {
                 const existing = acc.find(item => item.id === current.id);
                 if (!existing) acc.push(current);

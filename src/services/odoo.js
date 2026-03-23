@@ -78,7 +78,7 @@ export const getOdooErrorMessage = (error, fallback = 'Request to Odoo failed.')
 export const odooService = {
   login: async (login, password) => {
     const res = await api.post('/api/login', {
-      params: { login, password, db: 'stage' }
+      params: { login, password, db: import.meta.env.VITE_ODOO_DB || 'stage' }
     });
     const result = res.data.result;
     if (result && result.success && result.data && result.data.session_id) {
@@ -134,7 +134,12 @@ export const odooService = {
     return res.data.result || { success: false, error: res.data.error };
   },
   getProducts: async () => {
-    const res = await api.post('/api/products', { params: { limit: 1000 } });
+    const res = await api.post('/api/products', { params: { limit: 10000 } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  getPartners: async () => {
+    const res = await api.post('/api/partners', { params: { limit: 10000 } });
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },

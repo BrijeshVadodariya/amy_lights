@@ -311,7 +311,7 @@
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   min-width: 0;
   border: 1px solid #e5e7eb;
   border-radius: 12px;

@@ -32,11 +32,6 @@
 }
 
 .ss-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 40;
   background: #fff;
   border-radius: 12px;
   border: 1px solid #e5e7eb;
@@ -81,10 +76,20 @@
   color: #9ca3af;
 }
 
+.ss-more {
+  padding: 0.75rem 0.9rem;
+  font-size: 0.8rem;
+  color: #fb923c;
+  background: #fff7ed;
+  font-weight: 600;
+  text-align: center;
+  border-top: 1px solid #ffedd5;
+}
+
 .ss-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: 9998;
 }
 
 @media (max-width: 768px) {

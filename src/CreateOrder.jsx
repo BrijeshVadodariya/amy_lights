@@ -13,6 +13,14 @@ const createProductRow = () => ({
   remark: ''
 });
 
+// Simple in-memory cache for products/partners to speed up loading
+const dataCache = {
+  products: null,
+  partners: null,
+  architects: null,
+  electricians: null
+};
+
 const CreateOrder = ({ editId, onNavigate }) => {
   const [loading, setLoading] = useState(false);
   const [masterData, setMasterData] = useState({
@@ -34,12 +42,62 @@ const CreateOrder = ({ editId, onNavigate }) => {
     createProductRow()
   ]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   const fetchMasterData = React.useCallback(async () => {
+    // If cache exists, use it immediately for responsiveness
+    if (dataCache.products) {
+      setMasterData(prev => ({ ...prev, ...dataCache }));
+    }
+
     try {
-      const res = await odooService.getMasterData();
-      if (res.success) setMasterData(res.data);
-    } catch {
-      console.error('Fetch master data failed');
+      // Parallelize fetching
+      const [masterRes, productRes, partnerRes] = await Promise.all([
+        odooService.getMasterData().catch(() => null),
+        odooService.getProducts().catch(() => null),
+        odooService.getPartners().catch(() => null)
+      ]);
+
+      const newData = { ...masterData };
+
+      if (masterRes) {
+        if (masterRes.products) newData.products = masterRes.products;
+        if (masterRes.partners) newData.partners = masterRes.partners;
+        if (masterRes.architects) newData.architects = masterRes.architects;
+        if (masterRes.electricians) newData.electricians = masterRes.electricians;
+        if (masterRes.success && masterRes.data) {
+           Object.assign(newData, masterRes.data);
+        }
+      }
+
+      // Merge products from dedicated call
+      if (Array.isArray(productRes)) {
+        newData.products = productRes;
+      } else if (productRes && productRes.products) {
+        newData.products = productRes.products;
+      }
+
+      // Merge partners from dedicated call
+      if (Array.isArray(partnerRes)) {
+        newData.partners = partnerRes;
+      } else if (partnerRes && partnerRes.partners) {
+        newData.partners = partnerRes.partners;
+      }
+
+      // Update cache and state
+      if (newData.products.length > 0 || newData.partners.length > 0) {
+        Object.assign(dataCache, newData);
+        setMasterData(newData);
+      }
+    } catch (err) {
+      console.error('Fetch master data failed', err);
     }
   }, []);
 
@@ -185,13 +243,15 @@ const CreateOrder = ({ editId, onNavigate }) => {
         <div className="dt-form co-form">
           <div className="form-group">
             <label>Customer *</label>
-            <select 
+            <SearchableSelect
+              placeholder="Select Customer..."
               value={orderHeader.partnerId}
-              onChange={e => setOrderHeader({...orderHeader, partnerId: e.target.value})}
-            >
-              <option value="">Select</option>
-              {masterData.partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+              onChange={(val) => setOrderHeader({ ...orderHeader, partnerId: val })}
+              options={masterData.partners.map((p) => ({
+                value: p.id,
+                label: p.name,
+              }))}
+            />
           </div>
           <div className="form-group">
             <label>Order Date</label>
@@ -234,7 +294,7 @@ const CreateOrder = ({ editId, onNavigate }) => {
                         onChange={(val) => handleRowChange(r.id, 'productId', val)}
                         options={masterData.products.map((p) => ({
                           value: p.id,
-                          label: p.name,
+                          label: p.default_code ? `[${p.default_code}] ${p.name}` : p.name,
                         }))}
                         />
                     </td>

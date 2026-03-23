@@ -20,9 +20,9 @@ const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('amy_active_tab') || 'dashboard');
   const [loading, setLoading] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(() => localStorage.getItem('amy_selected_id') || null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth > 768 : true
   ));
@@ -61,6 +61,10 @@ function App() {
   const handleNavigate = (tab, id = null) => {
     setActiveTab(tab);
     setSelectedId(id);
+    localStorage.setItem('amy_active_tab', tab);
+    if (id) localStorage.setItem('amy_selected_id', id);
+    else localStorage.removeItem('amy_selected_id');
+
     if (window.innerWidth <= 768) {
       setIsSidebarOpen(false);
     }

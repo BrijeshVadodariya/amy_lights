@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import './FormPages.css';
@@ -22,6 +22,15 @@ const CreateCustomer = ({ onNavigate }) => {
     architect_number: '',
     office_contact_person: '',
   });
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   const canSubmit = useMemo(() => customer.name.trim().length > 0, [customer.name]);
 

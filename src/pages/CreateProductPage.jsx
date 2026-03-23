@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import './FormPages.css';
@@ -16,6 +16,15 @@ const CreateProductPage = ({ onNavigate }) => {
     price: '',
     note: '',
   });
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   const canSubmit = useMemo(() => product.name.trim().length > 0, [product.name]);
 

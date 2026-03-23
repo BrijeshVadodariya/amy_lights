@@ -2,15 +2,16 @@ import axios from 'axios';
 
 export default async function handler(req, res) {
   const { method, query, body, headers } = req;
-  const odooTarget = 'http://103.212.121.196:8069';
+  const odooTarget = process.env.VITE_ODOO_URL || 'http://103.212.121.196:8069';
+  const odooDB = process.env.VITE_ODOO_DB || 'stage';
   
   // Use x-forwarded-uri (original URL) or fallback to path query param
   const originalUrl = headers['x-forwarded-uri'] || query.path || req.url;
   const path = originalUrl.split('?')[0];
   
-  // Construct the target URL with the db=stage parameter
+  // Construct the target URL with the db parameter
   const targetUrl = new URL(path, odooTarget);
-  targetUrl.searchParams.set('db', 'stage');
+  targetUrl.searchParams.set('db', odooDB);
   
   // Copy relevant query parameters from the original request
   Object.keys(query).forEach(key => {
@@ -27,9 +28,9 @@ export default async function handler(req, res) {
       params: {}, // Already in targetUrl
       headers: {
         'Content-Type': 'application/json',
-        'X-Odoo-Database': 'stage',
+        'X-Odoo-Database': odooDB,
         'Origin': odooTarget,
-        'Referer': `${odooTarget}/web/login?db=stage`,
+        'Referer': `${odooTarget}/web/login?db=${odooDB}`,
         'User-Agent': headers['user-agent'],
         'Cookie': headers['cookie'],
         // Forward Authentication headers from frontend

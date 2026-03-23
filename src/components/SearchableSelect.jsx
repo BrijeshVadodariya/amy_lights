@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './SearchableSelect.css';
 
 /**
@@ -8,6 +9,8 @@ import './SearchableSelect.css';
 const SearchableSelect = ({ placeholder, options, value, onChange }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [menuStyle, setMenuStyle] = useState({});
+  const containerRef = useRef(null);
 
   const selectedLabel = useMemo(() => {
     const found = options.find((opt) => String(opt.value) === String(value));
@@ -15,18 +18,60 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
   }, [options, value]);
 
   const filtered = useMemo(() => {
-    if (!query) return options;
     const lower = query.toLowerCase();
-    return options.filter((opt) => opt.label.toLowerCase().includes(lower));
+    const results = options.filter((opt) => 
+      opt.label.toLowerCase().includes(lower)
+    );
+    return results;
   }, [options, query]);
+
+  const visibleOptions = useMemo(() => filtered.slice(0, 100), [filtered]);
+  const hasMore = filtered.length > 100;
 
   const handleSelect = (val) => {
     onChange(val);
     setOpen(false);
   };
 
+  useEffect(() => {
+    if (open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const isMobile = window.innerWidth <= 768;
+      
+      setMenuStyle({
+        position: 'fixed',
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.left}px`,
+        width: `${rect.width}px`,
+        minWidth: isMobile ? '280px' : 'auto',
+        zIndex: 9999,
+      });
+    }
+  }, [open]);
+
+  // Close on scroll or resize to keep position sync (v1)
+  useEffect(() => {
+    if (!open) return;
+    const handleUpdate = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setMenuStyle(prev => ({
+          ...prev,
+          top: `${rect.bottom + 4}px`,
+          left: `${rect.left}px`,
+        }));
+      }
+    };
+    window.addEventListener('scroll', handleUpdate, true);
+    window.addEventListener('resize', handleUpdate);
+    return () => {
+      window.removeEventListener('scroll', handleUpdate, true);
+      window.removeEventListener('resize', handleUpdate);
+    };
+  }, [open]);
+
   return (
-    <div className="ss-container">
+    <div className="ss-container" ref={containerRef}>
       <button
         type="button"
         className="ss-control"
@@ -37,9 +82,9 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
         </span>
         <span className="ss-arrow">▾</span>
       </button>
-      {open && (
+      {open && createPortal(
         <>
-          <div className="ss-menu">
+          <div className="ss-menu ss-portal-menu" style={menuStyle}>
             <div className="ss-search-wrapper">
               <input
                 className="ss-search"
@@ -50,7 +95,7 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
               />
             </div>
             <div className="ss-options">
-              {filtered.map((opt) => (
+              {visibleOptions.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -60,13 +105,17 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
                   {opt.label}
                 </button>
               ))}
+              {hasMore && (
+                <div className="ss-more">... Too many results, keep typing to refine</div>
+              )}
               {filtered.length === 0 && (
                 <div className="ss-empty">No results</div>
               )}
             </div>
           </div>
           <div className="ss-backdrop" onClick={() => setOpen(false)} />
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
