@@ -1,27 +1,54 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus, Phone, Users, MapPin, Activity } from 'lucide-react';
 import { odooService } from '../services/odoo';
+import SearchableSelect from '../components/SearchableSelect';
 import './FormPages.css';
 
-/**
- * CreateCustomer page.
- * Full-page version of the "New Customer" form to keep UI consistent on mobile.
- */
 const CreateCustomer = ({ onNavigate }) => {
   const [saving, setSaving] = useState(false);
+  const [masterData, setMasterData] = useState({ partners: [], architects: [], electricians: [] });
   const [customer, setCustomer] = useState({
     name: '',
-    billing_name: '',
-    contact_person: '',
-    mobile: '',
-    billing_address: '',
-    delivery_address: '',
-    electrician: '',
-    electrician_number: '',
-    architect: '',
-    architect_number: '',
-    office_contact_person: '',
+    phone: '',
+    email: '',
+    electricianId: '',
+    architectId: '',
+    otherName: '',
+    otherNumber: '',
+    // Address details
+    street: '',
+    street2: '',
+    city: '',
+    zip: '',
+    state: '',
+    country: '',
+    // Other details
+    empAssigned: '',
+    channelPartner: '',
+    sourceType: '',
+    source: '',
+    competitor: '',
+    budget: '',
   });
+
+  const fetchMasterData = async () => {
+    try {
+      const res = await odooService.getMasterData();
+      if (res && res.partners) {
+        setMasterData({
+          partners: res.partners,
+          architects: res.partners.filter(p => p.is_architect),
+          electricians: res.partners.filter(p => p.is_electrician),
+        });
+      }
+    } catch (err) {
+      console.error("Master data fetch failed", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMasterData();
+  }, []);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -38,12 +65,25 @@ const CreateCustomer = ({ onNavigate }) => {
     if (!canSubmit || saving) return;
     setSaving(true);
     try {
-      // Mapping to Odoo fields (minimal mapping based on existing backend)
       const res = await odooService.createPartner({
         name: customer.name,
         phone: customer.mobile,
-        email: '',
         comment: customer.billing_address,
+        street: customer.street,
+        street2: customer.street2,
+        city: customer.city,
+        zip: customer.zip,
+        state_name: customer.state,
+        country_name: customer.country,
+        electrician_id: parseInt(customer.electricianId) || false,
+        architect_id: parseInt(customer.architectId) || false,
+        other_name: customer.otherName,
+        other_number: customer.otherNumber,
+        budget: customer.budget,
+        competitor: customer.competitor,
+        source_type: customer.sourceType,
+        source_name: customer.source,
+        emp_assigned: customer.empAssigned
       });
 
       if (!res) {
@@ -73,50 +113,233 @@ const CreateCustomer = ({ onNavigate }) => {
           </button>
         </div>
 
-        <div className="form-grid">
-          <div className="form-group">
-            <label>Party Name *</label>
-            <input className="form-control" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="Please enter party name" />
+        <div className="form-selection-layout">
+          <div className="selection-group">
+            {/* Client (New Customer Details) */}
+            <div className="selection-item">
+              <label>Client</label>
+              <div className="selection-card-box">
+                <div className="selection-card-content">
+                  <div className="selection-card-top p-input-field">
+                    <input 
+                      className="clean-input" 
+                      value={customer.name} 
+                      onChange={(e) => setCustomer({ ...customer, name: e.target.value })} 
+                      placeholder="Enter Party Name" 
+                    />
+                  </div>
+                  <div className="selection-divider"></div>
+                  <div className="selection-card-bottom">
+                    <Phone size={14} className="text-slate-400" />
+                    <input 
+                      className="clean-input phone-input" 
+                      value={customer.mobile} 
+                      onChange={(e) => setCustomer({ ...customer, mobile: e.target.value })} 
+                      placeholder="Enter Mobile Number" 
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Electrician Selection */}
+            <div className="selection-item">
+              <label>Electrician</label>
+              <div className="selection-card-box">
+                <div className="selection-card-content">
+                  <div className="selection-card-top">
+                    <SearchableSelect
+                      placeholder="Select Electrician"
+                      value={customer.electricianId}
+                      onChange={(val) => setCustomer({ ...customer, electricianId: val })}
+                      options={masterData.electricians.map((e) => ({ value: e.id, label: e.name || 'Unknown' }))}
+                      className="clean-select"
+                    />
+                  </div>
+                  <div className="selection-divider"></div>
+                  <div className="selection-card-bottom">
+                    <Phone size={14} className="text-slate-400" />
+                    <span>{(masterData.electricians.find(e => e.id === parseInt(customer.electricianId)))?.phone || '-'}</span>
+                  </div>
+                </div>
+              </div>
+              <button className="selection-add-new">
+                <Plus size={14} /> Add New
+              </button>
+            </div>
+
+            {/* Architect Selection */}
+            <div className="selection-item">
+              <label>Architect</label>
+              <div className="selection-card-box">
+                <div className="selection-card-content">
+                  <div className="selection-card-top">
+                    <SearchableSelect
+                      placeholder="Select Architect"
+                      value={customer.architectId}
+                      onChange={(val) => setCustomer({ ...customer, architectId: val })}
+                      options={masterData.architects.map((a) => ({ value: a.id, label: a.name || 'Unknown' }))}
+                      className="clean-select"
+                    />
+                  </div>
+                  <div className="selection-divider"></div>
+                  <div className="selection-card-bottom">
+                    <Phone size={14} className="text-slate-400" />
+                    <span>{(masterData.architects.find(a => a.id === parseInt(customer.architectId)))?.phone || '-'}</span>
+                  </div>
+                </div>
+              </div>
+              <button className="selection-add-new">
+                <Plus size={14} /> Add New
+              </button>
+            </div>
+
+            {/* Others Block */}
+            <div className="selection-item">
+              <label>Others</label>
+              <div className="selection-card-box">
+                <div className="selection-card-content">
+                  <div className="selection-card-top p-input-field">
+                    <input 
+                      className="clean-input" 
+                      value={customer.otherName} 
+                      onChange={(e) => setCustomer({ ...customer, otherName: e.target.value })} 
+                      placeholder="Enter Name" 
+                    />
+                  </div>
+                  <div className="selection-divider"></div>
+                  <div className="selection-card-bottom">
+                    <Phone size={14} className="text-slate-400" />
+                    <input 
+                      className="clean-input phone-input" 
+                      value={customer.otherNumber} 
+                      onChange={(e) => setCustomer({ ...customer, otherNumber: e.target.value })} 
+                      placeholder="Enter Number" 
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="form-group">
-            <label>Billing Name</label>
-            <input className="form-control" value={customer.billing_name} onChange={(e) => setCustomer({ ...customer, billing_name: e.target.value })} placeholder="Please enter billing name" />
+        </div>
+
+        {/* Address Details Card (Odoo Style) */}
+        <div className="address-details-card">
+          <div className="od-header">
+            <MapPin size={18} />
+            <h3>Address</h3>
           </div>
-          <div className="form-group">
-            <label>Contact Person</label>
-            <input className="form-control" value={customer.contact_person} onChange={(e) => setCustomer({ ...customer, contact_person: e.target.value })} placeholder="Please enter contact person" />
+          <div className="address-form-content">
+            <input 
+              className="clean-input w-full mb-3" 
+              placeholder="Street..." 
+              value={customer.street} 
+              onChange={(e) => setCustomer({...customer, street: e.target.value})} 
+            />
+            <input 
+              className="clean-input w-full mb-3" 
+              placeholder="Street 2..." 
+              value={customer.street2} 
+              onChange={(e) => setCustomer({...customer, street2: e.target.value})} 
+            />
+            <div className="address-grid-3 mb-3">
+              <input 
+                className="clean-input" 
+                placeholder="City" 
+                value={customer.city} 
+                onChange={(e) => setCustomer({...customer, city: e.target.value})} 
+              />
+              <input 
+                className="clean-input" 
+                placeholder="ZIP" 
+                value={customer.zip} 
+                onChange={(e) => setCustomer({...customer, zip: e.target.value})} 
+              />
+              <input 
+                className="clean-input" 
+                placeholder="State" 
+                value={customer.state} 
+                onChange={(e) => setCustomer({...customer, state: e.target.value})} 
+              />
+            </div>
+            <input 
+              className="clean-input w-full" 
+              placeholder="Country" 
+              value={customer.country} 
+              onChange={(e) => setCustomer({...customer, country: e.target.value})} 
+            />
           </div>
-          <div className="form-group">
-            <label>Mobile Number</label>
-            <input className="form-control" value={customer.mobile} onChange={(e) => setCustomer({ ...customer, mobile: e.target.value })} placeholder="Please enter mobile number" />
+        </div>
+
+        {/* Other Details Card */}
+        <div className="other-details-card">
+          <div className="od-header">
+            <Activity size={18} />
+            <h3>Other Details</h3>
           </div>
-          <div className="form-group">
-            <label>Billing Address</label>
-            <textarea className="form-control" rows={3} value={customer.billing_address} onChange={(e) => setCustomer({ ...customer, billing_address: e.target.value })} placeholder="Please enter billing address" />
-          </div>
-          <div className="form-group">
-            <label>Delivery Address</label>
-            <textarea className="form-control" rows={3} value={customer.delivery_address} onChange={(e) => setCustomer({ ...customer, delivery_address: e.target.value })} placeholder="Please enter delivery address" />
-          </div>
-          <div className="form-group">
-            <label>Electrician</label>
-            <input className="form-control" value={customer.electrician} onChange={(e) => setCustomer({ ...customer, electrician: e.target.value })} placeholder="Please enter electrician" />
-          </div>
-          <div className="form-group">
-            <label>Electrician Number</label>
-            <input className="form-control" value={customer.electrician_number} onChange={(e) => setCustomer({ ...customer, electrician_number: e.target.value })} placeholder="Please enter electrician number" />
-          </div>
-          <div className="form-group">
-            <label>Architect</label>
-            <input className="form-control" value={customer.architect} onChange={(e) => setCustomer({ ...customer, architect: e.target.value })} placeholder="Please enter architect" />
-          </div>
-          <div className="form-group">
-            <label>Architect Number</label>
-            <input className="form-control" value={customer.architect_number} onChange={(e) => setCustomer({ ...customer, architect_number: e.target.value })} placeholder="Please enter architect number" />
-          </div>
-          <div className="form-group">
-            <label>Office Contact Person</label>
-            <input className="form-control" value={customer.office_contact_person} onChange={(e) => setCustomer({ ...customer, office_contact_person: e.target.value })} placeholder="Please enter office contact person" />
+          <div className="od-content">
+            <div className="od-row">
+              <span className="od-label">Emp assigned</span>
+              <input 
+                className="od-input" 
+                value={customer.empAssigned} 
+                onChange={(e) => setCustomer({ ...customer, empAssigned: e.target.value })} 
+                placeholder="Name" 
+              />
+            </div>
+            <div className="od-row">
+              <span className="od-label">Channel Partner</span>
+              <input 
+                className="od-input" 
+                value={customer.channelPartner}
+                onChange={(e) => setCustomer({ ...customer, channelPartner: e.target.value })} 
+                placeholder="Channel Partner" 
+              />
+            </div>
+            <div className="od-row">
+              <span className="od-label">Source Type</span>
+              <input 
+                className="od-input" 
+                value={customer.sourceType} 
+                onChange={(e) => setCustomer({ ...customer, sourceType: e.target.value })} 
+                placeholder="Source Type" 
+              />
+            </div>
+            <div className="od-row">
+              <span className="od-label">Source</span>
+              <input 
+                className="od-input" 
+                value={customer.source} 
+                onChange={(e) => setCustomer({ ...customer, source: e.target.value })} 
+                placeholder="Source" 
+              />
+            </div>
+            <div className="od-row">
+              <span className="od-label">Want to cover</span>
+              <input 
+                className="od-input" 
+                placeholder="--" 
+              />
+            </div>
+            <div className="od-row">
+              <span className="od-label">Competitor</span>
+              <input 
+                className="od-input" 
+                value={customer.competitor} 
+                onChange={(e) => setCustomer({ ...customer, competitor: e.target.value })} 
+                placeholder="--" 
+              />
+            </div>
+            <div className="od-row">
+              <span className="od-label">Budget</span>
+              <input 
+                className="od-input" 
+                type="number"
+                value={customer.budget} 
+                onChange={(e) => setCustomer({ ...customer, budget: e.target.value })} 
+                placeholder="0" 
+              />
+            </div>
           </div>
         </div>
 

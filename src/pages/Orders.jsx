@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Eye, Edit, Trash2, RefreshCcw, CheckCircle, XCircle, ChevronDown, MoreVertical } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, CheckCircle, XCircle, ChevronDown, MoreVertical, Eye } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import './Products.css'; // Global DataTable styles
 
@@ -8,7 +8,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [openDropdown, setOpenDropdown] = useState(null);
+  const [openDropdownId, setOpenDropdownId] = useState(null);
   const [isMobile, setIsMobile] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth <= 768 : false
   ));
@@ -28,6 +28,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
       console.error("Fetch orders failed");
     }
   }, [stateType]);
+
 
   useEffect(() => {
     fetchOrders();
@@ -51,25 +52,37 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   };
 
   const handleConfirm = async (id) => {
-    if (!window.confirm("Are you sure you want to confirm this?")) return;
+    const isQuotation = stateType === 'quotation';
+    if (!window.confirm(`Confirm this ${isQuotation ? 'quotation' : 'order'}?`)) return;
     try {
-      const res = await odooService.confirmOrder(id);
-      if (res.success) { alert("Confirmed!"); fetchOrders(); }
-      else alert(res.error?.message || "Failed to confirm");
+      const res = isQuotation ? await odooService.confirmQuotation(id) : await odooService.confirmOrder(id);
+      if (res.success) {
+        alert(`${isQuotation ? 'Quotation' : 'Order'} Confirmed!`);
+        fetchOrders();
+      } else {
+        alert(res.error?.message || "Failed to confirm");
+      }
     } catch {
       alert("Network error");
     }
   };
 
   const handleDecline = async (id) => {
-     const reason = window.prompt("Reason for decline:");
-     if (reason === null) return;
-     try {
-       const res = await odooService.declineOrder(id, reason);
-       if (res.success) { alert("Declined!"); fetchOrders(); }
-       else alert(res.error?.message || "Failed to decline");
-    } catch {
-      alert("Network error");
+    const isQuotation = stateType === 'quotation';
+    if (isQuotation) {
+      if (!window.confirm("Decline this quotation?")) return;
+      try {
+        const res = await odooService.declineQuotation(id);
+        if (res.success) { alert("Quotation Declined"); fetchOrders(); }
+      } catch { alert("Error declining quotation"); }
+    } else {
+      const reason = window.prompt("Reason for decline:");
+      if (reason === null) return;
+      try {
+        const res = await odooService.declineOrder(id, reason);
+        if (res.success) { alert("Order Declined!"); fetchOrders(); }
+        else alert(res.error?.message || "Failed to decline");
+      } catch { alert("Network error"); }
     }
   };
 
@@ -136,7 +149,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
            </div>
         </div>
 
-        <div className="table-wrapper overflow-x-auto border border-slate-200 rounded-lg">
+        <div className="table-wrapper border border-slate-200 rounded-lg">
           <table className="products-datatable w-full">
             <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
               <tr>
@@ -150,7 +163,11 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
             </thead>
             <tbody className="divide-y divide-slate-100 text-[13px] text-slate-600">
               {currentItems.map((order, idx) => (
-                <tr key={order.id} className="hover:bg-slate-50 transition-colors">
+                <tr 
+                  key={order.id} 
+                  className="row-hover"
+                  onClick={() => onNavigate('order-detail', order.id)}
+                >
                   <td className="py-3 px-4" data-label="No">{indexOfFirstItem + idx + 1}</td>
                   <td className="py-3 px-4 font-bold text-slate-800 text-[12px]" data-label={stateType === 'quotation' ? 'Quotation #' : 'Sale Order #'}>{order.name}</td>
                   <td className="py-3 px-4 font-medium text-slate-700" data-label="Customer">{order.customer || '-'}</td>
@@ -160,35 +177,86 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                       {order.status}
                     </span>
                   </td>
-                  <td className="py-3 px-4 border-none relative" data-label="Action">
-                    <div className="action-buttons-container">
-                      <button className="action-box-btn view" title="View" onClick={() => onNavigate('order-detail', order.id)}>
-                        <Eye size={14} />
-                      </button>
-                      <button className="action-box-btn menu" title="More Actions" onClick={() => setOpenDropdown(openDropdown === order.id ? null : order.id)}>
-                        <ChevronDown size={14} />
-                      </button>
+                  <td 
+                    className="py-4 px-4 border-none" 
+                    data-label="Action" 
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseEnter={() => setOpenDropdownId(order.id)}
+                    onMouseLeave={() => setOpenDropdownId(null)}
+                  >
+                    <div className="flex justify-center">
+                      <div className="relative">
+                        <button 
+                          className={`p-2 rounded-full transition-all duration-200 ${openDropdownId === order.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ChevronDown size={18} className={`transition-transform duration-200 ${openDropdownId === order.id ? 'rotate-90' : ''}`} />
+                        </button>
+
+                        {openDropdownId === order.id && (
+                          <div 
+                            className="action-dropdown-popover"
+                            onMouseEnter={() => setOpenDropdownId(order.id)}
+                            onMouseLeave={() => setOpenDropdownId(null)}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button 
+                              className="btn-action-soft btn-edit-soft"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                onNavigate('order-detail', order.id);
+                              }}
+                            >
+                              <Eye size={14} />
+                              <span>View Detail</span>
+                            </button>
+
+                            {(order.status === 'draft' || order.status === 'sent') && (
+                              <button 
+                                className="btn-action-soft btn-edit-soft"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                  onNavigate('create-order', order.id);
+                                }}
+                              >
+                                <Edit size={14} />
+                                <span>Edit Detail</span>
+                              </button>
+                            )}
+                            
+                            {(stateType === 'quotation' || order.status === 'draft' || order.status === 'sent') && (
+                              <>
+                                <button 
+                                  className="btn-action-soft btn-confirm-soft"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownId(null);
+                                    handleConfirm(order.id);
+                                  }}
+                                >
+                                  <CheckCircle size={14} />
+                                  <span>Confirm Order</span>
+                                </button>
+                                
+                                <button 
+                                  className="btn-action-soft btn-cancel-soft"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownId(null);
+                                    handleDecline(order.id);
+                                  }}
+                                >
+                                  <XCircle size={14} />
+                                  <span>Cancel Order</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {openDropdown === order.id && (
-                       <div className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 shadow-xl rounded-lg z-[100] py-2 overflow-hidden ring-4 ring-black/5 animate-in fade-in slide-in-from-top-2">
-                          <button className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-600 flex items-center gap-2" onClick={() => { onNavigate('create-order', order.id); setOpenDropdown(null); }}>
-                            <Edit size={14} /> Edit
-                          </button>
-                          {(stateType === 'quotation' || order.status === 'draft' || order.status === 'sent') && (
-                            <>
-                              <button className="w-full text-left px-4 py-2 hover:bg-green-50 text-green-600 flex items-center gap-2" onClick={() => { handleConfirm(order.id); setOpenDropdown(null); }}>
-                                <CheckCircle size={14} /> Confirm
-                              </button>
-                              <button className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2" onClick={() => { handleDecline(order.id); setOpenDropdown(null); }}>
-                                <XCircle size={14} /> Decline
-                              </button>
-                            </>
-                          )}
-                          <button className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 border-t border-slate-100 mt-1 flex items-center gap-2">
-                            <Trash2 size={14} /> Delete
-                          </button>
-                       </div>
-                    )}
                   </td>
                 </tr>
               ))}
@@ -212,8 +280,6 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
            </div>
         </div>
       </div>
-      {/* Click outside closer */}
-      {openDropdown && <div className="fixed inset-0 z-[50]" onClick={() => setOpenDropdown(null)}></div>}
     </div>
   );
 };

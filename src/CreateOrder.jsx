@@ -1,7 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { odooService } from './services/odoo';
 import SearchableSelect from './components/SearchableSelect';
-import { Plus, X } from 'lucide-react';
+import { 
+  Plus, 
+  X, 
+  ChevronRight, 
+  ChevronDown,
+  Activity, 
+  Users, 
+  Phone, 
+  Paperclip, 
+  CheckSquare,
+  Send,
+  FileText,
+  ToggleRight,
+  Sparkles,
+  Wind,
+  Lightbulb,
+  Layers,
+  MoreHorizontal,
+  MapPin
+} from 'lucide-react';
 import './CreateOrder.css';
 
 const createProductRow = () => ({
@@ -26,21 +45,96 @@ const CreateOrder = ({ editId, onNavigate }) => {
   const [masterData, setMasterData] = useState({
     partners: [],
     products: [],
-    architects: [],
-    electricians: [],
   });
 
   const [orderHeader, setOrderHeader] = useState({
     partnerId: '',
     date: new Date().toISOString().split('T')[0],
-    architectId: '',
-    electricianId: '',
     remark: ''
   });
+
+  const [showProducts, setShowProducts] = useState(false);
+  const [showMore, setShowMore] = useState('call');
 
   const [rows, setRows] = useState([
     createProductRow()
   ]);
+
+  const [activityInputs, setActivityInputs] = useState({});
+  const [activityHistory, setActivityHistory] = useState({
+    call: [],
+    whatsapp: [],
+    visit: [],
+    email: []
+  });
+  const [generalNotes, setGeneralNotes] = useState([]);
+  const [generalNoteInput, setGeneralNoteInput] = useState('');
+  const [debugRawData, setDebugRawData] = useState(null);
+
+  const handleAddGeneralNote = () => {
+    if (!generalNoteInput.trim()) return;
+    const newNote = {
+      id: Date.now(),
+      text: generalNoteInput,
+      by: 'CurrentUser',
+      date: new Date().toLocaleString()
+    };
+    setGeneralNotes(prev => [...prev, newNote]);
+    setGeneralNoteInput('');
+  };
+
+  const handleImageUpload = async (id, files) => {
+    const fileArray = Array.from(files);
+    const base64Promises = fileArray.map(file => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    }));
+
+    try {
+      const base64Images = await Promise.all(base64Promises);
+      setActivityInputs(prev => {
+        const current = prev[id] || { text: '', images: [] };
+        return {
+          ...prev,
+          [id]: { ...current, images: [...current.images, ...base64Images] }
+        };
+      });
+    } catch (err) {
+      console.error("Image upload failed", err);
+    }
+  };
+
+  const handleRemoveImageInput = (actId, imgIdx) => {
+    setActivityInputs(prev => {
+      const current = prev[actId];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [actId]: { ...current, images: current.images.filter((_, i) => i !== imgIdx) }
+      };
+    });
+  };
+
+  const handleAddActivityNote = (id) => {
+    const input = activityInputs[id] || { text: '', images: [] };
+    if (!input.text && input.images.length === 0) return;
+    
+    const newNote = {
+      id: Date.now(),
+      text: input.text,
+      images: input.images,
+      by: 'CurrentUser',
+      date: new Date().toLocaleString()
+    };
+    
+    setActivityHistory(prev => ({
+      ...prev,
+      [id]: [...(prev[id] || []), newNote]
+    }));
+    setActivityInputs(prev => ({ ...prev, [id]: { text: '', images: [] } }));
+  };
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -92,9 +186,27 @@ const CreateOrder = ({ editId, onNavigate }) => {
       }
 
       // Update cache and state
+      // Update cache and state without wiping newly injected edit items
       if (newData.products.length > 0 || newData.partners.length > 0) {
-        Object.assign(dataCache, newData);
-        setMasterData(newData);
+        setMasterData(prev => {
+          // Merge arrays securely using Map to preserve existing UI items (specifically injected by edit flow)
+          const mergeArrays = (arr1, arr2) => {
+             const map = new Map();
+             (arr1 || []).forEach(item => map.set(item.id, item));
+             (arr2 || []).forEach(item => map.set(item.id, item));
+             return Array.from(map.values());
+          };
+
+          const result = {
+            ...prev,
+            ...newData,
+            products: mergeArrays(prev.products, newData.products),
+            partners: mergeArrays(prev.partners, newData.partners)
+          };
+          
+          Object.assign(dataCache, result);
+          return result;
+        });
       }
     } catch (err) {
       console.error('Fetch master data failed', err);
@@ -106,24 +218,90 @@ const CreateOrder = ({ editId, onNavigate }) => {
     try {
       const data = await odooService.getOrderDetail(editId);
       if (data) {
+        if (data.state === 'sale' || data.status === 'sale') {
+           alert("This order is confirmed and can no longer be edited.");
+           return;
+        }
+        
+        setDebugRawData(data);
+
+        const extractId = (val) => {
+          if (val === null || val === undefined || val === false) return '';
+          if (Array.isArray(val)) return val.length > 0 ? val[0] : '';
+          if (typeof val === 'object') {
+             return val.id || val.value || val.product_id || val.partner_id || '';
+          }
+          return val;
+        };
+
+        const extractName = (val) => {
+          if (Array.isArray(val) && val.length > 1) return val[1];
+          if (typeof val === 'object' && val !== null) return val.name || val.display_name || '';
+          return 'Unknown';
+        };
+
+        const missingPartners = [];
+        const missingProducts = [];
+
+        let pId = extractId(data.partner_id) || extractId(data.customer_id);
+        if (!pId && data.partner_name) {
+          // Attempt reverse lookup if cache is available
+          const cachedPartner = dataCache.partners?.find(p => p.name === data.partner_name);
+          pId = cachedPartner ? cachedPartner.id : `_GHOST_PARTNER-${data.partner_name}`;
+        }
+        
+        if (pId && String(pId).startsWith('_GHOST_PARTNER-')) {
+          missingPartners.push({ id: pId, name: data.partner_name });
+        } else if (pId && !masterData.partners.find(p => p.id === pId)) {
+          missingPartners.push({ id: pId, name: extractName(data.partner_id || data.customer_id) || data.partner_name });
+        }
+
         setOrderHeader({
-          partnerId: data.partner_id || '',
-          date: data.date_order || new Date().toISOString().split('T')[0],
-          architectId: data.architect_id || '',
-          electricianId: data.electrician_id || '',
+          partnerId: pId,
+          date: data.date_order ? data.date_order.split(' ')[0] : new Date().toISOString().split('T')[0],
+          architectId: extractId(data.architect_id) || extractId(data.architect) || '',
+          electricianId: extractId(data.electrician_id) || extractId(data.electrician) || '',
           remark: data.remark || ''
         });
-        const lineItems = data.lines || [];
-        const productLines = lineItems.filter(l => !l.line_type || l.line_type === 'product');
+        
+        const lineItems = data.lines || data.order_line || [];
+        const productLines = lineItems.filter(l => !l.line_type || l.line_type === 'product' || !!l.product_id || l.product_uom_qty > 0 || l.qty > 0 || !!l.product_name);
 
-        setRows(productLines.length ? productLines.map((l, i) => ({
-          id: l.id || Date.now() + i,
-          productId: l.product_id || '',
-          qty: l.qty || 1,
-          price: l.price_unit || 0,
-          discount: l.discount || 0,
-          remark: l.remark || l.name || ''
-        })) : [createProductRow()]);
+        setRows(productLines.length ? productLines.map((l, i) => {
+          let prodId = extractId(l.product_id) || extractId(l.product) || extractId(l.product_template_id) || extractId(l.product_tmpl_id);
+          const searchName = l.product_name || l.name;
+          
+          if (!prodId && searchName) {
+            const cachedProduct = dataCache.products?.find(p => p.name === searchName || p.default_code === l.product_code);
+            prodId = cachedProduct ? cachedProduct.id : `_GHOST_PRODUCT-${searchName}`;
+          }
+
+          if (prodId && String(prodId).startsWith('_GHOST_PRODUCT-')) {
+             let ghostName = prodId.replace('_GHOST_PRODUCT-', '');
+             missingProducts.push({ id: prodId, name: ghostName });
+          } else if (prodId && !masterData.products.find(p => p.id === prodId)) {
+             const extractedName = extractName(l.product_id || l.product || l.product_template_id || l.product_tmpl_id);
+             missingProducts.push({ id: prodId, name: extractedName !== 'Unknown' ? extractedName : (searchName || 'Unknown Product') });
+          }
+          return {
+            id: l.id || Date.now() + i,
+            productId: prodId || '',
+            qty: l.product_uom_qty || l.qty || 1,
+            price: l.price_unit || l.price || 0,
+            discount: l.discount || 0,
+            remark: searchName || l.remark || l.description || ''
+          };
+        }) : [createProductRow()]);
+        
+        if (missingPartners.length > 0 || missingProducts.length > 0) {
+          setMasterData(prev => ({
+            ...prev,
+            partners: [...prev.partners, ...missingPartners],
+            products: [...prev.products, ...missingProducts]
+          }));
+        }
+
+        setShowProducts(productLines.length > 0);
       }
     } catch {
       console.error('Edit fetch failed');
@@ -193,27 +371,73 @@ const CreateOrder = ({ editId, onNavigate }) => {
   };
 
   const handleProcess = async () => {
-    if (!orderHeader.partnerId) return alert("Please select a customer.");
+
+    const resolveGhostId = (ghostId, type) => {
+      if (String(ghostId).startsWith(`_GHOST_${type.toUpperCase()}-`)) {
+        const trueName = String(ghostId).replace(`_GHOST_${type.toUpperCase()}-`, '');
+        const list = type === 'partner' ? masterData.partners : masterData.products;
+        const real = list.find(item => item.name === trueName);
+        return real ? real.id : null;
+      }
+      return ghostId;
+    };
+
+    const finalPartnerId = parseInt(resolveGhostId(orderHeader.partnerId, 'partner'));
+    if (!finalPartnerId || isNaN(finalPartnerId)) return alert("Please select a valid customer from the database.");
+
     setLoading(true);
     try {
-      const productLines = rows.filter(r => r.productId).map(r => ({
-        product_id: parseInt(r.productId),
-        qty: parseFloat(r.qty) || 0,
-        price_unit: parseFloat(r.price) || 0,
-        discount: parseFloat(r.discount) || 0,
-        name: r.remark,
-        line_type: 'product'
-      }));
-
-      const res = await odooService.createQuotation(parseInt(orderHeader.partnerId), productLines, {
-        architect_id: orderHeader.architectId ? parseInt(orderHeader.architectId) : null,
-        electrician_id: orderHeader.electricianId ? parseInt(orderHeader.electricianId) : null,
-        remark: orderHeader.remark,
+      const productLines = rows.filter(r => r.productId).map(r => {
+        let finalProdId = parseInt(resolveGhostId(r.productId, 'product'));
+        return {
+          product_id: finalProdId || 0,
+          qty: parseFloat(r.qty) || 0,
+          price_unit: parseFloat(r.price) || 0,
+          discount: parseFloat(r.discount) || 0,
+          name: r.remark,
+          line_type: 'product'
+        };
       });
 
+      const amyNoteLines = [];
+      Object.keys(activityHistory).forEach(type => {
+        activityHistory[type].forEach(note => {
+          if (note.images && note.images.length > 0) {
+            note.images.forEach(imgBase64 => {
+              amyNoteLines.push({ note_type: type, text: note.text, image: imgBase64.split(',')[1] });
+            });
+          } else if (note.text) {
+            amyNoteLines.push({ note_type: type, text: note.text });
+          }
+        });
+      });
+
+      Object.keys(activityInputs).forEach(type => {
+        const input = activityInputs[type];
+        if (!input) return;
+        if (input.images && input.images.length > 0) {
+          input.images.forEach(imgBase64 => {
+            amyNoteLines.push({ note_type: type, text: input.text, image: imgBase64.split(',')[1] });
+          });
+        } else if (input.text) {
+          amyNoteLines.push({ note_type: type, text: input.text });
+        }
+      });
+
+      generalNotes.forEach(note => {
+        amyNoteLines.push({ note_type: 'general', text: note.text });
+      });
+
+      const extraData = {
+        remark: orderHeader.remark,
+        amy_note_lines: amyNoteLines
+      };
+
+      const res = await odooService.createQuotation(finalPartnerId, productLines, extraData);
       if (res.success) {
         alert(editId ? "Order Updated" : "Order Created");
-        onNavigate('orders');
+        setActivityHistory({});
+        onNavigate('quotations');
       } else {
         alert(res.error?.message || "Error processing order");
       }
@@ -224,143 +448,219 @@ const CreateOrder = ({ editId, onNavigate }) => {
     }
   };
 
+  const selectedPartner = masterData.partners.find(p => p.id === parseInt(orderHeader.partnerId));
+
   if (loading) return <div className="p-20 text-center text-slate-500">Processing...</div>;
 
   return (
     <div className="create-order-page dt-page">
-        <div className="dt-card">
-          <div className="dt-header co-header">
-          <div className="co-title">
-            <h2>{editId ? "Edit Quotation" : "Create Quotation"}</h2>
-            <p className="co-subtitle">Select a customer, add product lines, and submit the quotation.</p>
-          </div>
-          <div className="co-actions">
-            <button className="co-btn co-btn-primary" onClick={() => onNavigate('create-customer')}>New Customer</button>
-            <button className="co-btn co-btn-primary" onClick={() => onNavigate('create-product')}>New Product</button>
-          </div>
-        </div>
-
-        <div className="dt-form co-form">
-          <div className="form-group">
-            <label>Customer *</label>
-            <SearchableSelect
-              placeholder="Select Customer..."
-              value={orderHeader.partnerId}
-              onChange={(val) => setOrderHeader({ ...orderHeader, partnerId: val })}
-              options={masterData.partners.map((p) => ({
-                value: p.id,
-                label: p.name,
-              }))}
-            />
-          </div>
-          <div className="form-group">
-            <label>Order Date</label>
-            <input 
-              type="date" 
-              value={orderHeader.date}
-              onChange={e => setOrderHeader({...orderHeader, date: e.target.value})}
-            />
-          </div>
-        </div>
-
-        <div className="products-table-section">
-          <div className="co-section-header">
-            <h3>Products</h3>
-            <button className="co-btn co-btn-primary" onClick={addRow}>
-              <Plus size={16} /> Add Product
+      <div className="co-container">
+        <div className="co-card lead-card">
+          <div className="co-card-header">
+            <h3>Customer Selection</h3>
+            <button className="co-btn-icon" onClick={() => onNavigate('create-customer')}>
+              <Plus size={18} />
             </button>
           </div>
-          <div className="table-wrapper">
-            <table className="co-table">
-              <thead>
-                <tr>
-                  <th>Sr. No</th>
-                  <th>Product</th>
-                  <th>Quantity</th>
-                  <th>Price</th>
-                  <th>Discount %</th>
-                  <th>Remark</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, idx) => (
-                  <tr key={r.id}>
-                    <td className="co-cell-strong" data-label="Sr. No">{idx + 1}</td>
-                    <td className="co-col-product" data-label="Product">
+          <div className="co-card-body">
+            <div className="form-group">
+              <label>Select Customer *</label>
+              <SearchableSelect
+                placeholder="Choose a customer..."
+                value={orderHeader.partnerId}
+                onChange={(val) => setOrderHeader({ ...orderHeader, partnerId: val })}
+                options={masterData.partners.map((p) => ({ value: p.id, label: p.name }))}
+              />
+            </div>
+            {selectedPartner && (
+              <div className="lead-body-simple">
+                <div className="lead-left">
+                  <div className="lead-info-row">
+                    <span className="lead-label">Customer Name</span>
+                    <span className="lead-value-name">{selectedPartner.name}</span>
+                  </div>
+                  <div className="lead-info-row">
+                    <span className="lead-label">Contact No.</span>
+                    <div className="lead-value contact-val">
+                      <Phone size={14} className="text-blue-500" />
+                      <span>{selectedPartner.phone || '9558124328'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="lead-right">
+                  <div className="lead-info-row address-row">
+                    <span className="lead-label">Address</span>
+                    <div className="lead-value address-val">
+                      <MapPin size={14} className="text-blue-500" />
+                      <span>{[selectedPartner.street, selectedPartner.city, selectedPartner.zip].filter(Boolean).join(', ') || 'Nanapura, Surat'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="co-expandable-card">
+          <div className="co-expand-header" onClick={() => setShowProducts(!showProducts)}>
+            <h2>Quotation</h2>
+            <div className={`co-chevron ${showProducts ? 'open' : ''}`}>
+              <ChevronRight size={18} />
+            </div>
+          </div>
+          {showProducts && (
+            <div className="co-card-body product-cards-list">
+              {rows.map((r) => (
+                <div key={r.id} className="product-item-card">
+                  <div className="pi-header">
+                    <button className="pi-remove" onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="pi-grid">
+                    <div className="form-group no-label">
                       <SearchableSelect
                         placeholder="Select Product..."
                         value={r.productId}
+                        options={masterData.products.map(p => ({ ...p, value: p.id, label: p.name }))}
                         onChange={(val) => handleRowChange(r.id, 'productId', val)}
-                        options={masterData.products.map((p) => ({
-                          value: p.id,
-                          label: p.default_code ? `[${p.default_code}] ${p.name}` : p.name,
-                        }))}
-                        />
-                    </td>
-                    <td className="co-col-qty" data-label="Quantity">
-                       <input 
-                          type="number" 
-                          value={r.qty}
-                          onChange={e => handleRowChange(r.id, 'qty', e.target.value)}
-                       />
-                    </td>
-                    <td className="co-col-price" data-label="Price">
-                       <input 
-                          type="number" 
-                          value={r.price}
-                          onChange={e => handleRowChange(r.id, 'price', e.target.value)}
-                       />
-                    </td>
-                    <td className="co-col-discount" data-label="Discount %">
-                       <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={r.discount}
-                          onChange={e => handleRowChange(r.id, 'discount', e.target.value)}
-                       />
-                    </td>
-                    <td className="co-col-remark" data-label="Remark">
-                       <textarea 
-                          rows="1"
-                          placeholder="Please enter remark"
-                          value={r.remark}
-                          onChange={e => handleRowChange(r.id, 'remark', e.target.value)}
-                       />
-                    </td>
-                    <td className="co-cell-actions" data-label="Action">
-                       <button className="co-btn co-btn-danger" onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))} aria-label="Remove product row">
-                         <X size={16} />
-                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      />
+                    </div>
+                    <div className="pi-sub-grid">
+                      <div className="form-group pi-small-input">
+                        <label className="pi-small-label">Qty</label>
+                        <input type="number" className="co-input-clean" value={r.qty} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} />
+                      </div>
+                      <div className="form-group pi-small-input">
+                        <label className="pi-small-label">Price</label>
+                        <input type="number" className="co-input-clean" value={r.price} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} />
+                      </div>
+                      <div className="form-group pi-small-input">
+                        <label className="pi-small-label">Discount %</label>
+                        <input type="number" className="co-input-clean" value={r.discount} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button className="co-btn-secondary w-full py-3" onClick={addRow} style={{ marginTop: '1rem' }}>
+                <Plus size={18} style={{ marginRight: '8px' }} />
+                Add Product Row
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="co-card main-notes-card">
+          <div className="co-card-header">
+            <h2>Notes</h2>
+            <Plus size={18} />
+          </div>
+          <div className="co-card-body">
+            <div className="general-notes-list">
+              {generalNotes.map(note => (
+                <div key={note.id} className="general-note-item">
+                  <div className="gn-avatar-wrapper">
+                    <div className="gn-avatar">{note.by.substring(0,2).toUpperCase()}</div>
+                  </div>
+                  <div className="gn-content">
+                    <p className="gn-text">{note.text}</p>
+                    <div className="gn-meta">
+                      <span className="gn-tag">Task - NOTE</span>
+                      <div className="gn-bottom">
+                        <span className="gn-by">By {note.by}</span>
+                        <span className="gn-date">{note.date}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="gn-input-wrapper">
+              <input type="text" placeholder="Add Note" className="gn-input" value={generalNoteInput} onChange={e => setGeneralNoteInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleAddGeneralNote()} />
+              <Send size={18} className="gn-send-icon" onClick={handleAddGeneralNote} />
+            </div>
           </div>
         </div>
 
-        <div className="remark-section">
-           <label className="co-remark-label">Remark</label>
-           <textarea 
-              className="co-remark"
-              placeholder="Please enter remark"
-              value={orderHeader.remark}
-              onChange={e => setOrderHeader({...orderHeader, remark: e.target.value})}
-           ></textarea>
+        <div className="activity-section">
+          {[
+            { id: 'switches', title: 'Switches', icon: <ToggleRight size={18} /> },
+            { id: 'decorative', title: 'Decorative', icon: <Sparkles size={18} /> },
+            { id: 'fan', title: 'Fan', icon: <Wind size={18} /> },
+            { id: 'lights', title: 'Lights', icon: <Lightbulb size={18} /> },
+            { id: 'profile', title: 'Profile', icon: <Layers size={18} /> },
+            { id: 'others', title: 'Others', icon: <MoreHorizontal size={18} /> },
+            { id: 'tasks', title: 'Tasks', icon: <CheckSquare size={18} /> },
+          ].map((act) => (
+            <div key={act.id} className="activity-card">
+              <div className="activity-header" onClick={() => setShowMore(showMore === act.id ? null : act.id)}>
+                <div className="activity-title-group">
+                  <span className="activity-icon">{act.icon}</span>
+                  <span className="activity-label">{act.title}</span>
+                </div>
+                <div className="activity-actions">
+                  <Plus size={16} />
+                  <ChevronDown size={18} className={showMore === act.id ? 'rotate-180' : ''} />
+                </div>
+              </div>
+              {showMore === act.id && (
+                <div className="activity-body">
+                  {(activityHistory[act.id] || []).map(note => (
+                    <div key={note.id} className="activity-note">
+                      <div className="note-avatar-wrapper">
+                        <div className="note-avatar">{note.by.substring(0,2).toUpperCase()}</div>
+                      </div>
+                      <div className="note-content-wrapper">
+                        {note.text && <p className="note-text">{note.text}</p>}
+                        {note.images && note.images.length > 0 && (
+                          <div className="note-images">
+                            {note.images.map((img, i) => (
+                              <img key={i} src={img} alt="attachment" className="note-img-thumb" onClick={() => window.open(img, '_blank')} />
+                            ))}
+                          </div>
+                        )}
+                        <div className="note-meta">
+                          <span className="note-type">Amy Note - {act.title}</span>
+                          <span className="note-by">By {note.by}</span>
+                          <span className="note-date">{note.date}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="add-note-form-v2">
+                    <div className="note-half left-half">
+                      <textarea placeholder={`Write ${act.title} notes...`} className="v2-textarea" value={activityInputs[act.id]?.text || ''} onChange={e => setActivityInputs(prev => ({ ...prev, [act.id]: { ...(prev[act.id] || { text: '', images: [] }), text: e.target.value } }))} />
+                    </div>
+                    <div className="note-half right-half">
+                      <label className="v2-upload-zone">
+                        <Paperclip size={20} />
+                        <span className="upload-text">Upload Images</span>
+                        <input type="file" multiple accept="image/*" className="hidden-file-input" onChange={e => handleImageUpload(act.id, e.target.files)} />
+                      </label>
+                      {activityInputs[act.id]?.images?.length > 0 && (
+                        <div className="v2-image-previews">
+                          {activityInputs[act.id].images.map((img, i) => (
+                            <div key={i} className="v2-img-item">
+                              <img src={img} alt="attachment" />
+                              <button className="v2-img-remove" onClick={() => handleRemoveImageInput(act.id, i)}><X size={10} /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        <div className="dt-footer co-footer">
-           <button className="co-btn co-btn-primary co-btn-lg" onClick={handleProcess}>
-             {editId ? "Update" : "Submit"}
-           </button>
-           <button className="co-btn co-btn-secondary co-btn-lg" onClick={() => onNavigate('orders')}>
-             Back
-           </button>
+        <div className="co-page-footer">
+          <button className="co-btn co-btn-primary co-btn-lg" onClick={handleProcess}>{editId ? "Update Quotation" : "Submit Quotation"}</button>
+          <button className="co-btn co-btn-secondary co-btn-lg" onClick={() => onNavigate('quotations')}>Back</button>
         </div>
       </div>
-
     </div>
   );
 };

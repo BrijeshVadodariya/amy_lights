@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Eye, Edit, Trash2, Search, RefreshCcw } from 'lucide-react';
+import { ShoppingBag, Eye, Edit, Trash2, Search, RefreshCcw, ChevronDown } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import './Products.css'; // Global DataTable styles
 
@@ -9,6 +9,7 @@ const PurchaseOrders = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [openDropdownId, setOpenDropdownId] = useState(null);
   const [isMobile, setIsMobile] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth <= 768 : false
   ));
@@ -129,7 +130,7 @@ const PurchaseOrders = () => {
            </div>
         </div>
 
-        <div className="table-wrapper overflow-x-auto border border-slate-200 rounded-lg">
+        <div className="table-wrapper border border-slate-200 rounded-lg">
           <table className="products-datatable w-full">
             <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
               <tr>
@@ -144,7 +145,7 @@ const PurchaseOrders = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 text-[13px] text-slate-600">
               {currentItems.map((order, idx) => (
-                <tr key={order.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={order.id} className="row-hover">
                   <td className="py-3 px-4" data-label="No">{indexOfFirstItem + idx + 1}</td>
                   <td className="py-3 px-4 font-bold text-slate-800 text-[12px]" data-label="Purchase Order #">{order.name}</td>
                   <td className="py-3 px-4 font-medium text-slate-700" data-label="Vendor">{order.vendor || '-'}</td>
@@ -157,17 +158,53 @@ const PurchaseOrders = () => {
                       {order.status}
                     </span>
                   </td>
-                  <td className="py-3 px-4 border-none" data-label="Action">
-                    <div className="action-buttons-container">
-                      <button className="action-box-btn view">
-                        <Eye size={14} />
-                      </button>
-                      <button className="action-box-btn edit">
-                        <Edit size={14} />
-                      </button>
-                      <button className="action-box-btn delete">
-                        <Trash2 size={14} />
-                      </button>
+                  <td 
+                    className="py-4 px-4 border-none text-center" 
+                    data-label="Action"
+                    onMouseEnter={() => setOpenDropdownId(order.id)}
+                    onMouseLeave={() => setOpenDropdownId(null)}
+                  >
+                    <div className="flex justify-center">
+                      <div className="relative">
+                        <button 
+                          className={`p-2 rounded-full transition-all duration-200 ${openDropdownId === order.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                        >
+                          <ChevronDown size={18} className={`transition-transform duration-200 ${openDropdownId === order.id ? 'rotate-90' : ''}`} />
+                        </button>
+
+                        {openDropdownId === order.id && (
+                          <div 
+                            className="action-dropdown-popover"
+                            onMouseEnter={() => setOpenDropdownId(order.id)}
+                            onMouseLeave={() => setOpenDropdownId(null)}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button 
+                              className="btn-action-soft btn-edit-soft"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                // View PO logic to be implemented
+                              }}
+                            >
+                              <Eye size={14} />
+                              <span>View Order</span>
+                            </button>
+
+                            <button 
+                              className="btn-action-soft btn-edit-soft"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                // Edit PO logic to be implemented
+                              }}
+                            >
+                              <Edit size={14} />
+                              <span>Edit Detail</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>

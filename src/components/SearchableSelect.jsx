@@ -11,6 +11,7 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
   const [query, setQuery] = useState('');
   const [menuStyle, setMenuStyle] = useState({});
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
 
   const selectedLabel = useMemo(() => {
     const found = options.find((opt) => String(opt.value) === String(value));
@@ -20,7 +21,7 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
   const filtered = useMemo(() => {
     const lower = query.toLowerCase();
     const results = options.filter((opt) => 
-      opt.label.toLowerCase().includes(lower)
+      opt && opt.label && String(opt.label).toLowerCase().includes(lower)
     );
     return results;
   }, [options, query]);
@@ -46,6 +47,12 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
         minWidth: isMobile ? '280px' : 'auto',
         zIndex: 9999,
       });
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && inputRef.current) {
+      inputRef.current.focus({ preventScroll: true });
     }
   }, [open]);
 
@@ -87,11 +94,11 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
           <div className="ss-menu ss-portal-menu" style={menuStyle}>
             <div className="ss-search-wrapper">
               <input
+                ref={inputRef}
                 className="ss-search"
                 placeholder="Search by name or code..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                autoFocus
               />
             </div>
             <div className="ss-options">

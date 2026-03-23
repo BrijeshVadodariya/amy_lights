@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText } from 'lucide-react';
+import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import './OrderDetail.css';
+import './Products.css';
 
 const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [order, setOrder] = useState(null);
@@ -39,6 +40,32 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     if (orderId) fetchDetail();
   }, [orderId]);
 
+  const handleConfirm = async () => {
+    if (!window.confirm("Confirm this quotation?")) return;
+    try {
+      const res = await odooService.confirmQuotation(orderId);
+      if (res.success) {
+        alert("Quotation Confirmed!");
+        onBack();
+      }
+    } catch {
+      alert("Error confirming quotation");
+    }
+  };
+
+  const handleDecline = async () => {
+    if (!window.confirm("Decline this quotation?")) return;
+    try {
+      const res = await odooService.declineQuotation(orderId);
+      if (res.success) {
+        alert("Quotation Declined");
+        onBack();
+      }
+    } catch {
+      alert("Error declining quotation");
+    }
+  };
+
   if (loading) {
     return (
       <div className="placeholder-content">
@@ -71,7 +98,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
         <div className="detail-hero">
           <button className="detail-back-btn" onClick={onBack}>
             <ChevronLeft size={18} />
-            <span>Back to Orders</span>
+            <span>Back to Quotations</span>
           </button>
 
           <div className="detail-hero-copy">
@@ -156,31 +183,34 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           </div>
 
           {orderLines.length ? (
-            <div className="detail-line-list">
-              {orderLines.map((line, idx) => (
-                <article key={line.id || idx} className="detail-line-card">
-                  <div className="detail-line-main">
-                    <div className="detail-line-index">{idx + 1}</div>
-
-                    <div className="detail-line-copy">
-                      <h3>{formatValue(line.product_name, 'Unnamed product')}</h3>
-                      <p>{formatValue(line.remark, 'No remark added')}</p>
-                    </div>
-                  </div>
-
-                  <div className="detail-line-metrics">
-                    <div className="detail-line-metric">
-                      <span>Quantity</span>
-                      <strong>{formatValue(line.qty, '0')}</strong>
-                    </div>
-
-                    <div className="detail-line-metric">
-                      <span>Unit Price</span>
-                      <strong>{formatCurrency(line.price_unit)}</strong>
-                    </div>
-                  </div>
-                </article>
-              ))}
+            <div className="table-wrapper overflow-x-auto border border-slate-200 rounded-lg mt-4">
+              <table className="products-datatable w-full">
+                <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
+                  <tr>
+                    <th className="py-3 px-4 text-left w-12 border-none">#</th>
+                    <th className="py-3 px-4 text-left border-none">Product Name</th>
+                    <th className="py-3 px-4 text-center w-24 border-none">Qty</th>
+                    <th className="py-3 px-4 text-right w-32 border-none">Unit Price</th>
+                    <th className="py-3 px-4 text-right w-32 border-none">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {orderLines.map((line, idx) => (
+                    <tr key={line.id || idx} className="row-hover">
+                      <td className="py-4 px-4 text-slate-400 font-medium">{idx + 1}</td>
+                      <td className="py-4 px-4">
+                        <div className="font-bold text-slate-800">{formatValue(line.product_name, 'Unnamed product')}</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">{formatValue(line.remark, '')}</div>
+                      </td>
+                      <td className="py-4 px-4 text-center font-medium text-slate-700">{formatValue(line.qty, '0')}</td>
+                      <td className="py-4 px-4 text-right text-slate-700">{formatCurrency(line.price_unit)}</td>
+                      <td className="py-4 px-4 text-right font-bold text-slate-900">
+                        {formatCurrency(Number(line.qty || 0) * Number(line.price_unit || 0))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="detail-empty-state">
@@ -209,6 +239,26 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             <Edit size={16} />
             <span>Edit Quotation</span>
           </button>
+
+          {(order.state === 'draft' || order.state === 'sent') && (
+            <>
+              <button 
+                className="btn-action-soft btn-confirm-soft w-auto"
+                onClick={handleConfirm}
+              >
+                <CheckCircle size={18} />
+                <span>Confirm Quotation</span>
+              </button>
+              
+              <button 
+                className="btn-action-soft btn-cancel-soft w-auto"
+                onClick={handleDecline}
+              >
+                <XCircle size={18} />
+                <span>Cancel Quotation</span>
+              </button>
+            </>
+          )}
 
           <button className="detail-action-btn detail-action-secondary" onClick={onBack}>
             <span>Back</span>

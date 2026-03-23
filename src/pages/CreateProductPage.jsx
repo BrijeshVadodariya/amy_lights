@@ -15,6 +15,7 @@ const CreateProductPage = ({ onNavigate }) => {
     unit: '',
     price: '',
     note: '',
+    image: '', // Base64 string
   });
 
   useEffect(() => {
@@ -26,6 +27,19 @@ const CreateProductPage = ({ onNavigate }) => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // Remove the data:image/jpeg;base64, prefix if Odoo expects just the base64 data
+        const base64String = reader.result.split(',')[1];
+        setProduct({ ...product, image: base64String });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const canSubmit = useMemo(() => product.name.trim().length > 0, [product.name]);
 
   const handleSubmit = async () => {
@@ -36,6 +50,7 @@ const CreateProductPage = ({ onNavigate }) => {
         name: product.name,
         default_code: product.product_code,
         list_price: Number(product.price) || 0,
+        image: product.image,
       });
 
       if (!res) {
@@ -81,6 +96,19 @@ const CreateProductPage = ({ onNavigate }) => {
           <div className="form-group">
             <label>Price</label>
             <input type="number" className="form-control" value={product.price} onChange={(e) => setProduct({ ...product, price: e.target.value })} placeholder="Please enter price" />
+          </div>
+          <div className="form-group">
+            <label>Product Image</label>
+            <input type="file" accept="image/*" className="form-control" onChange={handleImageChange} />
+            {product.image && (
+              <div style={{ marginTop: '10px' }}>
+                <img 
+                  src={`data:image/png;base64,${product.image}`} 
+                  alt="Preview" 
+                  style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd' }} 
+                />
+              </div>
+            )}
           </div>
           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
             <label>Note</label>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Search, Filter, Box, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Plus, Search, Filter, Box, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import './Products.css';
 
@@ -9,6 +9,8 @@ const Products = ({ onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+  const dropdownRef = React.useRef(null);
   const [isMobile, setIsMobile] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth <= 768 : false
   ));
@@ -123,7 +125,7 @@ const Products = ({ onNavigate }) => {
            </div>
         </div>
 
-        <div className="table-wrapper overflow-x-auto border border-slate-200 rounded-lg">
+        <div className="table-wrapper border border-slate-200 rounded-lg">
           <table className="products-datatable w-full">
             <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
               <tr>
@@ -138,7 +140,11 @@ const Products = ({ onNavigate }) => {
             </thead>
             <tbody className="divide-y divide-slate-100 text-[13px] text-slate-600">
               {currentItems.map((product, idx) => (
-                <tr key={product.id} className="hover:bg-slate-50 transition-colors">
+                <tr 
+                  key={product.id} 
+                  className="row-hover"
+                  onClick={() => onNavigate('product-detail', product.id)}
+                >
                   <td className="py-3 px-4" data-label="No">{indexOfFirstItem + idx + 1}</td>
                   <td className="py-3 px-4 min-w-[240px]" data-label="Name">
                     <div className="dt-flex">
@@ -158,17 +164,41 @@ const Products = ({ onNavigate }) => {
                   <td className="py-3 px-4 text-right font-medium text-slate-800" data-label="Price">
                     {product.price?.toLocaleString()}
                   </td>
-                  <td className="py-3 px-4" data-label="Action">
-                    <div className="action-buttons-container">
-                      <button className="action-box-btn view" title="View" onClick={() => onNavigate('product-detail', product.id)}>
-                        <Eye size={14} />
-                      </button>
-                      <button className="action-box-btn edit" title="Edit">
-                        <Edit size={14} />
-                      </button>
-                      <button className="action-box-btn delete" title="Delete">
-                        <Trash2 size={14} />
-                      </button>
+                  <td 
+                    className="py-3 px-4 text-center" 
+                    data-label="Action"
+                    onMouseEnter={() => setOpenDropdownId(product.id)}
+                    onMouseLeave={() => setOpenDropdownId(null)}
+                  >
+                    <div className="flex justify-center">
+                      <div className="relative">
+                        <button 
+                          className={`p-2 rounded-full transition-all duration-200 ${openDropdownId === product.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                        >
+                          <ChevronDown size={18} className={`transition-transform duration-200 ${openDropdownId === product.id ? 'rotate-90' : ''}`} />
+                        </button>
+
+                        {openDropdownId === product.id && (
+                          <div 
+                            className="action-dropdown-popover"
+                            onMouseEnter={() => setOpenDropdownId(product.id)}
+                            onMouseLeave={() => setOpenDropdownId(null)}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button 
+                              className="btn-action-soft btn-edit-soft"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                onNavigate('product-detail', product.id);
+                              }}
+                            >
+                              <Eye size={14} />
+                              <span>View Product</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>

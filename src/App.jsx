@@ -117,7 +117,7 @@ function App() {
       case 'purchase_orders':
         return <PurchaseOrders onNavigate={handleNavigate} />;
       case 'order-detail':
-        return <OrderDetail orderId={selectedId} onBack={() => handleNavigate('orders')} onNavigate={handleNavigate} />;
+        return <OrderDetail orderId={selectedId} onBack={() => handleNavigate('quotations')} onNavigate={handleNavigate} />;
       case 'product-detail':
         return <ProductDetail productId={selectedId} onBack={() => handleNavigate('products')} />;
       case 'create-order':
