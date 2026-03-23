@@ -87,9 +87,36 @@ const CreateOrder = ({ editId, onNavigate }) => {
     const fileArray = Array.from(files);
     const base64Promises = fileArray.map(file => new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
       reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Max dimension to compress payload (prevents 413 Payload Too Large)
+          const MAX_SIZE = 800;
+          if (width > height && width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Downsample beautifully to JPEG 60% quality
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = () => reject('Image load error');
+      };
+      reader.onerror = reject;
     }));
 
     try {
@@ -483,7 +510,7 @@ const CreateOrder = ({ editId, onNavigate }) => {
                     <span className="lead-label">Contact No.</span>
                     <div className="lead-value contact-val">
                       <Phone size={14} className="text-blue-500" />
-                      <span>{selectedPartner.phone || '9558124328'}</span>
+                      <span>{selectedPartner.phone || selectedPartner.mobile || '-'}</span>
                     </div>
                   </div>
                 </div>
@@ -492,7 +519,7 @@ const CreateOrder = ({ editId, onNavigate }) => {
                     <span className="lead-label">Address</span>
                     <div className="lead-value address-val">
                       <MapPin size={14} className="text-blue-500" />
-                      <span>{[selectedPartner.street, selectedPartner.city, selectedPartner.zip].filter(Boolean).join(', ') || 'Nanapura, Surat'}</span>
+                      <span>{[selectedPartner.street, selectedPartner.city, selectedPartner.zip].filter(Boolean).join(', ') || 'No address provided'}</span>
                     </div>
                   </div>
                 </div>
