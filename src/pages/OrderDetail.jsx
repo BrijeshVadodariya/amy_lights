@@ -45,10 +45,12 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const handleConfirm = async () => {
     if (!window.confirm("Confirm this quotation?")) return;
     try {
-      const res = await odooService.confirmQuotation(orderId);
+      const res = await odooService.confirmOrder(orderId);
       if (res.success) {
         alert("Quotation Confirmed!");
         onBack();
+      } else {
+        alert(res.error?.message || "Failed to confirm");
       }
     } catch {
       alert("Error confirming quotation");
@@ -58,10 +60,12 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const handleDecline = async () => {
     if (!window.confirm("Decline this quotation?")) return;
     try {
-      const res = await odooService.declineQuotation(orderId);
+      const res = await odooService.declineOrder(orderId);
       if (res.success) {
         alert("Quotation Declined");
         onBack();
+      } else {
+        alert(res.error?.message || "Failed to decline");
       }
     } catch {
       alert("Error declining quotation");
@@ -230,13 +234,21 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                       <td className="py-4 px-4 text-slate-400 font-medium">{idx + 1}</td>
                       <td className="py-4 px-4">
                         <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center relative">
-                            {line.image_url && (
+                            {(line.image_url || line.product_id) && (
                               <img 
                                 src={(() => {
-                                  const url = line.image_url;
                                   const token = localStorage.getItem('odoo_session_id') || '';
                                   const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                  return `${line.image_url}?token=${token}&db=${db}`;
+                                  let path = line.image_url;
+                                  
+                                  if (!path && line.product_id) {
+                                     // Construct fallback Odoo image path if URL is missing but ID exists
+                                     const pId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
+                                     if (pId) path = `/web/image/product.template/${pId}/image_128`;
+                                  }
+                                  
+                                  if (!path) return '';
+                                  return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
                                 })()} 
                                 alt="" 
                                 className="w-full h-full object-contain relative z-10" 

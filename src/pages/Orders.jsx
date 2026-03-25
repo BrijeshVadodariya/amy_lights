@@ -81,7 +81,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
     const isQuotation = stateType === 'quotation';
     if (!window.confirm(`Confirm this ${isQuotation ? 'quotation' : 'order'}?`)) return;
     try {
-      const res = isQuotation ? await odooService.confirmQuotation(id) : await odooService.confirmOrder(id);
+      // Use confirmOrder service for both quotations and orders (mapped by the backend)
+      const res = await odooService.confirmOrder(id);
       if (res.success) {
         alert(`${isQuotation ? 'Quotation' : 'Order'} Confirmed!`);
         fetchOrders();
@@ -98,8 +99,9 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
     if (isQuotation) {
       if (!window.confirm("Decline this quotation?")) return;
       try {
-        const res = await odooService.declineQuotation(id);
+        const res = await odooService.declineOrder(id);
         if (res.success) { alert("Quotation Declined"); fetchOrders(); }
+        else alert(res.error?.message || "Failed to decline");
       } catch { alert("Error declining quotation"); }
     } else {
       const reason = window.prompt("Reason for decline:");

@@ -3,7 +3,7 @@ import { ShoppingCart, ShoppingBag, Box, Users, RefreshCcw, FileText, Eye } from
 import { odooService } from '../services/odoo';
 import './Dashboard.css';
 
-const Dashboard = ({ user }) => {
+const Dashboard = ({ user, onNavigate }) => {
   const [stats, setStats] = useState(null);
   const [recentSales, setRecentSales] = useState([]);
   const [recentPurchases, setRecentPurchases] = useState([]);
@@ -46,7 +46,7 @@ const Dashboard = ({ user }) => {
       </header>
 
       <div className="stats-grid">
-        <div className="stat-card">
+        <div className="stat-card clickable-card" onClick={() => onNavigate('quotations')}>
           <div className="stat-icon sales">
             <ShoppingCart size={24} />
           </div>
@@ -55,7 +55,7 @@ const Dashboard = ({ user }) => {
             <h3>{stats?.quotation_count || 0}</h3>
           </div>
         </div>
-        <div className="stat-card">
+        <div className="stat-card clickable-card" onClick={() => onNavigate('orders')}>
           <div className="stat-icon purchase">
             <ShoppingBag size={24} />
           </div>
@@ -64,7 +64,7 @@ const Dashboard = ({ user }) => {
             <h3>{stats?.order_count || 0}</h3>
           </div>
         </div>
-        <div className="stat-card">
+        <div className="stat-card clickable-card" onClick={() => onNavigate('products')}>
           <div className="stat-icon success">
             <Box size={24} />
           </div>

@@ -126,7 +126,12 @@ export const odooService = {
   },
   updateQuotation: async (orderId, partnerId, lines, extra = {}) => {
     const res = await api.post('/api/quote/create', {
-      params: { order_id: orderId, partner_id: partnerId, lines, ...extra }
+      params: { 
+        order_id: orderId, 
+        partner_id: partnerId, 
+        lines, 
+        ...extra 
+      }
     });
     return res.data.result || { success: false, error: res.data.error };
   },

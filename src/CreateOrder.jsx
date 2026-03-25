@@ -89,42 +89,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     }
   }, [extraData]);
   
+  // The beforeunload handler is moved here for cleaner organization
   useEffect(() => {
-    const fetchOrderForEdit = async () => {
-      if (!editId) return;
-      setLoading(true);
-      try {
-        const order = await odooService.getOrderDetail(editId);
-        if (order) {
-          setOrderHeader({
-            partnerId: String(order.partner_id?.[0] || order.partner_id || ''),
-            date: order.date_order ? order.date_order.split(' ')[0] : new Date().toISOString().split('T')[0],
-            remark: order.remark || '',
-            is_desc: order.is_desc ?? true,
-            is_image: order.is_image ?? true,
-            is_beam: order.is_beam ?? true,
-            is_automate: order.is_automate ?? false
-          });
-          
-          if (order.lines && order.lines.length > 0) {
-            setRows(order.lines.map(l => ({
-              id: Date.now() + Math.random(),
-              productId: String(l.product_id?.[0] || l.product_id || ''),
-              qty: l.qty || 1,
-              price: l.price_unit || 0,
-              discount: l.discount || 0,
-              remark: l.remark || ''
-            })));
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch order for edit", err);
-      } finally {
-        setLoading(false);
-      }
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
     };
-    fetchOrderForEdit();
-  }, [editId]);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
 
   const [generalNotes, setGeneralNotes] = useState([]);
@@ -138,7 +111,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       id: Date.now(),
       text: generalNoteInput,
       by: 'CurrentUser',
-      date: new Date().toLocaleString()
+      date: new Date().toLocaleString(),
+      is_new: true
     };
     setGeneralNotes(prev => [...prev, newNote]);
     setGeneralNoteInput('');
@@ -224,14 +198,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     setActivityInputs(prev => ({ ...prev, [id]: { text: '', images: [] } }));
   };
 
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  // fetchMasterData and fetchEditOrder are managed below.
 
   const fetchMasterData = React.useCallback(async () => {
     // If cache exists, use it immediately for responsiveness
@@ -325,61 +292,90 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         const extractName = (val) => {
           if (Array.isArray(val) && val.length > 1) return val[1];
           if (typeof val === 'object' && val !== null) return val.name || val.display_name || '';
-          return 'Unknown';
+          return '';
         };
 
         const missingPartners = [];
         const missingProducts = [];
 
-        let pId = extractId(data.partner_id) || extractId(data.customer_id);
+        // Support multiple possible keys for partner
+        // Multi-layered partner extraction to prevent mandatory field failure
+        let pId = extractId(data.partner_id) || extractId(data.customer_id) || extractId(data.partner) || data.id_partner;
+        let pName = extractName(data.partner_id || data.customer_id) || data.partner_name || data.display_name || 'Selected Customer';
+        
+        console.log(`[Edit Flow] Extracted Partner ID: ${pId}, Name: ${pName}`);
+
         if (!pId && data.partner_name) {
-          // Attempt reverse lookup if cache is available
           const cachedPartner = dataCache.partners?.find(p => p.name === data.partner_name);
           pId = cachedPartner ? cachedPartner.id : `_GHOST_PARTNER-${data.partner_name}`;
+          pName = data.partner_name;
         }
         
-        if (pId && String(pId).startsWith('_GHOST_PARTNER-')) {
-          missingPartners.push({ id: pId, name: data.partner_name });
-        } else if (pId && !masterData.partners.find(p => p.id === pId)) {
-          missingPartners.push({ id: pId, name: extractName(data.partner_id || data.customer_id) || data.partner_name });
+        if (pId) {
+          const exists = masterData.partners.find(p => String(p.id) === String(pId));
+          if (!exists) missingPartners.push({ id: pId, name: pName });
         }
 
         setOrderHeader({
-          partnerId: pId,
+          partnerId: pId || '',
           date: data.date_order ? data.date_order.split(' ')[0] : new Date().toISOString().split('T')[0],
           architectId: extractId(data.architect_id) || extractId(data.architect) || '',
           electricianId: extractId(data.electrician_id) || extractId(data.electrician) || '',
-          remark: data.remark || ''
+          remark: data.remark || '',
+          is_desc: data.is_desc ?? true,
+          is_image: data.is_image ?? true,
+          is_beam: data.is_beam ?? true,
+          is_automate: data.is_automate ?? false
         });
         
+        // Populate existing notes if they are returned by Odoo
+        if (data.amy_note_lines && Array.isArray(data.amy_note_lines)) {
+          const mappedHistory = {};
+          data.amy_note_lines.forEach(note => {
+            const type = note.note_type || 'general';
+            if (!mappedHistory[type]) mappedHistory[type] = [];
+            mappedHistory[type].push({
+              id: note.id || Date.now() + Math.random(),
+              text: note.text || '',
+              images: note.image_url ? [note.image_url] : [],
+              by: note.create_uid?.[1] || 'Amy Bot',
+              date: note.create_date || ''
+            });
+          });
+          setActivityHistory(mappedHistory);
+        }
+        
         const lineItems = data.lines || data.order_line || [];
-        const productLines = lineItems.filter(l => !l.line_type || l.line_type === 'product' || !!l.product_id || l.product_uom_qty > 0 || l.qty > 0 || !!l.product_name);
+        // Filtering out notes/sections to only show products
+        const productLines = lineItems.filter(l => !l.display_type && (!!l.product_id || !!l.product_name));
 
-        setRows(productLines.length ? productLines.map((l, i) => {
-          let prodId = extractId(l.product_id) || extractId(l.product) || extractId(l.product_template_id) || extractId(l.product_tmpl_id);
-          const searchName = l.product_name || l.name;
+        const mappedRows = productLines.map((l, i) => {
+          let prodId = extractId(l.product_id) || extractId(l.product);
+          const searchName = l.product_name || l.name || extractName(l.product_id);
           
           if (!prodId && searchName) {
             const cachedProduct = dataCache.products?.find(p => p.name === searchName || p.default_code === l.product_code);
             prodId = cachedProduct ? cachedProduct.id : `_GHOST_PRODUCT-${searchName}`;
           }
 
-          if (prodId && String(prodId).startsWith('_GHOST_PRODUCT-')) {
-             let ghostName = prodId.replace('_GHOST_PRODUCT-', '');
-             missingProducts.push({ id: prodId, name: ghostName });
-          } else if (prodId && !masterData.products.find(p => p.id === prodId)) {
-             const extractedName = extractName(l.product_id || l.product || l.product_template_id || l.product_tmpl_id);
-             missingProducts.push({ id: prodId, name: extractedName !== 'Unknown' ? extractedName : (searchName || 'Unknown Product') });
+          if (prodId) {
+            const exists = masterData.products.find(p => String(p.id) === String(prodId));
+            if (!exists) {
+               missingProducts.push({ id: prodId, name: searchName || 'Selected Product' });
+            }
           }
+
           return {
-            id: l.id || Date.now() + i,
+            id: l.id || `edit-${Date.now()}-${i}`,
             productId: prodId || '',
             qty: l.product_uom_qty || l.qty || 1,
             price: l.price_unit || l.price || 0,
             discount: l.discount || 0,
-            remark: searchName || l.remark || l.description || ''
+            remark: l.remark || l.name || ''
           };
-        }) : [createProductRow()]);
+        });
+
+        setRows(mappedRows.length ? mappedRows : [createProductRow()]);
         
         if (missingPartners.length > 0 || missingProducts.length > 0) {
           setMasterData(prev => ({
@@ -389,10 +385,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           }));
         }
 
-        setShowProducts(productLines.length > 0);
+        setShowProducts(mappedRows.length > 0);
       }
-    } catch {
-      console.error('Edit fetch failed');
+    } catch (err) {
+      console.error('Edit fetch failed', err);
     }
     finally { setLoading(false); }
   }, [editId]);
@@ -406,12 +402,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     setRows(prev => prev.map(r => {
       if (r.id === id) {
         if (field === 'productId') {
-          const prod = masterData.products.find(p => p.id === parseInt(value));
+          const parsedId = /^\d+$/.test(value) ? parseInt(value) : value;
+          const prod = masterData.products.find(p => String(p.id) === String(parsedId));
           return { ...r, productId: value, price: prod ? prod.price : 0 };
-        }
-        if (field === 'qty') {
-          const numVal = parseFloat(value) || 0;
-          return { ...r, [field]: numVal < 1 ? 1 : numVal };
         }
         return { ...r, [field]: value };
       }
@@ -465,17 +458,18 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const handleProcess = async () => {
 
     const resolveGhostId = (ghostId, type) => {
+      if (!ghostId) return null;
       if (String(ghostId).startsWith(`_GHOST_${type.toUpperCase()}-`)) {
         const trueName = String(ghostId).replace(`_GHOST_${type.toUpperCase()}-`, '');
         const list = type === 'partner' ? masterData.partners : masterData.products;
         const real = list.find(item => item.name === trueName);
-        return real ? real.id : null;
+        return real ? real.id : ghostId; // Return self as fallback if not matched in list
       }
       return ghostId;
     };
 
-    const finalPartnerId = parseInt(resolveGhostId(orderHeader.partnerId, 'partner'));
-    if (!finalPartnerId || isNaN(finalPartnerId)) {
+    const finalPartnerId = resolveGhostId(orderHeader.partnerId, 'partner');
+    if (!editId && (!finalPartnerId || isNaN(parseInt(finalPartnerId)))) {
         return alert("Please select a valid customer before proceeding.");
     }
 
@@ -486,61 +480,124 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
     setLoading(true);
     try {
-      const finalProductLines = productLines.map(r => {
-        let finalProdId = parseInt(resolveGhostId(r.productId, 'product'));
-        return {
-          product_id: finalProdId || 0,
-          qty: parseFloat(r.qty) || 0,
+      const finalProductLines = productLines.map((r, idx) => {
+        let finalProdId = resolveGhostId(r.productId, 'product');
+        // Convert to Number safely
+        finalProdId = Number(finalProdId);
+
+        if (!finalProdId || isNaN(finalProdId) || finalProdId <= 0) {
+          console.warn(`[Save Order] Skipping line ${idx} - Invalid Product ID:`, r.productId);
+          return null;
+        }
+
+        const lineData = {
+          product_id: finalProdId,
+          qty: parseFloat(r.qty) || 1,
           price_unit: parseFloat(r.price) || 0,
           discount: parseFloat(r.discount) || 0,
-          name: r.remark,
+          name: r.remark || '',
           line_type: 'product'
         };
-      });
+        
+        // Ensure ID is a valid positive integer for Odoo updates
+        const lineId = Number(r.id);
+        if (Number.isInteger(lineId) && lineId > 0 && !String(r.id).includes('.')) {
+          lineData.id = lineId;
+        }
+        
+        return lineData;
+      }).filter(Boolean);
+
+      console.log(`[Save Order] Prepared ${finalProductLines.length} product lines for submission.`);
+
+      if (finalProductLines.length === 0) {
+        setLoading(false);
+        return alert("Please select at least one valid product.");
+      }
 
       const amyNoteLines = [];
-      Object.keys(activityHistory).forEach(type => {
-        activityHistory[type].forEach(note => {
-          if (note.images && note.images.length > 0) {
-            note.images.forEach(imgBase64 => {
-              amyNoteLines.push({ note_type: type, text: note.text, image: imgBase64.split(',')[1] });
-            });
-          } else if (note.text) {
-            amyNoteLines.push({ note_type: type, text: note.text });
-          }
-        });
-      });
+      let chatterText = "";
 
+      // Helper to generate a unique filename
+      const genName = (type, i) => `${type}_note_${Date.now()}_${i}.png`;
+
+      // 1. Process New Notes from Inputs (Switches, Fan, etc.)
       Object.keys(activityInputs).forEach(type => {
         const input = activityInputs[type];
-        if (!input) return;
-        if (input.images && input.images.length > 0) {
-          input.images.forEach(imgBase64 => {
-            amyNoteLines.push({ note_type: type, text: input.text, image: imgBase64.split(',')[1] });
-          });
-        } else if (input.text) {
-          amyNoteLines.push({ note_type: type, text: input.text });
+        if (input && (input.text || (input.images && input.images.length > 0))) {
+          const images = (input.images || []).map(img => img.includes(',') ? img.split(',')[1] : null).filter(Boolean);
+          
+          const noteVals = {
+            note_type: type,
+            text: input.text || '',
+            // Odoo Many2many (0, 0, {datas: ...}) command format for new attachments
+            image: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }]),
+            images: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }]) // Backwards compatibility fallback plural
+          };
+          
+          // Odoo One2many (0, 0, vals) command format for atomic creation
+          amyNoteLines.push([0, 0, noteVals]);
+          chatterText += `\n[${type.toUpperCase()}]: ${noteVals.text}`;
         }
       });
 
-      generalNotes.forEach(note => {
-        amyNoteLines.push({ note_type: 'general', text: note.text });
+      // 2. Process ONLY NEW General Top-level Notes as 'others'
+      generalNotes.filter(n => n.is_new).forEach((note, i) => {
+        amyNoteLines.push([0, 0, { 
+          note_type: 'others', 
+          text: note.text,
+        }]);
+        chatterText += `\n[GENERAL]: ${note.text}`;
       });
 
-      const extraData = {
-        remark: orderHeader.remark,
-        amy_note_lines: amyNoteLines,
-        is_desc: orderHeader.is_desc,
-        is_image: orderHeader.is_image,
-        is_beam: orderHeader.is_beam,
-        is_automate: orderHeader.is_automate,
-        state: isSelection ? 'selection' : isOrder ? 'sale' : 'draft'
+      const ensureIsoDate = (dateVal) => {
+        if (!dateVal) return null;
+        if (/^\d{2}-\d{2}-\d{4}$/.test(dateVal)) {
+          const [d, m, y] = dateVal.split('-');
+          return `${y}-${m}-${d}`;
+        }
+        return dateVal;
       };
 
-      console.log("Submitting order with state:", extraData.state);
+      const finalExtraData = {
+        architect_id: parseInt(orderHeader.architectId) || false,
+        electrician_id: parseInt(orderHeader.electricianId) || false,
+        remark: orderHeader.remark || '',
+        amy_note_lines: amyNoteLines,
+        note: chatterText.trim(), // Assigning to standard Odoo 'note' field for header visibility
+        log_note: chatterText.trim(), // Sent for Chatter log posting
+        is_desc: !!orderHeader.is_desc,
+        is_image: !!orderHeader.is_image,
+        is_beam: !!orderHeader.is_beam,
+        is_automate: !!orderHeader.is_automate,
+        state: isSelection ? 'selection' : isOrder ? 'sale' : 'draft',
+        date_order: ensureIsoDate(orderHeader.date)
+      };
+
+      // Ensure relational IDs are strictly numeric or false (Odoo constraint)
+      if (finalExtraData.architect_id && isNaN(finalExtraData.architect_id)) finalExtraData.architect_id = false;
+      if (finalExtraData.electrician_id && isNaN(finalExtraData.electrician_id)) finalExtraData.electrician_id = false;
+
+      console.log("Submitting order with state:", finalExtraData.state);
+      
+      const resolvedPid = resolveGhostId(finalPartnerId, 'partner');
+      let resPartnerId = parseInt(resolvedPid);
+      
+      if (isNaN(resPartnerId)) {
+        // Final attempt name-based lookup
+        const namePart = String(resolvedPid).includes('-') ? resolvedPid.split('-').slice(1).join('-') : resolvedPid;
+        const matching = masterData.partners.find(p => p.name === namePart && Number.isInteger(Number(p.id)));
+        resPartnerId = matching ? Number(matching.id) : 0;
+      }
+
+      if (!resPartnerId || resPartnerId <= 0) {
+        setLoading(false);
+        return alert("Please select a valid Customer from the dropdown before saving.");
+      }
+      
       const res = editId 
-        ? await odooService.updateQuotation(editId, finalPartnerId, finalProductLines, extraData)
-        : await odooService.createQuotation(finalPartnerId, finalProductLines, extraData);
+        ? await odooService.updateQuotation(editId, resPartnerId, finalProductLines, finalExtraData)
+        : await odooService.createQuotation(resPartnerId, finalProductLines, finalExtraData);
         
       if (res.success) {
         setActivityHistory({});
@@ -684,13 +741,18 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                         <div className="form-group pi-small-input" style={{ minWidth: '60px', flex: '0 0 auto' }}>
                           <label className="pi-small-label">Image</label>
                           <div className="flex items-center justify-center h-[42px] w-[50px] bg-slate-50 border border-slate-200 rounded overflow-hidden relative">
-                              {selectedProduct?.image_url && selectedProduct?.id && (
+                              {selectedProduct?.id && (
                                 <img 
                                   src={(() => {
-                                    const url = selectedProduct.image_url;
                                     const token = localStorage.getItem('odoo_session_id') || '';
                                     const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                    return `${url}?token=${token}&db=${db}`;
+                                    let path = selectedProduct.image_url;
+                                    
+                                    if (!path) {
+                                       path = `/web/image/product.template/${selectedProduct.id}/image_128`;
+                                    }
+                                    
+                                    return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
                                   })()} 
                                   alt="Prod" 
                                   className="h-full w-full object-cover relative z-10" 
@@ -772,7 +834,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             { id: 'decorative', title: 'Decorative', icon: <Sparkles size={18} />, group: 'cat' },
             { id: 'fan', title: 'Fan', icon: <Wind size={18} />, group: 'cat' },
             { id: 'lights', title: 'Lights', icon: <Lightbulb size={18} />, group: 'cat' },
-            { id: 'profile', title: 'Profile', icon: <Layers size={18} />, group: 'cat' },
+            { id: 'profiles', title: 'Profiles', icon: <Layers size={18} />, group: 'cat' },
             { id: 'others', title: 'Others', icon: <MoreHorizontal size={18} />, group: 'cat' },
             { id: 'tasks', title: 'Tasks', icon: <CheckSquare size={18} />, group: 'always' },
           ].map((act) => {

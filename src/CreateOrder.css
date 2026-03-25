@@ -205,6 +205,7 @@
   padding: 0.5rem 0;
   font-size: 0.95rem;
   outline: none;
+  box-shadow: none;
   color: #1e293b;
 }
 
@@ -257,7 +258,8 @@
 .v2-textarea:focus {
   border-color: #3b82f6;
   background: #fff;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.05);
 }
 
 .v2-upload-zone {
