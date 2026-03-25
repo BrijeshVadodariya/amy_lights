@@ -190,25 +190,20 @@ const Catalog = ({ onNavigate, partnerId }) => {
                   const isInCart = cart.find(c => c.id === p.id);
                   return (
                     <div key={p.id} className={`catalog-product-card ${isInCart ? 'is-added' : ''}`}>
-                      <div className="product-media-wrapper">
-                        {p.image_url ? (
-                          <img 
-                            src={getImageUrl(p)} 
-                            alt={p.name} 
-                            className="product-img" 
-                            onError={(e) => { 
-                              e.target.onerror = null; 
-                              e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmMWY1ZjkiLz48L3N2Zz4='; 
-                            }}
-                          />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1' }}>
-                            <Box size={40} />
-                          </div>
-                        )}
-                        
-                        {/* Status Badge */}
-                        {isInCart && <div className="product-added-badge">Added</div>}
+                        <div className="product-media-wrapper relative flex items-center justify-center bg-slate-50 overflow-hidden">
+                          {p.image_url && (
+                            <img 
+                              src={getImageUrl(p)} 
+                              alt={p.name} 
+                              className="product-img relative z-10" 
+                              onError={(e) => { 
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          )}
+                          
+                          {/* Status Badge */}
+                          {isInCart && <div className="product-added-badge z-20">Added</div>}
 
                         {/* Quick Action Button */}
                         <button 

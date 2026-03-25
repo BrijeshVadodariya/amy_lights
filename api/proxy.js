@@ -5,9 +5,10 @@ export default async function handler(req, res) {
   const odooTarget = process.env.VITE_ODOO_URL || 'http://103.212.121.196:8069';
   const odooDB = process.env.VITE_ODOO_DB || 'stage';
   
-  // Use x-forwarded-uri (original URL) or fallback to path query param
-  const originalUrl = headers['x-forwarded-uri'] || query.path || req.url;
-  const path = originalUrl.split('?')[0];
+  // Prioritize the path passed via Vercel rewrites (?path=...)
+  // This is the most reliable way to get the original requested endpoint.
+  const rawPath = query.path || req.url;
+  const path = rawPath.split('?')[0];
   
   // Construct the target URL with the db parameter
   const targetUrl = new URL(path, odooTarget);
@@ -25,33 +26,36 @@ export default async function handler(req, res) {
       method: method.toLowerCase(),
       url: targetUrl.toString(),
       data: body,
-      params: {}, // Already in targetUrl
+      params: {},
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': headers['content-type'] || 'application/json',
         'X-Odoo-Database': odooDB,
         'Origin': odooTarget,
         'Referer': `${odooTarget}/web/login?db=${odooDB}`,
         'User-Agent': headers['user-agent'],
         'Cookie': headers['cookie'],
-        // Forward Authentication headers from frontend
         'Authorization': headers['authorization'],
         'X-Odoo-Session-ID': headers['x-odoo-session-id'],
       },
-      timeout: 10000,
-      validateStatus: () => true, // Handle all status codes
+      timeout: 15000,
+      responseType: 'arraybuffer', // Crucial for handling images and binary data
+      validateStatus: () => true,
     });
 
-    // Copy response headers back (CORS, etc.)
+    // Copy essential response headers
+    const contentType = response.headers['content-type'];
+    if (contentType) res.setHeader('Content-Type', contentType);
+    
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Odoo-Session-ID');
     
-    // Set cookies if Odoo sends them
     if (response.headers['set-cookie']) {
       res.setHeader('Set-Cookie', response.headers['set-cookie']);
     }
 
-    res.status(response.status).json(response.data);
+    // Send the data as a Buffer
+    res.status(response.status).send(Buffer.from(response.data));
   } catch (error) {
     console.error('[Proxy Error]', error.message);
     res.status(502).json({

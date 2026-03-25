@@ -683,8 +683,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                       {orderHeader.is_image && (
                         <div className="form-group pi-small-input" style={{ minWidth: '60px', flex: '0 0 auto' }}>
                           <label className="pi-small-label">Image</label>
-                          <div className="flex items-center justify-center h-[42px] w-[50px] bg-slate-50 border border-slate-200 rounded overflow-hidden">
-                              {selectedProduct?.image_url && selectedProduct?.id ? (
+                          <div className="flex items-center justify-center h-[42px] w-[50px] bg-slate-50 border border-slate-200 rounded overflow-hidden relative">
+                              {selectedProduct?.image_url && selectedProduct?.id && (
                                 <img 
                                   src={(() => {
                                     const url = selectedProduct.image_url;
@@ -693,15 +693,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                     return `${url}?token=${token}&db=${db}`;
                                   })()} 
                                   alt="Prod" 
-                                  className="h-full w-full object-cover" 
-                                onError={(e) => { 
-                                  e.target.onerror = null; 
-                                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmMWY1ZjkiLz48L3N2Zz4='; 
-                                }} 
-                              />
-                            ) : (
-                              <span className="text-xs text-slate-400">N/A</span>
-                            )}
+                                  className="h-full w-full object-cover relative z-10" 
+                                  onError={(e) => { 
+                                    e.target.style.display = 'none';
+                                  }} 
+                                />
+                              )}
                           </div>
                         </div>
                       )}

@@ -197,12 +197,17 @@ const Products = ({ onNavigate }) => {
                   <td className="py-3 px-4" data-label="No">{indexOfFirstItem + idx + 1}</td>
                   <td className="py-3 px-4 min-w-[240px]" data-label="Name">
                     <div className="dt-flex">
-                      <div className="product-thumb w-10 h-10 rounded border border-slate-100 overflow-hidden bg-slate-50 flex-shrink-0 flex items-center justify-center">
-                         {product.image_url ? (
-                           <img src={getImageUrl(product.image_url)} alt="" className="w-full h-full object-contain" onError={(e)=>{e.target.src='/placeholder-img.png'}} />
-                         ) : (
-                           <Box size={18} className="text-slate-300 opacity-60" />
-                         )}
+                      <div className="product-thumb w-10 h-10 rounded border border-slate-100 overflow-hidden bg-slate-50 flex-shrink-0 flex items-center justify-center relative">
+                        {product.image_url && (
+                          <img 
+                            src={getImageUrl(product.image_url)} 
+                            alt="" 
+                            className="w-full h-full object-contain relative z-10 block bg-slate-50" 
+                            onError={(e) => { 
+                              e.target.style.display = 'none';
+                            }} 
+                          />
+                        )}
                       </div>
                       <span className="font-medium text-slate-800 uppercase text-[12px]">{product.name}</span>
                     </div>

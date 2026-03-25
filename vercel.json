@@ -2,15 +2,15 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/proxy"
+      "destination": "/api/proxy?path=/api/$1"
     },
     {
       "source": "/web/(.*)",
-      "destination": "/api/proxy"
+      "destination": "/api/proxy?path=/web/$1"
     },
     {
       "source": "/my/(.*)",
-      "destination": "/api/proxy"
+      "destination": "/api/proxy?path=/my/$1"
     }
   ]
 }

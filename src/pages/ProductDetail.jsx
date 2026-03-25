@@ -44,6 +44,9 @@ const ProductDetail = ({ productId, onBack }) => {
     return `${url}?token=${token}&db=${db}`;
   };
 
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
   if (loading) {
     return (
       <div className="order-detail-page detail-page-shell flex flex-col items-center justify-center min-vh-70">
@@ -92,14 +95,18 @@ const ProductDetail = ({ productId, onBack }) => {
         <div className="product-detail-layout">
           <div className="product-visual-panel">
             <div className="product-main-image">
-              <div className="product-image-shell">
-                <div className="product-image-glow"></div>
-                {product.image_url ? (
-                  <img src={getImageUrl(product.image_url)} alt={product.name} className="product-image" />
-                ) : (
-                  <div className="product-image-placeholder">
-                    <Box size={96} strokeWidth={1.2} />
-                  </div>
+              <div className="product-image-shell relative flex items-center justify-center bg-slate-50 min-h-[300px] rounded-2xl overflow-hidden border border-slate-100">
+                {product.image_url && !imageError && (
+                  <img 
+                    src={getImageUrl(product.image_url)} 
+                    alt={product.name} 
+                    className={`product-image transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0 absolute'}`}
+                    onLoad={() => setImageLoaded(true)}
+                    onError={() => { 
+                      setImageError(true);
+                      setImageLoaded(false);
+                    }} 
+                  />
                 )}
               </div>
             </div>

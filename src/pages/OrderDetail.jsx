@@ -229,25 +229,22 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                     <tr key={line.id || idx} className="row-hover">
                       <td className="py-4 px-4 text-slate-400 font-medium">{idx + 1}</td>
                       <td className="py-4 px-4">
-                        <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center">
-                           {line.image_url ? (
-                             <img 
-                               src={(() => {
-                                 const url = line.image_url;
-                                 const token = localStorage.getItem('odoo_session_id') || '';
-                                 const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                 return `${line.image_url}?token=${token}&db=${db}`;
-                               })()} 
-                               alt="" 
-                               className="w-full h-full object-contain" 
-                               onError={(e) => { 
-                                 e.target.onerror = null;
-                                 e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmMWY1ZjkiLz48L3N2Zz4='; 
-                               }}
-                             />
-                           ) : (
-                             <Package2 size={18} className="text-slate-200" />
-                           )}
+                        <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center relative">
+                            {line.image_url && (
+                              <img 
+                                src={(() => {
+                                  const url = line.image_url;
+                                  const token = localStorage.getItem('odoo_session_id') || '';
+                                  const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                                  return `${line.image_url}?token=${token}&db=${db}`;
+                                })()} 
+                                alt="" 
+                                className="w-full h-full object-contain relative z-10" 
+                                onError={(e) => { 
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            )}
                         </div>
                       </td>
                       <td className="py-4 px-4">
