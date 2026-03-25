@@ -97,10 +97,11 @@ const Catalog = ({ onNavigate, partnerId }) => {
   };
 
   const getImageUrl = (p) => {
-    if (!p.image_url) return null;
-    const cleanPath = p.image_url.replace('/web/image/product.product/', '/web/image/product.template/').replace('image_128', 'image_1024');
-    if (cleanPath.startsWith('http')) return cleanPath;
-    return cleanPath.startsWith('/') ? cleanPath : '/' + cleanPath;
+    if (!p || !p.image_url) return null;
+    const token = localStorage.getItem('odoo_session_id') || '';
+    const db = import.meta.env.VITE_ODOO_DB || 'stage';
+    
+    return `${p.image_url}?token=${token}&db=${db}`;
   };
 
   return (
@@ -166,7 +167,10 @@ const Catalog = ({ onNavigate, partnerId }) => {
                             src={getImageUrl(p)} 
                             alt={p.name} 
                             className="product-img" 
-                            onError={(e) => { e.target.src = '/placeholder-img.png'; }}
+                            onError={(e) => { 
+                              e.target.onerror = null; 
+                              e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmMWY1ZjkiLz48L3N2Zz4='; 
+                            }}
                           />
                         ) : (
                           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1' }}>

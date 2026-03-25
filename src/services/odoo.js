@@ -131,16 +131,14 @@ export const odooService = {
     return res.data.result || { success: false, error: res.data.error };
   },
   createPartner: async (partnerData) => {
-    const res = await api.post('/my/partner/create', { params: partnerData });
-    return res.data.result || { success: false, error: res.data.error };
+    const res = await api.post('/api/partner/create', { params: partnerData });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
   },
   createProduct: async (productData) => {
-    const res = await api.post('/my/product/create', { params: productData });
-    return res.data.result || { success: false, error: res.data.error };
-  },
-  createQuickQuote: async (items) => {
-    const res = await api.post('/my/catalog/quick-quote', { params: { items } });
-    return res.data.result || { success: false, error: res.data.error };
+    const res = await api.post('/api/product/create', { params: productData });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
   },
   getProducts: async () => {
     const res = await api.post('/api/products', { params: { limit: 10000 } });

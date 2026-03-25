@@ -475,11 +475,18 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     };
 
     const finalPartnerId = parseInt(resolveGhostId(orderHeader.partnerId, 'partner'));
-    if (!finalPartnerId || isNaN(finalPartnerId)) return alert("Please select a valid customer from the database.");
+    if (!finalPartnerId || isNaN(finalPartnerId)) {
+        return alert("Please select a valid customer before proceeding.");
+    }
+
+    const productLines = rows.filter(r => r.productId);
+    if (productLines.length === 0) {
+        return alert("Please add at least one product to your selection.");
+    }
 
     setLoading(true);
     try {
-      const productLines = rows.filter(r => r.productId).map(r => {
+      const finalProductLines = productLines.map(r => {
         let finalProdId = parseInt(resolveGhostId(r.productId, 'product'));
         return {
           product_id: finalProdId || 0,
@@ -532,8 +539,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
       console.log("Submitting order with state:", extraData.state);
       const res = editId 
-        ? await odooService.updateQuotation(editId, finalPartnerId, productLines, extraData)
-        : await odooService.createQuotation(finalPartnerId, productLines, extraData);
+        ? await odooService.updateQuotation(editId, finalPartnerId, finalProductLines, extraData)
+        : await odooService.createQuotation(finalPartnerId, finalProductLines, extraData);
         
       if (res.success) {
         setActivityHistory({});
@@ -677,12 +684,20 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                         <div className="form-group pi-small-input" style={{ minWidth: '60px', flex: '0 0 auto' }}>
                           <label className="pi-small-label">Image</label>
                           <div className="flex items-center justify-center h-[42px] w-[50px] bg-slate-50 border border-slate-200 rounded overflow-hidden">
-                            {selectedProduct?.image_url && selectedProduct?.id ? (
-                              <img 
-                                src={selectedProduct.image_url.startsWith('http') ? selectedProduct.image_url : (selectedProduct.image_url.startsWith('/') ? selectedProduct.image_url : '/' + selectedProduct.image_url)} 
-                                alt="Prod" 
-                                className="h-full w-full object-cover" 
-                                onError={(e) => { e.target.src = '/placeholder-img.png'; }} 
+                              {selectedProduct?.image_url && selectedProduct?.id ? (
+                                <img 
+                                  src={(() => {
+                                    const url = selectedProduct.image_url;
+                                    const token = localStorage.getItem('odoo_session_id') || '';
+                                    const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                                    return `${url}?token=${token}&db=${db}`;
+                                  })()} 
+                                  alt="Prod" 
+                                  className="h-full w-full object-cover" 
+                                onError={(e) => { 
+                                  e.target.onerror = null; 
+                                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmMWY1ZjkiLz48L3N2Zz4='; 
+                                }} 
                               />
                             ) : (
                               <span className="text-xs text-slate-400">N/A</span>

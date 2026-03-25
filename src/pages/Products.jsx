@@ -48,7 +48,9 @@ const Products = ({ onNavigate }) => {
 
   const getImageUrl = (url) => {
     if (!url) return null;
-    return url.startsWith('http') ? url : (url.startsWith('/') ? url : '/' + url);
+    const token = localStorage.getItem('odoo_session_id') || '';
+    const db = import.meta.env.VITE_ODOO_DB || 'stage';
+    return `${url}?token=${token}&db=${db}`;
   };
 
   const handlePageChange = (pageNumber) => {

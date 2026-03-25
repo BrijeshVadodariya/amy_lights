@@ -231,10 +231,18 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                         <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center">
                            {line.image_url ? (
                              <img 
-                               src={line.image_url.startsWith('http') ? line.image_url : (line.image_url.startsWith('/') ? line.image_url : '/' + line.image_url)} 
+                               src={(() => {
+                                 const url = line.image_url;
+                                 const token = localStorage.getItem('odoo_session_id') || '';
+                                 const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                                 return `${line.image_url}?token=${token}&db=${db}`;
+                               })()} 
                                alt="" 
                                className="w-full h-full object-contain" 
-                               onError={(e) => { e.target.src = '/placeholder-img.png'; }}
+                               onError={(e) => { 
+                                 e.target.onerror = null;
+                                 e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmMWY1ZjkiLz48L3N2Zz4='; 
+                               }}
                              />
                            ) : (
                              <Package2 size={18} className="text-slate-200" />
