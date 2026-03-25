@@ -24,7 +24,7 @@ const Sidebar = ({ user, activeTab, onTabChange, onLogout, isOpen, onCloseSideba
       icon: ShoppingCart,
       isGroup: true,
       children: [
-        { id: 'selection', label: 'Selection', icon: Box, disabled: true },
+        { id: 'selection', label: 'Selection', icon: Box },
         { id: 'quotations', label: 'Quotation', icon: Clock },
         { id: 'orders', label: 'Orders', icon: FileText }
       ]

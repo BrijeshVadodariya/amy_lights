@@ -12,6 +12,7 @@ import { getOdooErrorMessage, odooService } from './services/odoo';
 import CreateOrder from './CreateOrder';
 import CreateCustomer from './pages/CreateCustomer';
 import CreateProductPage from './pages/CreateProductPage';
+import Catalog from './pages/Catalog';
 import './App.css';
 
 const LOGIN_SESSION_KEY = 'amyLightsLoginSession';
@@ -23,6 +24,7 @@ function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('amy_active_tab') || 'dashboard');
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState(() => localStorage.getItem('amy_selected_id') || null);
+  const [extraData, setExtraData] = useState(null); // New state for extra data
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth > 768 : true
   ));
@@ -58,9 +60,10 @@ function App() {
     }
   }, []);
 
-  const handleNavigate = (tab, id = null) => {
+  const handleNavigate = (tab, id = null, data = null) => {
     setActiveTab(tab);
     setSelectedId(id);
+    setExtraData(data); // Set extra data
     localStorage.setItem('amy_active_tab', tab);
     if (id) localStorage.setItem('amy_selected_id', id);
     else localStorage.removeItem('amy_selected_id');
@@ -121,11 +124,17 @@ function App() {
       case 'product-detail':
         return <ProductDetail productId={selectedId} onBack={() => handleNavigate('products')} />;
       case 'create-order':
-        return <CreateOrder editId={selectedId} onNavigate={handleNavigate} />;
+        return <CreateOrder editId={selectedId} onNavigate={handleNavigate} extraData={extraData} />;
+      case 'create-direct-order':
+        return <CreateOrder editId={selectedId} isOrder={true} onNavigate={handleNavigate} extraData={extraData} />;
+      case 'create-selection':
+        return <CreateOrder editId={selectedId} isSelection={true} onNavigate={handleNavigate} extraData={extraData} />;
       case 'create-customer':
         return <CreateCustomer onNavigate={handleNavigate} />;
       case 'create-product':
         return <CreateProductPage onNavigate={handleNavigate} />;
+      case 'catalog':
+        return <Catalog onNavigate={handleNavigate} partnerId={selectedId} />;
       default:
         return <Dashboard user={user} onNavigate={handleNavigate} />;
     }
@@ -139,29 +148,28 @@ function App() {
   };
 
   return (
-    <div className={`app-layout ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+    <div className="app-layout">
       <div className={`sidebar-backdrop ${isSidebarOpen ? 'show' : ''}`} onClick={() => setIsSidebarOpen(false)} />
-      <Sidebar
+      <Sidebar 
         user={user}
-        activeTab={activeTab}
-        onTabChange={handleNavigate}
+        isOpen={isSidebarOpen} 
+        activeTab={activeTab} 
+        onTabChange={handleNavigate} 
         onLogout={handleLogout}
-        isOpen={isSidebarOpen}
-        onCloseSidebar={() => setIsSidebarOpen(false)}
+        onCloseSidebar={() => setIsSidebarOpen(false)} 
       />
-      
-      <main className="main-content">
-        <Header
-          user={user}
-          title={activeTab}
-          onLogout={handleLogout}
-          onMenuToggle={toggleSidebar}
-          isSidebarOpen={isSidebarOpen}
+      <div className="main-content">
+        <Header 
+          user={user} 
+          title={activeTab} 
+          onLogout={handleLogout} 
+          onMenuToggle={toggleSidebar} 
+          isSidebarOpen={isSidebarOpen} 
         />
         <div className="page-content">
           {renderContent()}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

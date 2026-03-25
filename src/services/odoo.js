@@ -76,6 +76,9 @@ export const getOdooErrorMessage = (error, fallback = 'Request to Odoo failed.')
 };
 
 export const odooService = {
+  getOdooUrl: () => {
+    return import.meta.env.VITE_ODOO_URL || 'http://localhost:8073';
+  },
   login: async (login, password) => {
     const res = await api.post('/api/login', {
       params: { login, password, db: import.meta.env.VITE_ODOO_DB || 'stage' }
@@ -121,6 +124,12 @@ export const odooService = {
     });
     return res.data.result || { success: false, error: res.data.error };
   },
+  updateQuotation: async (orderId, partnerId, lines, extra = {}) => {
+    const res = await api.post('/api/quote/create', {
+      params: { order_id: orderId, partner_id: partnerId, lines, ...extra }
+    });
+    return res.data.result || { success: false, error: res.data.error };
+  },
   createPartner: async (partnerData) => {
     const res = await api.post('/my/partner/create', { params: partnerData });
     return res.data.result || { success: false, error: res.data.error };
@@ -159,6 +168,10 @@ export const odooService = {
   },
   declineOrder: async (orderId, message = "") => {
     const res = await api.post('/api/orders/decline', { params: { order_id: orderId, message } });
+    return res.data.result || { success: false, error: res.data.error };
+  },
+  convertSelection: async (orderId, targetState = 'draft') => {
+    const res = await api.post('/api/orders/convert_selection', { params: { order_id: orderId, target_state: targetState } });
     return res.data.result || { success: false, error: res.data.error };
   }
 };

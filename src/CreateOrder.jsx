@@ -40,7 +40,7 @@ const dataCache = {
   electricians: null
 };
 
-const CreateOrder = ({ editId, onNavigate }) => {
+const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) => {
   const [loading, setLoading] = useState(false);
   const [masterData, setMasterData] = useState({
     partners: [],
@@ -50,7 +50,11 @@ const CreateOrder = ({ editId, onNavigate }) => {
   const [orderHeader, setOrderHeader] = useState({
     partnerId: '',
     date: new Date().toISOString().split('T')[0],
-    remark: ''
+    remark: '',
+    is_desc: true,
+    is_image: true,
+    is_beam: true,
+    is_automate: false
   });
 
   const [showProducts, setShowProducts] = useState(false);
@@ -67,9 +71,66 @@ const CreateOrder = ({ editId, onNavigate }) => {
     visit: [],
     email: []
   });
+  useEffect(() => {
+    if (extraData) {
+      if (extraData.preFilledPartnerId) {
+        setOrderHeader(prev => ({ ...prev, partnerId: extraData.preFilledPartnerId }));
+      }
+      if (extraData.preFilledProducts && extraData.preFilledProducts.length > 0) {
+        setRows(extraData.preFilledProducts.map(p => ({
+          id: Date.now() + Math.random(),
+          productId: p.productId,
+          qty: p.qty || 1,
+          price: p.price || 0,
+          discount: 0,
+          remark: ''
+        })));
+      }
+    }
+  }, [extraData]);
+  
+  useEffect(() => {
+    const fetchOrderForEdit = async () => {
+      if (!editId) return;
+      setLoading(true);
+      try {
+        const order = await odooService.getOrderDetail(editId);
+        if (order) {
+          setOrderHeader({
+            partnerId: String(order.partner_id?.[0] || order.partner_id || ''),
+            date: order.date_order ? order.date_order.split(' ')[0] : new Date().toISOString().split('T')[0],
+            remark: order.remark || '',
+            is_desc: order.is_desc ?? true,
+            is_image: order.is_image ?? true,
+            is_beam: order.is_beam ?? true,
+            is_automate: order.is_automate ?? false
+          });
+          
+          if (order.lines && order.lines.length > 0) {
+            setRows(order.lines.map(l => ({
+              id: Date.now() + Math.random(),
+              productId: String(l.product_id?.[0] || l.product_id || ''),
+              qty: l.qty || 1,
+              price: l.price_unit || 0,
+              discount: l.discount || 0,
+              remark: l.remark || ''
+            })));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch order for edit", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrderForEdit();
+  }, [editId]);
+
+
   const [generalNotes, setGeneralNotes] = useState([]);
   const [generalNoteInput, setGeneralNoteInput] = useState('');
   const [debugRawData, setDebugRawData] = useState(null);
+  const [showCategories, setShowCategories] = useState(false);
 
   const handleAddGeneralNote = () => {
     if (!generalNoteInput.trim()) return;
@@ -348,6 +409,10 @@ const CreateOrder = ({ editId, onNavigate }) => {
           const prod = masterData.products.find(p => p.id === parseInt(value));
           return { ...r, productId: value, price: prod ? prod.price : 0 };
         }
+        if (field === 'qty') {
+          const numVal = parseFloat(value) || 0;
+          return { ...r, [field]: numVal < 1 ? 1 : numVal };
+        }
         return { ...r, [field]: value };
       }
       return r;
@@ -457,14 +522,22 @@ const CreateOrder = ({ editId, onNavigate }) => {
 
       const extraData = {
         remark: orderHeader.remark,
-        amy_note_lines: amyNoteLines
+        amy_note_lines: amyNoteLines,
+        is_desc: orderHeader.is_desc,
+        is_image: orderHeader.is_image,
+        is_beam: orderHeader.is_beam,
+        is_automate: orderHeader.is_automate,
+        state: isSelection ? 'selection' : isOrder ? 'sale' : 'draft'
       };
 
-      const res = await odooService.createQuotation(finalPartnerId, productLines, extraData);
+      console.log("Submitting order with state:", extraData.state);
+      const res = editId 
+        ? await odooService.updateQuotation(editId, finalPartnerId, productLines, extraData)
+        : await odooService.createQuotation(finalPartnerId, productLines, extraData);
+        
       if (res.success) {
-        alert(editId ? "Order Updated" : "Order Created");
         setActivityHistory({});
-        onNavigate('quotations');
+        onNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations');
       } else {
         alert(res.error?.message || "Error processing order");
       }
@@ -530,47 +603,108 @@ const CreateOrder = ({ editId, onNavigate }) => {
 
         <div className="co-expandable-card">
           <div className="co-expand-header" onClick={() => setShowProducts(!showProducts)}>
-            <h2>Quotation</h2>
+            <h2>{isSelection ? 'Selection Products' : 'Quotation'}</h2>
             <div className={`co-chevron ${showProducts ? 'open' : ''}`}>
               <ChevronRight size={18} />
             </div>
           </div>
           {showProducts && (
             <div className="co-card-body product-cards-list">
-              {rows.map((r) => (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center', marginBottom: '0.5rem', paddingBottom: '1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={orderHeader.is_desc} onChange={(e) => setOrderHeader({...orderHeader, is_desc: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                  Description
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={orderHeader.is_image} onChange={(e) => setOrderHeader({...orderHeader, is_image: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                  Image
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={orderHeader.is_beam} onChange={(e) => setOrderHeader({...orderHeader, is_beam: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                  Beam
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={orderHeader.is_automate} onChange={(e) => setOrderHeader({...orderHeader, is_automate: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                  Automation
+                </label>
+              </div>
+
+              <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 'max-content' }}>
+                  {rows.map((r) => {
+                const selectedProduct = masterData.products.find(p => p.id === parseInt(r.productId));
+                return (
                 <div key={r.id} className="product-item-card">
                   <div className="pi-header">
                     <button className="pi-remove" onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))}>
                       <X size={14} />
                     </button>
                   </div>
-                  <div className="pi-grid">
-                    <div className="form-group no-label">
-                      <SearchableSelect
-                        placeholder="Select Product..."
-                        value={r.productId}
-                        options={masterData.products.map(p => ({ ...p, value: p.id, label: p.name }))}
-                        onChange={(val) => handleRowChange(r.id, 'productId', val)}
-                      />
-                    </div>
-                    <div className="pi-sub-grid">
-                      <div className="form-group pi-small-input">
-                        <label className="pi-small-label">Qty</label>
-                        <input type="number" className="co-input-clean" value={r.qty} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} />
+                  <div className="pi-grid-container" style={{ paddingBottom: '8px' }}>
+                    <div className="pi-grid pi-grid-scrollable">
+                      <div className="form-group product-select-group" style={{ minWidth: '200px', flex: '1 1 auto' }}>
+                        <label className="pi-small-label desktop-alignment-label">Product Box Alignment</label>
+                        <SearchableSelect
+                          placeholder="Select Product..."
+                          value={r.productId}
+                          options={masterData.products.filter(p => orderHeader.is_automate ? true : !p.is_automation).map(p => ({ ...p, value: p.id, label: p.name }))}
+                          onChange={(val) => handleRowChange(r.id, 'productId', val)}
+                        />
                       </div>
-                      <div className="form-group pi-small-input">
-                        <label className="pi-small-label">Price</label>
-                        <input type="number" className="co-input-clean" value={r.price} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} />
+                      <div className="pi-sub-grid" style={{ minWidth: '280px', flex: '0 0 auto' }}>
+                        <div className="form-group pi-small-input">
+                          <label className="pi-small-label">Qty</label>
+                          <input type="number" min="1" className="co-input-clean" value={r.qty} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} />
+                        </div>
+                        <div className="form-group pi-small-input">
+                          <label className="pi-small-label">Price</label>
+                          <input type="number" className="co-input-clean" value={r.price} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} />
+                        </div>
+                        <div className="form-group pi-small-input">
+                          <label className="pi-small-label">Disc %</label>
+                          <input type="number" className="co-input-clean" value={r.discount} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} />
+                        </div>
                       </div>
-                      <div className="form-group pi-small-input">
-                        <label className="pi-small-label">Discount %</label>
-                        <input type="number" className="co-input-clean" value={r.discount} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} />
-                      </div>
+                      {orderHeader.is_desc && (
+                        <div className="form-group pi-small-input" style={{ minWidth: '150px', flex: '0 0 auto' }}>
+                          <label className="pi-small-label">Description</label>
+                          <div className="text-sm text-slate-600 font-medium p-3 bg-slate-50 rounded border border-slate-200 whitespace-pre-wrap break-words leading-relaxed" title={selectedProduct?.description || ''}>
+                            {selectedProduct?.description || '-'}
+                          </div>
+                        </div>
+                      )}
+                      {orderHeader.is_image && (
+                        <div className="form-group pi-small-input" style={{ minWidth: '60px', flex: '0 0 auto' }}>
+                          <label className="pi-small-label">Image</label>
+                          <div className="flex items-center justify-center h-[42px] w-[50px] bg-slate-50 border border-slate-200 rounded overflow-hidden">
+                            {selectedProduct?.image_url && selectedProduct?.id ? (
+                              <img 
+                                src={selectedProduct.image_url.startsWith('http') ? selectedProduct.image_url : (selectedProduct.image_url.startsWith('/') ? selectedProduct.image_url : '/' + selectedProduct.image_url)} 
+                                alt="Prod" 
+                                className="h-full w-full object-cover" 
+                                onError={(e) => { e.target.src = '/placeholder-img.png'; }} 
+                              />
+                            ) : (
+                              <span className="text-xs text-slate-400">N/A</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {orderHeader.is_beam && (
+                        <div className="form-group pi-small-input" style={{ minWidth: '80px', flex: '0 0 auto' }}>
+                          <label className="pi-small-label">Beam</label>
+                          <div className="text-sm text-slate-600 font-medium p-3 bg-slate-50 rounded border border-slate-200 whitespace-pre-wrap break-words leading-relaxed" title={selectedProduct?.beam || ''}>
+                            {selectedProduct?.beam || '-'}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
-              <button className="co-btn-secondary w-full py-3" onClick={addRow} style={{ marginTop: '1rem' }}>
+              )})}
+                </div>
+              </div>
+              <button className="co-btn-secondary w-full py-3" onClick={addRow} style={{ marginTop: '0.5rem' }}>
                 <Plus size={18} style={{ marginRight: '8px' }} />
                 Add Product Row
               </button>
@@ -611,15 +745,27 @@ const CreateOrder = ({ editId, onNavigate }) => {
         </div>
 
         <div className="activity-section">
+          <div className="activity-toggle-bar" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 1rem', marginBottom: '0.5rem' }}>
+             <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '22px' }}>
+                <input type="checkbox" checked={showCategories} onChange={() => setShowCategories(!showCategories)} style={{ opacity: 0, width: 0, height: 0 }} />
+                <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: showCategories ? '#3b82f6' : '#cbd5e1', transition: '.4s', borderRadius: '34px' }}>
+                  <span style={{ position: 'absolute', content: '""', height: '16px', width: '16px', left: showCategories ? '20px' : '3px', bottom: '3px', backgroundColor: 'white', transition: '.4s', borderRadius: '50%' }}></span>
+                </span>
+             </label>
+             <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Show Product Selections</span>
+          </div>
+
           {[
-            { id: 'switches', title: 'Switches', icon: <ToggleRight size={18} /> },
-            { id: 'decorative', title: 'Decorative', icon: <Sparkles size={18} /> },
-            { id: 'fan', title: 'Fan', icon: <Wind size={18} /> },
-            { id: 'lights', title: 'Lights', icon: <Lightbulb size={18} /> },
-            { id: 'profile', title: 'Profile', icon: <Layers size={18} /> },
-            { id: 'others', title: 'Others', icon: <MoreHorizontal size={18} /> },
-            { id: 'tasks', title: 'Tasks', icon: <CheckSquare size={18} /> },
-          ].map((act) => (
+            { id: 'switches', title: 'Switches', icon: <ToggleRight size={18} />, group: 'cat' },
+            { id: 'decorative', title: 'Decorative', icon: <Sparkles size={18} />, group: 'cat' },
+            { id: 'fan', title: 'Fan', icon: <Wind size={18} />, group: 'cat' },
+            { id: 'lights', title: 'Lights', icon: <Lightbulb size={18} />, group: 'cat' },
+            { id: 'profile', title: 'Profile', icon: <Layers size={18} />, group: 'cat' },
+            { id: 'others', title: 'Others', icon: <MoreHorizontal size={18} />, group: 'cat' },
+            { id: 'tasks', title: 'Tasks', icon: <CheckSquare size={18} />, group: 'always' },
+          ].map((act) => {
+            if (act.group === 'cat' && !showCategories) return null;
+            return (
             <div key={act.id} className="activity-card">
               <div className="activity-header" onClick={() => setShowMore(showMore === act.id ? null : act.id)}>
                 <div className="activity-title-group">
@@ -680,12 +826,17 @@ const CreateOrder = ({ editId, onNavigate }) => {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="co-page-footer">
-          <button className="co-btn co-btn-primary co-btn-lg" onClick={handleProcess}>{editId ? "Update Quotation" : "Submit Quotation"}</button>
-          <button className="co-btn co-btn-secondary co-btn-lg" onClick={() => onNavigate('quotations')}>Back</button>
+          <button className="co-btn co-btn-primary co-btn-lg" onClick={handleProcess}>
+            {loading ? "Processing..." : (editId ? (isSelection ? "Update Selection" : "Update Target") : (isSelection ? "Create Selection" : isOrder ? "Create Order" : "Submit Quotation"))}
+          </button>
+          <button className="co-btn co-btn-secondary co-btn-lg" onClick={() => onNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations')}>
+            Cancel
+          </button>
         </div>
       </div>
     </div>

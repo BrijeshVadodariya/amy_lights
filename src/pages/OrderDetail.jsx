@@ -66,6 +66,22 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     }
   };
 
+  const handleConvertSelection = async (targetState) => {
+    const stateName = targetState === 'sale' ? 'Sale Order' : 'Quotation';
+    if (!window.confirm(`Convert this selection to a ${stateName}?`)) return;
+    try {
+      const res = await odooService.convertSelection(orderId, targetState);
+      if (res.success) {
+        alert(`${stateName} created successfully!`);
+        onNavigate(targetState === 'sale' ? 'orders' : 'quotations');
+      } else {
+        alert(res.error?.message || `Error converting to ${stateName}`);
+      }
+    } catch {
+      alert("Network error while converting.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="placeholder-content">
@@ -96,9 +112,21 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     <div className="order-detail-page detail-page-shell">
       <div className="detail-card detail-surface">
         <div className="detail-hero">
-          <button className="detail-back-btn" onClick={onBack}>
+          <button className="detail-back-btn" onClick={() => {
+            if (order.state === 'selection') {
+              onNavigate('selection');
+            } else if (order.state === 'sale' || order.state === 'done') {
+              onNavigate('orders');
+            } else {
+              onNavigate('quotations');
+            }
+          }}>
             <ChevronLeft size={18} />
-            <span>Back to Quotations</span>
+            <span>
+              {order.state === 'selection' ? 'Back to Selections' : 
+               (order.state === 'sale' || order.state === 'done') ? 'Back to Orders' : 
+               'Back to Quotations'}
+            </span>
           </button>
 
           <div className="detail-hero-copy">
@@ -188,6 +216,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                 <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
                   <tr>
                     <th className="py-3 px-4 text-left w-12 border-none">#</th>
+                    <th className="py-3 px-4 text-left w-16 border-none">Img</th>
                     <th className="py-3 px-4 text-left border-none">Product Name</th>
                     <th className="py-3 px-4 text-center w-24 border-none">Qty</th>
                     <th className="py-3 px-4 text-right w-32 border-none">Unit Price</th>
@@ -198,6 +227,20 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                   {orderLines.map((line, idx) => (
                     <tr key={line.id || idx} className="row-hover">
                       <td className="py-4 px-4 text-slate-400 font-medium">{idx + 1}</td>
+                      <td className="py-4 px-4">
+                        <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center">
+                           {line.image_url ? (
+                             <img 
+                               src={line.image_url.startsWith('http') ? line.image_url : (line.image_url.startsWith('/') ? line.image_url : '/' + line.image_url)} 
+                               alt="" 
+                               className="w-full h-full object-contain" 
+                               onError={(e) => { e.target.src = '/placeholder-img.png'; }}
+                             />
+                           ) : (
+                             <Package2 size={18} className="text-slate-200" />
+                           )}
+                        </div>
+                      </td>
                       <td className="py-4 px-4">
                         <div className="font-bold text-slate-800">{formatValue(line.product_name, 'Unnamed product')}</div>
                         <div className="text-[11px] text-slate-500 mt-0.5">{formatValue(line.remark, '')}</div>
@@ -235,13 +278,14 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
         </section>
 
         <div className="detail-footer-actions">
-          <button className="detail-action-btn detail-action-primary" onClick={() => onNavigate?.('create-order', order.id)}>
-            <Edit size={16} />
-            <span>Edit Quotation</span>
-          </button>
+          {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
+            <button className="detail-action-btn detail-action-primary" onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}>
+              <Edit size={16} />
+              <span>{order.state === 'selection' ? 'Edit Selection' : 'Edit Quotation'}</span>
+            </button>
+          )}
 
           {(order.state === 'draft' || order.state === 'sent') && (
-            <>
               <button 
                 className="btn-action-soft btn-confirm-soft w-auto"
                 onClick={handleConfirm}
@@ -249,18 +293,47 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                 <CheckCircle size={18} />
                 <span>Confirm Quotation</span>
               </button>
-              
+          )}
+
+          {(order.state === 'draft' || order.state === 'sent' || order.state === 'sale') && (
               <button 
                 className="btn-action-soft btn-cancel-soft w-auto"
                 onClick={handleDecline}
               >
                 <XCircle size={18} />
-                <span>Cancel Quotation</span>
+                <span>{order.state === 'sale' ? 'Cancel Order' : 'Cancel Quotation'}</span>
+              </button>
+          )}
+
+          {order.state === 'selection' && (
+            <>
+              <button 
+                className="btn-action-soft btn-confirm-soft w-auto bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                onClick={() => handleConvertSelection('draft')}
+              >
+                <FileText size={18} />
+                <span>Convert to Quotation</span>
+              </button>
+              
+              <button 
+                className="btn-action-soft btn-confirm-soft w-auto bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                onClick={() => handleConvertSelection('sale')}
+              >
+                <CheckCircle size={18} />
+                <span>Convert to Order</span>
               </button>
             </>
           )}
 
-          <button className="detail-action-btn detail-action-secondary" onClick={onBack}>
+          <button className="detail-action-btn detail-action-secondary" onClick={() => {
+            if (order.state === 'selection') {
+              onNavigate('selection');
+            } else if (order.state === 'sale' || order.state === 'done') {
+              onNavigate('orders');
+            } else {
+              onNavigate('quotations');
+            }
+          }}>
             <span>Back</span>
           </button>
         </div>

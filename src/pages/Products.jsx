@@ -46,6 +46,11 @@ const Products = ({ onNavigate }) => {
   const indexOfFirstItem = indexOfLastItem - entriesPerPage;
   const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
 
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    return url.startsWith('http') ? url : (url.startsWith('/') ? url : '/' + url);
+  };
+
   const handlePageChange = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
       setCurrentPage(pageNumber);
@@ -150,7 +155,7 @@ const Products = ({ onNavigate }) => {
                     <div className="dt-flex">
                       <div className="product-thumb w-10 h-10 rounded border border-slate-100 overflow-hidden bg-slate-50 flex-shrink-0 flex items-center justify-center">
                          {product.image_url ? (
-                           <img src={product.image_url} alt="" className="w-full h-full object-contain" />
+                           <img src={getImageUrl(product.image_url)} alt="" className="w-full h-full object-contain" onError={(e)=>{e.target.src='/placeholder-img.png'}} />
                          ) : (
                            <Box size={18} className="text-slate-300 opacity-60" />
                          )}

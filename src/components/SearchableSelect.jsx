@@ -45,7 +45,7 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
         left: `${rect.left}px`,
         width: `${rect.width}px`,
         minWidth: isMobile ? '280px' : 'auto',
-        zIndex: 9999,
+        zIndex: 20000,
       });
     }
   }, [open]);

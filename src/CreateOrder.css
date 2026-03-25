@@ -394,10 +394,9 @@
 
 .product-item-card {
   background: #fff;
-  border: 1px solid #f1f5f9;
-  border-radius: 12px;
-  padding-bottom: 1.25rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+  padding-top: 0.5rem;
 }
 
 .pi-header {
@@ -408,6 +407,21 @@
   background: transparent;
   border-bottom: none;
   margin-bottom: 0;
+}
+
+@media (min-width: 768px) {
+  .product-item-card {
+    position: relative;
+    padding-top: 1rem;
+    padding-right: 0.5rem;
+  }
+  .pi-header {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
+    padding: 0;
+    z-index: 10;
+  }
 }
 
 .pi-item-number {
@@ -454,7 +468,41 @@
 .pi-sub-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
+  gap: 1rem;
+  min-width: 280px;
+}
+
+.desktop-alignment-label {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .pi-grid {
+    flex-direction: row;
+    align-items: flex-start;
+    min-width: max-content;
+    padding-bottom: 8px;
+    padding-right: 3.5rem; /* space for absolute delete button */
+    gap: 1.5rem !important; /* Consistent gap between columns */
+  }
+  .desktop-alignment-label {
+    display: block;
+    visibility: hidden;
+  }
+  .product-select-group {
+    flex: 0 0 320px !important;
+    width: 320px !important;
+  }
+  .pi-sub-grid {
+    flex: 0 0 280px !important;
+    width: 280px !important;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  .pi-small-input {
+    flex: 0 0 auto !important;
+  }
 }
 
 .co-add-product-btn {
@@ -789,6 +837,7 @@
 @media (max-width: 768px) {
   .pi-sub-grid {
     grid-template-columns: 1fr;
+    min-width: 200px;
   }
   
   .dummy-cards-grid {

@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Edit, Trash2, CheckCircle, XCircle, ChevronDown, MoreVertical, Eye } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, CheckCircle, XCircle, ChevronDown, MoreVertical, Eye, Filter, ShoppingCart, ArrowLeft, Grid, List as ListIcon, X, Clock, UserPlus } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { odooService } from '../services/odoo';
+import SearchableSelect from '../components/SearchableSelect';
 import './Products.css'; // Global DataTable styles
+import '../CreateOrder.css'; // Use shared form styles for consistency
 
 const Orders = ({ stateType = 'all', onNavigate }) => {
   const [orders, setOrders] = useState([]);
@@ -12,6 +15,10 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   const [isMobile, setIsMobile] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth <= 768 : false
   ));
+  const [partners, setPartners] = useState([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState('');
+  const [catalogAnchor, setCatalogAnchor] = useState(null);
+  const catalogBtnRef = React.useRef(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -32,6 +39,19 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
 
   useEffect(() => {
     fetchOrders();
+    const fetchPartners = async () => {
+      try {
+        const data = await odooService.getMasterData();
+        if (data.error) {
+          console.error("Master data error:", data.error);
+        } else {
+          setPartners(data.partners || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch partners", err);
+      }
+    };
+    fetchPartners();
   }, [fetchOrders]);
 
   const filtered = orders.filter(o => 
@@ -117,11 +137,27 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
       <div className="dt-card">
         <div className="dt-header">
           <h2>{title}</h2>
-          {stateType === 'quotation' && (
-            <button className="btn-ui primary" onClick={() => onNavigate('create-order')}>
-              Create Quotation
+          <div className="flex gap-2">
+            <button 
+              ref={catalogBtnRef}
+              className={`btn-ui secondary ${catalogAnchor ? 'active-popover' : ''}`} 
+              onClick={() => setCatalogAnchor(catalogAnchor ? null : catalogBtnRef.current)}
+              title="Open Catalog Choice"
+            >
+              <ShoppingCart size={18} />
+              <span className="hide-text-mobile">Catalog</span>
             </button>
-          )}
+            <button 
+              className="btn-ui primary" 
+              onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : stateType === 'order' ? 'create-direct-order' : 'create-order')}
+              title={stateType === 'selection' ? 'Create Selection' : 'Create Quotation'}
+            >
+              <Plus size={18} />
+              <span className="hide-text-mobile">
+                {stateType === 'selection' ? 'Create Selection' : stateType === 'order' ? 'Create Order' : 'Create Quotation'}
+              </span>
+            </button>
+          </div>
         </div>
 
         <div className="dt-controls">
@@ -154,7 +190,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
             <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
               <tr>
                 <th className="py-3 px-4 text-left w-16 border-none">No</th>
-                <th className="py-3 px-4 text-left border-none">{stateType === 'quotation' ? 'Quotation #' : 'Sale Order #'}</th>
+                <th className="py-3 px-4 text-left border-none">{stateType === 'quotation' ? 'Quotation #' : stateType === 'selection' ? 'Selection #' : 'Sale Order #'}</th>
                 <th className="py-3 px-4 text-left border-none">Customer</th>
                 <th className="py-3 px-4 text-center border-none">Date</th>
                 <th className="py-3 px-4 text-center border-none">Status</th>
@@ -169,7 +205,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                   onClick={() => onNavigate('order-detail', order.id)}
                 >
                   <td className="py-3 px-4" data-label="No">{indexOfFirstItem + idx + 1}</td>
-                  <td className="py-3 px-4 font-bold text-slate-800 text-[12px]" data-label={stateType === 'quotation' ? 'Quotation #' : 'Sale Order #'}>{order.name}</td>
+                  <td className="py-3 px-4 font-bold text-slate-800 text-[12px]" data-label={stateType === 'quotation' ? 'Quotation #' : stateType === 'selection' ? 'Selection #' : 'Sale Order #'}>{order.name}</td>
                   <td className="py-3 px-4 font-medium text-slate-700" data-label="Customer">{order.customer || '-'}</td>
                   <td className="py-3 px-4 text-center" data-label="Date">{order.order_date}</td>
                   <td className="py-3 px-4 text-center" data-label="Status">
@@ -188,7 +224,10 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                       <div className="relative">
                         <button 
                           className={`p-2 rounded-full transition-all duration-200 ${openDropdownId === order.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdownId(openDropdownId === order.id ? null : order.id);
+                          }}
                         >
                           <ChevronDown size={18} className={`transition-transform duration-200 ${openDropdownId === order.id ? 'rotate-90' : ''}`} />
                         </button>
@@ -200,34 +239,21 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                             onMouseLeave={() => setOpenDropdownId(null)}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button 
-                              className="btn-action-soft btn-edit-soft"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenDropdownId(null);
-                                onNavigate('order-detail', order.id);
-                              }}
-                            >
-                              <Eye size={14} />
-                              <span>View Detail</span>
-                            </button>
-
-                            {(order.status === 'draft' || order.status === 'sent') && (
+                            {(order.status === 'draft' || order.status === 'sent' || order.status === 'selection') && (
                               <button 
                                 className="btn-action-soft btn-edit-soft"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setOpenDropdownId(null);
-                                  onNavigate('create-order', order.id);
+                                  onNavigate(order.status === 'selection' ? 'create-selection' : 'create-order', order.id);
                                 }}
                               >
                                 <Edit size={14} />
-                                <span>Edit Detail</span>
+                                <span>{order.status === 'selection' ? 'Edit Selection' : 'Edit Detail'}</span>
                               </button>
                             )}
                             
-                            {(stateType === 'quotation' || order.status === 'draft' || order.status === 'sent') && (
-                              <>
+                            {(order.status === 'draft' || order.status === 'sent') && (
                                 <button 
                                   className="btn-action-soft btn-confirm-soft"
                                   onClick={(e) => {
@@ -239,7 +265,9 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                                   <CheckCircle size={14} />
                                   <span>Confirm Order</span>
                                 </button>
-                                
+                            )}
+
+                            {(order.status === 'draft' || order.status === 'sent' || order.status === 'sale') && (
                                 <button 
                                   className="btn-action-soft btn-cancel-soft"
                                   onClick={(e) => {
@@ -249,9 +277,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                                   }}
                                 >
                                   <XCircle size={14} />
-                                  <span>Cancel Order</span>
+                                  <span>{order.status === 'sale' ? 'Cancel Order' : 'Cancel Quotation'}</span>
                                 </button>
-                              </>
                             )}
                           </div>
                         )}
@@ -280,6 +307,80 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
            </div>
         </div>
       </div>
+
+      {catalogAnchor && createPortal(
+        <>
+          <div className="catalog-popover-portal fixed-popover animate-fade-in shadow-2xl">
+             <div className="popover-section-header">
+                <h3>Select Customer</h3>
+                <button className="close-popover-btn" onClick={() => setCatalogAnchor(null)}>
+                  <X size={16} />
+                </button>
+             </div>
+
+             <div className="popover-body-content">
+               <div className="flex-between mb-2">
+                  <label className="context-label">Identify Your Customer</label>
+                  <button 
+                    className="ghost-action-btn"
+                    onClick={() => { setCatalogAnchor(null); onNavigate('create-customer'); }}
+                  >
+                    <UserPlus size={12} />
+                    <span>New Contact</span>
+                  </button>
+               </div>
+               <SearchableSelect
+                 placeholder="Search by name, phone or email..."
+                 value={selectedPartnerId}
+                 onChange={(val) => setSelectedPartnerId(val)}
+                 options={partners.map((p) => ({ 
+                   value: p.id, 
+                   label: `${p.name}${p.mobile ? ' - ' + p.mobile : (p.phone ? ' - ' + p.phone : '')}`
+                 }))}
+               />
+             </div>
+
+             {selectedPartnerId && (() => {
+               const p = partners.find(part => part.id === parseInt(selectedPartnerId));
+               return (
+                 <div className="selected-partner-card mb-6 animate-slide-up">
+                   <div className="partner-icon-large">
+                     {p?.name?.substring(0,1).toUpperCase()}
+                   </div>
+                   <div className="partner-meta-info">
+                     <div className="partner-name-bold">{p?.name}</div>
+                     <div className="partner-contact-pill">{p?.mobile || p?.phone || 'No Contact Info'}</div>
+                   </div>
+                 </div>
+               );
+             })()}
+
+             <div className="popover-footer-actions">
+               <button 
+                 className="popover-btn-secondary"
+                 onClick={() => setCatalogAnchor(null)}
+               >
+                 Cancel
+               </button>
+               <button 
+                 className="popover-btn-primary"
+                 disabled={!selectedPartnerId}
+                 onClick={() => {
+                   setCatalogAnchor(null);
+                   onNavigate('catalog', selectedPartnerId);
+                 }}
+               >
+                 Open Catalog
+               </button>
+             </div>
+          </div>
+          <div 
+            className="popover-backdrop-dark" 
+            onClick={() => setCatalogAnchor(null)} 
+          />
+        </>,
+        document.body
+      )}
     </div>
   );
 };
