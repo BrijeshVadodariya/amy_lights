@@ -40,7 +40,11 @@ const Products = ({ onNavigate }) => {
       setLoadingRest(true);
       const dataAll = await odooService.getProducts(10000, 50);
       if (dataAll && dataAll.length > 0) {
-        setProducts(prev => [...prev, ...dataAll]);
+        setProducts(prev => {
+          const ids = new Set(prev.map(p => p.id));
+          const uniqueNew = dataAll.filter(p => !ids.has(p.id));
+          return [...prev, ...uniqueNew];
+        });
       }
     } catch (err) {
       console.error("Products fetch failed", err);

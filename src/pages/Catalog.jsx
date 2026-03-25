@@ -48,7 +48,11 @@ const Catalog = ({ onNavigate, partnerId }) => {
         setLoadingRest(true);
         const prodDataAll = await odooService.getProducts(10000, 50);
         if (prodDataAll && prodDataAll.length > 0) {
-          setProducts(prev => [...prev, ...prodDataAll]);
+          setProducts(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const uniqueRest = prodDataAll.filter(p => !existingIds.has(p.id));
+            return [...prev, ...uniqueRest];
+          });
         }
       } catch (err) {
         console.error("Catalog fetch failed", err);
