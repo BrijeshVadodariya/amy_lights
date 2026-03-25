@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Eye, Download, Search, Filter, RefreshCcw } from 'lucide-react';
 import { odooService } from '../services/odoo';
+import Loader from '../components/Loader';
+import '../components/Loader.css';
 import './Orders.css'; // Reusing Orders.css for consistent table styling
 
 const Invoices = () => {
@@ -30,9 +32,8 @@ const Invoices = () => {
     );
 
     if (loading) return (
-        <div className="placeholder-content">
-            <RefreshCcw className="animate-spin" size={32} />
-            <p>Fetching Invoices...</p>
+        <div className="orders-page content-container flex flex-col items-center justify-center min-h-[60vh]">
+            <Loader message="Fetching Invoices..." />
         </div>
     );
 

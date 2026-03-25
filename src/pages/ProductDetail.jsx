@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Box, ShoppingCart, RefreshCcw, BadgeIndianRupee, FileText, Package, ScanBarcode, Tag } from 'lucide-react';
+import { ChevronLeft, Box, ShoppingCart, Loader2, BadgeIndianRupee, FileText, Package, ScanBarcode, Tag } from 'lucide-react';
 import { odooService } from '../services/odoo';
+import Loader from '../components/Loader';
+import '../components/Loader.css';
 import './OrderDetail.css';
 
 const ProductDetail = ({ productId, onBack }) => {
@@ -34,12 +36,18 @@ const ProductDetail = ({ productId, onBack }) => {
 
     if (productId) fetchDetail();
   }, [productId]);
+  
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    const token = localStorage.getItem('odoo_session_id') || '';
+    const db = import.meta.env.VITE_ODOO_DB || 'stage';
+    return `${url}?token=${token}&db=${db}`;
+  };
 
   if (loading) {
     return (
-      <div className="placeholder-content">
-        <RefreshCcw className="animate-spin" size={32} />
-        <p>Loading Product Specifications...</p>
+      <div className="order-detail-page detail-page-shell flex flex-col items-center justify-center min-vh-70">
+        <Loader message="Loading Product Specifications..." />
       </div>
     );
   }
@@ -87,7 +95,7 @@ const ProductDetail = ({ productId, onBack }) => {
               <div className="product-image-shell">
                 <div className="product-image-glow"></div>
                 {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="product-image" />
+                  <img src={getImageUrl(product.image_url)} alt={product.name} className="product-image" />
                 ) : (
                   <div className="product-image-placeholder">
                     <Box size={96} strokeWidth={1.2} />

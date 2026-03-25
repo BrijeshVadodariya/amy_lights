@@ -140,8 +140,8 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },
-  getProducts: async () => {
-    const res = await api.post('/api/products', { params: { limit: 10000 } });
+  getProducts: async (limit = 100, offset = 0) => {
+    const res = await api.post('/api/products', { params: { limit, offset } });
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },

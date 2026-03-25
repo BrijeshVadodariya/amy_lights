@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, Eye, Edit, Trash2, Search, RefreshCcw, ChevronDown } from 'lucide-react';
 import { odooService } from '../services/odoo';
+import Loader from '../components/Loader';
+import '../components/Loader.css';
 import './Products.css'; // Global DataTable styles
 
 const PurchaseOrders = () => {
@@ -89,9 +91,8 @@ const PurchaseOrders = () => {
   };
 
   if (loading) return (
-    <div className="placeholder-content">
-      <RefreshCcw className="animate-spin" size={32} />
-      <p>Loading Purchase Orders...</p>
+    <div className="dt-page p-6 flex flex-col items-center justify-center min-h-[60vh]">
+      <Loader message="Loading Purchase Orders..." />
     </div>
   );
 

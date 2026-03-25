@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { odooService } from '../services/odoo';
+import Loader from '../components/Loader';
+import '../components/Loader.css';
 import './OrderDetail.css';
 import './Products.css';
 
@@ -84,9 +86,8 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
 
   if (loading) {
     return (
-      <div className="placeholder-content">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
-        <p>Loading order details...</p>
+      <div className="order-detail-page detail-page-shell flex flex-col items-center justify-center min-vh-70">
+        <Loader message="Fetching order details..." />
       </div>
     );
   }

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronDown, ChevronLeft, ChevronRight, Filter, ShoppingCart, ArrowLeft, Grid, List as ListIcon, X, Clock, Sparkles, Plus, Minus, Box } from 'lucide-react';import { odooService } from '../services/odoo';
+import { Search, ChevronDown, ChevronLeft, ChevronRight, Filter, ShoppingCart, ArrowLeft, Grid, List as ListIcon, X, Clock, Sparkles, Plus, Minus, Box } from 'lucide-react';
+import { odooService } from '../services/odoo';
+import Loader from '../components/Loader';
+import '../components/Loader.css';
 import './Products.css';
 import './Catalog.css'; // Reuse table/grid styles
 
@@ -14,6 +17,7 @@ const Catalog = ({ onNavigate, partnerId }) => {
   const [partner, setPartner] = useState(null);
   const [cart, setCart] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loadingRest, setLoadingRest] = useState(false);
   const itemsPerPage = 40;
 
   useEffect(() => {
@@ -23,21 +27,34 @@ const Catalog = ({ onNavigate, partnerId }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [prodData, masterData] = await Promise.all([
-          odooService.getProducts(),
+        // Step 1: Fetch FIRST 50 and master data
+        const [prodData50, masterData] = await Promise.all([
+          odooService.getProducts(50, 0),
           odooService.getMasterData()
         ]);
-        setProducts(prodData || []);
+        
+        setProducts(prodData50 || []);
         setCategories(masterData.categories || []);
         
         if (partnerId) {
           const p = masterData.partners.find(p => p.id === parseInt(partnerId));
           setPartner(p);
         }
+        
+        // Let the first 50 render immediately
+        setLoading(false);
+
+        // Step 2: Fetch the rest in the background
+        setLoadingRest(true);
+        const prodDataAll = await odooService.getProducts(10000, 50);
+        if (prodDataAll && prodDataAll.length > 0) {
+          setProducts(prev => [...prev, ...prodDataAll]);
+        }
       } catch (err) {
         console.error("Catalog fetch failed", err);
       } finally {
         setLoading(false);
+        setLoadingRest(false);
       }
     };
     fetchData();
@@ -146,13 +163,21 @@ const Catalog = ({ onNavigate, partnerId }) => {
             </select>
           </div>
         </div>
+        {loadingRest && (
+           <div className="h-1 w-full bg-indigo-50 relative overflow-hidden">
+              <div className="absolute h-full bg-indigo-500 animate-[loading-bar_2s_infinite]" style={{ width: '40%' }}></div>
+           </div>
+        )}
 
         <div className="page-content">
           {loading ? (
-            <div className="catalog-grid">
-              {[...Array(12)].map((_, i) => (
-                <div key={i} className="animate-pulse bg-slate-50 border border-slate-200 rounded-2xl h-[320px]" />
-              ))}
+            <div className="flex flex-col items-center justify-center py-20">
+               <Loader message="Gathering items..." />
+               <div className="catalog-grid w-full mt-12 opacity-40 pointer-events-none">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="animate-pulse bg-slate-50 border border-slate-200 rounded-2xl h-[320px]" />
+                  ))}
+               </div>
             </div>
           ) : (
             <>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Eye, Edit, Trash2, Search, Filter, RefreshCcw, Plus } from 'lucide-react';
 import { odooService } from '../services/odoo';
+import Loader from '../components/Loader';
+import '../components/Loader.css';
 import './Orders.css'; // Consistency
 
 const Partners = () => {
@@ -62,9 +64,8 @@ const Partners = () => {
     );
 
     if (loading) return (
-        <div className="placeholder-content">
-            <RefreshCcw className="animate-spin" size={32} />
-            <p>Scanning Network Members...</p>
+        <div className="orders-page content-container flex flex-col items-center justify-center min-h-[60vh]">
+            <Loader message="Scanning Network Members..." />
         </div>
     );
 

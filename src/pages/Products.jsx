@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Plus, Search, Filter, Box, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { odooService } from '../services/odoo';
+import Loader from '../components/Loader';
+import '../components/Loader.css';
 import './Products.css';
 
 const Products = ({ onNavigate }) => {
@@ -9,6 +11,7 @@ const Products = ({ onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loadingRest, setLoadingRest] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const dropdownRef = React.useRef(null);
   const [isMobile, setIsMobile] = useState(() => (
@@ -28,10 +31,22 @@ const Products = ({ onNavigate }) => {
 
   const fetchProducts = async () => {
     try {
-      const data = await odooService.getProducts();
-      setProducts(data || []);
+      // Step 1: Fetch first 50
+      const data50 = await odooService.getProducts(50, 0);
+      setProducts(data50 || []);
+      setLoading(false); // Render first 50 immediately
+
+      // Step 2: Fetch rest in background
+      setLoadingRest(true);
+      const dataAll = await odooService.getProducts(10000, 50);
+      if (dataAll && dataAll.length > 0) {
+        setProducts(prev => [...prev, ...dataAll]);
+      }
+    } catch (err) {
+      console.error("Products fetch failed", err);
     } finally {
       setLoading(false);
+      setLoadingRest(false);
     }
   };
 
@@ -93,7 +108,24 @@ const Products = ({ onNavigate }) => {
     return pages;
   };
 
-  if (loading) return <div className="p-8">Loading Product Catalog...</div>;
+  if (loading) {
+    return (
+      <div className="dt-page p-6 flex flex-col items-center justify-center min-h-[60vh]">
+        <Loader message="Synchronizing Product Data..." />
+        <div className="dt-card w-full mt-12 opacity-30 pointer-events-none">
+           <div className="table-wrapper border border-slate-200 rounded-lg overflow-hidden">
+              <div className="h-12 bg-slate-50 border-b border-slate-200"></div>
+              {[...Array(6)].map((_, i) => (
+                 <div key={i} className="flex p-4 border-b border-slate-100 gap-4">
+                    <div className="h-4 w-8 bg-slate-50 animate-pulse rounded"></div>
+                    <div className="h-4 flex-1 bg-slate-50 animate-pulse rounded"></div>
+                 </div>
+              ))}
+           </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dt-page">
@@ -131,6 +163,12 @@ const Products = ({ onNavigate }) => {
                />
            </div>
         </div>
+
+        {loadingRest && (
+           <div className="h-1 w-full bg-indigo-50 relative overflow-hidden mb-4">
+              <div className="absolute h-full bg-indigo-500 animate-[loading-bar_2s_infinite]" style={{ width: '40%' }}></div>
+           </div>
+        )}
 
         <div className="table-wrapper border border-slate-200 rounded-lg">
           <table className="products-datatable w-full">

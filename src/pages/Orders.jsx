@@ -2,12 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Edit, Trash2, CheckCircle, XCircle, ChevronDown, MoreVertical, Eye, Filter, ShoppingCart, ArrowLeft, Grid, List as ListIcon, X, Clock, UserPlus } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { odooService } from '../services/odoo';
+import Loader from '../components/Loader';
+import '../components/Loader.css';
 import SearchableSelect from '../components/SearchableSelect';
 import './Products.css'; // Global DataTable styles
 import '../CreateOrder.css'; // Use shared form styles for consistency
 
 const Orders = ({ stateType = 'all', onNavigate }) => {
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -28,11 +31,14 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   }, []);
 
   const fetchOrders = useCallback(async () => {
+    setLoading(true);
     try {
       const data = await odooService.getOrders(1000, 0, 'date_order desc', stateType);
       setOrders(data.orders || []);
     } catch {
       console.error("Fetch orders failed");
+    } finally {
+      setLoading(false);
     }
   }, [stateType]);
 
@@ -184,8 +190,16 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
               />
            </div>
         </div>
-
-        <div className="table-wrapper border border-slate-200 rounded-lg">
+        {loading ? (
+          <div className="py-20 flex flex-col items-center justify-center">
+             <Loader message={`Loading ${title}...`} />
+             <div className="w-full h-1 bg-slate-50 relative overflow-hidden mt-8 opacity-40">
+                <div className="absolute h-full bg-indigo-500 animate-[loading-bar_2s_infinite]" style={{ width: '30%' }}></div>
+             </div>
+          </div>
+        ) : (
+          <>
+            <div className="table-wrapper border border-slate-200 rounded-lg">
           <table className="products-datatable w-full">
             <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
               <tr>
@@ -306,6 +320,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
               {renderPagination()}
            </div>
         </div>
+          </>
+      )}
       </div>
 
       {catalogAnchor && createPortal(
