@@ -19,7 +19,9 @@ import {
   Lightbulb,
   Layers,
   MoreHorizontal,
-  MapPin
+  MapPin,
+  ShoppingCart,
+  Zap
 } from 'lucide-react';
 import './CreateOrder.css';
 
@@ -51,9 +53,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     partnerId: '',
     date: new Date().toISOString().split('T')[0],
     remark: '',
-    is_desc: true,
-    is_image: true,
-    is_beam: true,
+    is_desc: false,
+    is_image: false,
+    is_beam: false,
     is_automate: false
   });
 
@@ -104,6 +106,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const [generalNoteInput, setGeneralNoteInput] = useState('');
   const [debugRawData, setDebugRawData] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
+  const [dragActiveId, setDragActiveId] = useState(null);
 
   const handleAddGeneralNote = () => {
     if (!generalNoteInput.trim()) return;
@@ -210,20 +213,21 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       // Parallelize fetching
       const [masterRes, productRes, partnerRes] = await Promise.all([
         odooService.getMasterData().catch(() => null),
-        odooService.getProducts().catch(() => null),
+        odooService.getProducts(5000).catch(() => null), // Optimized limit for search coverage
         odooService.getPartners().catch(() => null)
       ]);
 
       const newData = { ...masterData };
 
       if (masterRes) {
-        if (masterRes.products) newData.products = masterRes.products;
-        if (masterRes.partners) newData.partners = masterRes.partners;
-        if (masterRes.architects) newData.architects = masterRes.architects;
-        if (masterRes.electricians) newData.electricians = masterRes.electricians;
-        if (masterRes.success && masterRes.data) {
-           Object.assign(newData, masterRes.data);
-        }
+        // Only assign if they have data, to avoid wiping out the dedicated high-limit fetches
+        if (masterRes.products && masterRes.products.length > 0) newData.products = masterRes.products;
+        if (masterRes.partners && masterRes.partners.length > 0) newData.partners = masterRes.partners;
+        if (masterRes.architects && masterRes.architects.length > 0) newData.architects = masterRes.architects;
+        if (masterRes.electricians && masterRes.electricians.length > 0) newData.electricians = masterRes.electricians;
+        
+        // Merge everything else (including amy_note_types) without wiping objects
+        Object.assign(newData, masterRes);
       }
 
       // Merge products from dedicated call
@@ -318,6 +322,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
         setOrderHeader({
           partnerId: pId || '',
+          partnerName: pName || '', // Persistent fallback name
           date: data.date_order ? data.date_order.split(' ')[0] : new Date().toISOString().split('T')[0],
           architectId: extractId(data.architect_id) || extractId(data.architect) || '',
           electricianId: extractId(data.electrician_id) || extractId(data.electrician) || '',
@@ -329,20 +334,49 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         });
         
         // Populate existing notes if they are returned by Odoo
-        if (data.amy_note_lines && Array.isArray(data.amy_note_lines)) {
+        const noteData = data.amy_notes || data.amy_note_lines;
+        if (noteData && Array.isArray(noteData)) {
           const mappedHistory = {};
-          data.amy_note_lines.forEach(note => {
-            const type = note.note_type || 'general';
-            if (!mappedHistory[type]) mappedHistory[type] = [];
-            mappedHistory[type].push({
-              id: note.id || Date.now() + Math.random(),
+          const sessionId = localStorage.getItem('odoo_session_id') || '';
+          const dbName = import.meta.env.VITE_ODOO_DB || 'stage';
+
+          const allTypeNotes = [];
+          noteData.forEach(note => {
+            const type = note.note_type || note.type || 'others';
+            
+            // Map image URLs if present, ensuring they have auth tokens
+            const noteImages = (note.images || note.image || []).map(url => {
+              if (typeof url !== 'string') return null;
+              const hasToken = url.includes('token=') || url.includes('session_id=');
+              if (hasToken) return url;
+              const connector = url.includes('?') ? '&' : '?';
+              return `${url}${connector}token=${sessionId}&db=${dbName}`;
+            }).filter(Boolean);
+
+            const processedNote = {
+              id: note.id || Math.random(),
               text: note.text || '',
-              images: note.image_url ? [note.image_url] : [],
-              by: note.create_uid?.[1] || 'Amy Bot',
-              date: note.create_date || ''
-            });
+              images: noteImages,
+              by: note.author || 'Amy Bot',
+              date: note.create_date || '', // Use backend date if available
+              is_from_backend: true,
+              is_new: false
+            };
+            
+            if (type === 'others') {
+              allTypeNotes.push(processedNote);
+            } else {
+              if (!mappedHistory[type]) mappedHistory[type] = [];
+              mappedHistory[type].push(processedNote);
+            }
           });
+          
+          setGeneralNotes(allTypeNotes);
           setActivityHistory(mappedHistory);
+          // Auto-expand categories if we have history
+          if (Object.keys(mappedHistory).length > 0) {
+            setShowCategories(true);
+          }
         }
         
         const lineItems = data.lines || data.order_line || [];
@@ -361,22 +395,27 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           if (prodId) {
             const exists = masterData.products.find(p => String(p.id) === String(prodId));
             if (!exists) {
-               missingProducts.push({ id: prodId, name: searchName || 'Selected Product' });
+               missingProducts.push({ 
+                 id: prodId, 
+                 name: searchName || 'Selected Product',
+                 image_url: l.image_url || '',
+                 description: l.description || l.remark || '',
+                 beam: l.beam || '-'
+               });
             }
           }
 
           return {
             id: l.id || `edit-${Date.now()}-${i}`,
             productId: prodId || '',
-            qty: l.product_uom_qty || l.qty || 1,
-            price: l.price_unit || l.price || 0,
+            productName: searchName || '', // Persistent fallback name
+            qty: l.product_uom_qty || l.qty || l.product_qty || 1,
+            price: l.price_unit ?? l.price ?? 0,
             discount: l.discount || 0,
             remark: l.remark || l.name || ''
           };
         });
 
-        setRows(mappedRows.length ? mappedRows : [createProductRow()]);
-        
         if (missingPartners.length > 0 || missingProducts.length > 0) {
           setMasterData(prev => ({
             ...prev,
@@ -385,6 +424,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           }));
         }
 
+        // Set rows AFTER masterData update (ideally) but React batches these anyway
+        setRows(mappedRows.length ? mappedRows : [createProductRow()]);
         setShowProducts(mappedRows.length > 0);
       }
     } catch (err) {
@@ -393,7 +434,17 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     finally { setLoading(false); }
   }, [editId]);
 
-  useEffect(() => {
+  const [isMobile, setIsMobile] = React.useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
+  ));
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  React.useEffect(() => {
     fetchMasterData();
     if (editId) fetchEditOrder();
   }, [editId, fetchMasterData, fetchEditOrder]);
@@ -473,46 +524,47 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         return alert("Please select a valid customer before proceeding.");
     }
 
-    const productLines = rows.filter(r => r.productId);
+    const productLines = rows.filter(r => r.productId !== '' && r.productId !== null && r.productId !== undefined);
     if (productLines.length === 0) {
-        return alert("Please add at least one product to your selection.");
+        return alert("Please select at least one product before saving.");
     }
 
     setLoading(true);
     try {
       const finalProductLines = productLines.map((r, idx) => {
         let finalProdId = resolveGhostId(r.productId, 'product');
-        // Convert to Number safely
-        finalProdId = Number(finalProdId);
+        const numericProdId = Number(finalProdId);
 
-        if (!finalProdId || isNaN(finalProdId) || finalProdId <= 0) {
-          console.warn(`[Save Order] Skipping line ${idx} - Invalid Product ID:`, r.productId);
-          return null;
+        if (isNaN(numericProdId) || numericProdId <= 0) {
+          // If editing and we have a productId string that might be valid (e.g. from Odoo), try parsing it directly
+          const fallbackId = parseInt(r.productId);
+          if (!isNaN(fallbackId) && fallbackId > 0) {
+            finalProdId = fallbackId;
+          } else {
+            console.warn(`[Save Order] Skipping line ${idx} - Invalid Product ID:`, r.productId);
+            return null;
+          }
+        } else {
+          finalProdId = numericProdId;
         }
 
-        const lineData = {
-          product_id: finalProdId,
-          qty: parseFloat(r.qty) || 1,
+        // Return Odoo command tuple format [0, 0, {data}] for proper backend parsing
+        return [0, 0, {
+          product_id: parseInt(finalProdId),
+          product_uom_qty: parseFloat(r.qty) || 1,
           price_unit: parseFloat(r.price) || 0,
           discount: parseFloat(r.discount) || 0,
           name: r.remark || '',
           line_type: 'product'
-        };
-        
-        // Ensure ID is a valid positive integer for Odoo updates
-        const lineId = Number(r.id);
-        if (Number.isInteger(lineId) && lineId > 0 && !String(r.id).includes('.')) {
-          lineData.id = lineId;
-        }
-        
-        return lineData;
+        }];
       }).filter(Boolean);
 
       console.log(`[Save Order] Prepared ${finalProductLines.length} product lines for submission.`);
 
       if (finalProductLines.length === 0) {
         setLoading(false);
-        return alert("Please select at least one valid product.");
+        console.error("[Save Order] Submission blocked: Rows present in state but no valid product lines formed.", rows);
+        return alert("Validation error: None of your product lines have a valid ID. Please re-select the products.");
       }
 
       const amyNoteLines = [];
@@ -532,22 +584,26 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             text: input.text || '',
             // Odoo Many2many (0, 0, {datas: ...}) command format for new attachments
             image: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }]),
-            images: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }]) // Backwards compatibility fallback plural
+            images: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }]),
+            attachment_ids: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
           };
           
           // Odoo One2many (0, 0, vals) command format for atomic creation
           amyNoteLines.push([0, 0, noteVals]);
-          chatterText += `\n[${type.toUpperCase()}]: ${noteVals.text}`;
+          // Note: Activity notes are NO LONGER added to chatterText to avoid duplication in Remarks
         }
       });
 
-      // 2. Process ONLY NEW General Top-level Notes as 'others'
+      // 2. Process General Notes as 'others' (and ensure ALL show in Remark box)
+      const generalNoteHistory = generalNotes.map(n => n.text).filter(Boolean).join('\n');
+      chatterText = generalNoteHistory;
+
+      // Only push NEW general notes into amyNoteLines (to avoid duplicates in Odoo records)
       generalNotes.filter(n => n.is_new).forEach((note, i) => {
         amyNoteLines.push([0, 0, { 
           note_type: 'others', 
           text: note.text,
         }]);
-        chatterText += `\n[GENERAL]: ${note.text}`;
       });
 
       const ensureIsoDate = (dateVal) => {
@@ -562,10 +618,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       const finalExtraData = {
         architect_id: parseInt(orderHeader.architectId) || false,
         electrician_id: parseInt(orderHeader.electricianId) || false,
-        remark: orderHeader.remark || '',
+        remark: chatterText.trim() || orderHeader.remark || '', // Prioritize general notes for Remark box
         amy_note_lines: amyNoteLines,
-        note: chatterText.trim(), // Assigning to standard Odoo 'note' field for header visibility
-        log_note: chatterText.trim(), // Sent for Chatter log posting
+        note: chatterText.trim() || '', 
+        log_note: chatterText.trim() || '', 
         is_desc: !!orderHeader.is_desc,
         is_image: !!orderHeader.is_image,
         is_beam: !!orderHeader.is_beam,
@@ -573,6 +629,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         state: isSelection ? 'selection' : isOrder ? 'sale' : 'draft',
         date_order: ensureIsoDate(orderHeader.date)
       };
+
 
       // Ensure relational IDs are strictly numeric or false (Odoo constraint)
       if (finalExtraData.architect_id && isNaN(finalExtraData.architect_id)) finalExtraData.architect_id = false;
@@ -632,18 +689,20 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
               <SearchableSelect
                 placeholder="Choose a customer..."
                 value={orderHeader.partnerId}
+                defaultValue={orderHeader.partnerName} // Ensure label is visible on Edit
                 onChange={(val) => setOrderHeader({ ...orderHeader, partnerId: val })}
                 options={masterData.partners.map((p) => ({ value: p.id, label: p.name }))}
               />
             </div>
+
             {selectedPartner && (
-              <div className="lead-body-simple">
+              <div className="lead-body-simple" style={{ marginTop: '1.25rem' }}>
                 <div className="lead-left">
                   <div className="lead-info-row">
                     <span className="lead-label">Customer Name</span>
                     <span className="lead-value-name">{selectedPartner.name}</span>
                   </div>
-                  <div className="lead-info-row">
+                  <div className="lead-info-row" style={{ marginTop: '0.5rem' }}>
                     <span className="lead-label">Contact No.</span>
                     <div className="lead-value contact-val">
                       <Phone size={14} className="text-blue-500" />
@@ -667,7 +726,14 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
         <div className="co-expandable-card">
           <div className="co-expand-header" onClick={() => setShowProducts(!showProducts)}>
-            <h2>{isSelection ? 'Selection Products' : 'Quotation'}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="co-card-icon-pill">
+                <ShoppingCart size={18} />
+              </div>
+              <div className="co-card-title-stack">
+                <h2>{isSelection ? 'Selection Products' : 'Quotation Items'}</h2>
+              </div>
+            </div>
             <div className={`co-chevron ${showProducts ? 'open' : ''}`}>
               <ChevronRight size={18} />
             </div>
@@ -693,89 +759,129 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                 </label>
               </div>
 
-              <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 'max-content' }}>
-                  {rows.map((r) => {
-                const selectedProduct = masterData.products.find(p => p.id === parseInt(r.productId));
-                return (
-                <div key={r.id} className="product-item-card">
-                  <div className="pi-header">
-                    <button className="pi-remove" onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))}>
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <div className="pi-grid-container" style={{ paddingBottom: '8px' }}>
-                    <div className="pi-grid pi-grid-scrollable">
-                      <div className="form-group product-select-group" style={{ minWidth: '200px', flex: '1 1 auto' }}>
-                        <label className="pi-small-label desktop-alignment-label">Product Box Alignment</label>
-                        <SearchableSelect
-                          placeholder="Select Product..."
-                          value={r.productId}
-                          options={masterData.products.filter(p => orderHeader.is_automate ? true : !p.is_automation).map(p => ({ ...p, value: p.id, label: p.name }))}
-                          onChange={(val) => handleRowChange(r.id, 'productId', val)}
-                        />
+              <div className="product-scroll-wrapper" style={{ overflowX: isMobile ? 'visible' : 'auto', paddingBottom: '1rem', marginTop: '1rem' }}>
+                <div style={{ minWidth: isMobile ? '0' : 'max-content' }}>
+                  {/* Shared Header for Product Rows (Desktop Only) */}
+                  {rows.length > 0 && (
+                    <div className="product-list-header-row desktop-only pi-grid" style={{ 
+                        padding: '0 0.5rem 0.5rem', 
+                        borderBottom: '2px solid #f8fafc', 
+                        gap: '1rem', 
+                        paddingRight: '1rem',
+                        display: 'flex',
+                        alignItems: 'flex-end'
+                    }}>
+                      <div className="product-select-group" style={{ flex: '1 1 auto', minWidth: '200px', fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Product</div>
+                      <div className="pi-sub-grid" style={{ minWidth: '280px', flex: '0 0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Qty</div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price</div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Disc</div>
                       </div>
-                      <div className="pi-sub-grid" style={{ minWidth: '280px', flex: '0 0 auto' }}>
-                        <div className="form-group pi-small-input">
-                          <label className="pi-small-label">Qty</label>
-                          <input type="number" min="1" className="co-input-clean" value={r.qty} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} />
-                        </div>
-                        <div className="form-group pi-small-input">
-                          <label className="pi-small-label">Price</label>
-                          <input type="number" className="co-input-clean" value={r.price} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} />
-                        </div>
-                        <div className="form-group pi-small-input">
-                          <label className="pi-small-label">Disc %</label>
-                          <input type="number" className="co-input-clean" value={r.discount} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} />
-                        </div>
-                      </div>
-                      {orderHeader.is_desc && (
-                        <div className="form-group pi-small-input" style={{ minWidth: '150px', flex: '0 0 auto' }}>
-                          <label className="pi-small-label">Description</label>
-                          <div className="text-sm text-slate-600 font-medium p-3 bg-slate-50 rounded border border-slate-200 whitespace-pre-wrap break-words leading-relaxed" title={selectedProduct?.description || ''}>
-                            {selectedProduct?.description || '-'}
-                          </div>
-                        </div>
-                      )}
-                      {orderHeader.is_image && (
-                        <div className="form-group pi-small-input" style={{ minWidth: '60px', flex: '0 0 auto' }}>
-                          <label className="pi-small-label">Image</label>
-                          <div className="flex items-center justify-center h-[42px] w-[50px] bg-slate-50 border border-slate-200 rounded overflow-hidden relative">
-                              {selectedProduct?.id && (
-                                <img 
-                                  src={(() => {
-                                    const token = localStorage.getItem('odoo_session_id') || '';
-                                    const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                    let path = selectedProduct.image_url;
-                                    
-                                    if (!path) {
-                                       path = `/web/image/product.template/${selectedProduct.id}/image_128`;
-                                    }
-                                    
-                                    return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
-                                  })()} 
-                                  alt="Prod" 
-                                  className="h-full w-full object-cover relative z-10" 
-                                  onError={(e) => { 
-                                    e.target.style.display = 'none';
-                                  }} 
-                                />
-                              )}
-                          </div>
-                        </div>
-                      )}
-                      {orderHeader.is_beam && (
-                        <div className="form-group pi-small-input" style={{ minWidth: '80px', flex: '0 0 auto' }}>
-                          <label className="pi-small-label">Beam</label>
-                          <div className="text-sm text-slate-600 font-medium p-3 bg-slate-50 rounded border border-slate-200 whitespace-pre-wrap break-words leading-relaxed" title={selectedProduct?.beam || ''}>
-                            {selectedProduct?.beam || '-'}
-                          </div>
-                        </div>
-                      )}
+                      {orderHeader.is_image && <div style={{ flex: '0 0 80px', minWidth: '80px', maxWidth: '80px', fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Image</div>}
+                      {orderHeader.is_beam && <div style={{ flex: '0 0 100px', minWidth: '100px', maxWidth: '100px', fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Beam</div>}
+                      {orderHeader.is_desc && <div style={{ flex: '0 0 250px', minWidth: '250px', maxWidth: '250px', fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</div>}
                     </div>
+                  )}
+
+                  <div className="product-rows-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {rows.map((r) => {
+                    const selectedProduct = masterData.products.find(p => p.id === parseInt(r.productId));
+                    return (
+                    <div key={r.id} className="product-item-card" style={{ padding: isMobile ? '1rem 1.5rem' : '0.5rem 0.25rem', border: 'none', borderBottom: '1px solid #f8fafc', borderRadius: 0 }}>
+                      {!isMobile && (
+                        <div className="pi-header">
+                          <button className="pi-remove highlighted" onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))} title="Remove Row">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      )}
+                      <div className="pi-grid-container" style={{ paddingBottom: '4px' }}>
+                        <div className="pi-grid pi-grid-scrollable" style={{ gap: '1rem', paddingRight: isMobile ? '0rem' : '1rem' }}>
+                          <div className="form-group product-select-group" style={{ minWidth: '200px', flex: '1 1 auto', marginBottom: isMobile ? '1rem' : '0', position: 'relative' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <label className="pi-small-label mobile-only">Select Product</label>
+                              {isMobile && (
+                                <button className="pi-remove highlighted" onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))} title="Remove Row">
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                            <SearchableSelect
+                              placeholder="Select Product..."
+                              value={r.productId}
+                              defaultValue={r.productName} // Ensure label is visible on Edit
+                              options={masterData.products.filter(p => orderHeader.is_automate ? true : !p.is_automation).map(p => ({ ...p, value: p.id, label: p.name }))}
+                              onChange={(val) => handleRowChange(r.id, 'productId', val)}
+                            />
+                          </div>
+                          <div className="pi-sub-grid" style={{ minWidth: '280px', flex: '0 0 auto', gap: '1rem', marginBottom: isMobile ? '1rem' : '0' }}>
+                            <div className="form-group pi-small-input">
+                              <label className="pi-small-label mobile-only">Qty</label>
+                              <input type="number" min="1" className="co-input-clean" value={r.qty} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} />
+                            </div>
+                            <div className="form-group pi-small-input">
+                              <label className="pi-small-label mobile-only">Price</label>
+                              <input type="number" className="co-input-clean" value={r.price} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} />
+                            </div>
+                            <div className="form-group pi-small-input">
+                              <label className="pi-small-label mobile-only">Disc %</label>
+                              <input type="number" className="co-input-clean" value={r.discount} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} />
+                            </div>
+                          </div>
+                           {orderHeader.is_image && (
+                             <div className="form-group pi-small-input" style={{ 
+                               flex: isMobile ? '0 0 auto' : '0 0 80px', 
+                               minWidth: isMobile ? '0' : '80px',
+                               marginBottom: isMobile ? '1.25rem' : '0'
+                             }}>
+                               <label className="pi-small-label mobile-only">Image</label>
+                               <div className="flex items-center justify-center h-[42px] w-[60px] bg-slate-50 border border-slate-200 rounded overflow-hidden relative">
+                                   {selectedProduct?.id && (
+                                     <img 
+                                       src={(() => {
+                                         const token = localStorage.getItem('odoo_session_id') || '';
+                                         const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                                         let path = selectedProduct.image_url;
+                                         if (!path) path = `/web/image/product.template/${selectedProduct.id}/image_128`;
+                                         return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
+                                       })()} 
+                                       alt="Prod" 
+                                       className="h-full w-full object-cover relative z-10" 
+                                       onError={(e) => { e.target.style.display = 'none'; }} 
+                                     />
+                                   )}
+                               </div>
+                             </div>
+                           )}
+                           {orderHeader.is_beam && (
+                             <div className="form-group pi-small-input" style={{ 
+                               flex: isMobile ? '0 0 auto' : '0 0 100px', 
+                               minWidth: isMobile ? '0' : '100px',
+                               marginBottom: isMobile ? '1.25rem' : '0'
+                             }}>
+                               <label className="pi-small-label mobile-only">Beam</label>
+                               <div className="text-sm text-slate-600 font-medium p-2 bg-slate-50 rounded border border-slate-200 whitespace-pre-wrap break-words leading-relaxed" title={selectedProduct?.beam || ''} style={{ minHeight: '42px' }}>
+                                 {selectedProduct?.beam || '-'}
+                               </div>
+                             </div>
+                           )}
+                           {orderHeader.is_desc && (
+                             <div className="form-group pi-small-input" style={{ 
+                               flex: isMobile ? '0 0 auto' : '0 0 250px', 
+                               minWidth: isMobile ? '0' : '250px',
+                               marginBottom: isMobile ? '1.5rem' : '0'
+                             }}>
+                               <label className="pi-small-label mobile-only">Description</label>
+                               <div className="text-sm text-slate-600 font-medium p-2 bg-slate-50 rounded border border-slate-200 whitespace-pre-wrap break-words leading-relaxed" title={selectedProduct?.description || ''} style={{ minHeight: '42px', overflow: 'hidden' }}>
+                                 {selectedProduct?.description || '-'}
+                               </div>
+                             </div>
+                           )}
+                        </div>
+                      </div>
+                    </div>
+                  )})}
                   </div>
-                </div>
-              )})}
                 </div>
               </div>
               <button className="co-btn-secondary w-full py-3" onClick={addRow} style={{ marginTop: '0.5rem' }}>
@@ -800,6 +906,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                   </div>
                   <div className="gn-content">
                     <p className="gn-text">{note.text}</p>
+                    {note.images && note.images.length > 0 && (
+                      <div className="gn-images-preview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                        {note.images.map((img, i) => (
+                          <div key={i} className="gn-img-item" style={{ width: '120px', height: '120px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', backgroundColor: '#f8fafc' }}>
+                            <img src={img} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'contain', cursor: 'pointer' }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="gn-meta">
                       <span className="gn-tag">Task - NOTE</span>
                       <div className="gn-bottom">
@@ -829,77 +944,117 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Show Product Selections</span>
           </div>
 
-          {[
-            { id: 'switches', title: 'Switches', icon: <ToggleRight size={18} />, group: 'cat' },
-            { id: 'decorative', title: 'Decorative', icon: <Sparkles size={18} />, group: 'cat' },
-            { id: 'fan', title: 'Fan', icon: <Wind size={18} />, group: 'cat' },
-            { id: 'lights', title: 'Lights', icon: <Lightbulb size={18} />, group: 'cat' },
-            { id: 'profiles', title: 'Profiles', icon: <Layers size={18} />, group: 'cat' },
-            { id: 'others', title: 'Others', icon: <MoreHorizontal size={18} />, group: 'cat' },
-            { id: 'tasks', title: 'Tasks', icon: <CheckSquare size={18} />, group: 'always' },
-          ].map((act) => {
+          {(() => {
+            const getIcon = (type) => {
+              switch(type) {
+                case 'switches': return <ToggleRight size={20} />;
+                case 'fans': return <Wind size={20} />;
+                case 'ac': return <Activity size={20} />;
+                case 'curtains': return <Layers size={20} />;
+                case 'automation': return <Zap size={20} />;
+                case 'lights': return <Lightbulb size={20} />;
+                case 'profiles': return <Layers size={20} />;
+                case 'tasks': return <CheckSquare size={20} />;
+                default: return <MoreHorizontal size={20} />;
+              }
+            };
+
+            const dynTypes = (masterData.amy_note_types || []).map(t => ({
+              id: t.id,
+              title: t.title,
+              icon: getIcon(t.id),
+              group: 'cat'
+            }));
+
+            const displayActs = [...dynTypes];
+
+            // Ensure Tasks is always available if not explicitly coming from backend 
+            // (though it usually should be in the Odoo selection list)
+            if (!displayActs.find(a => a.id === 'tasks')) {
+                displayActs.push({ id: 'tasks', title: 'Tasks', icon: getIcon('tasks'), group: 'always' });
+            }
+
+            return displayActs;
+          })().map((act) => {
             if (act.group === 'cat' && !showCategories) return null;
             return (
-            <div key={act.id} className="activity-card">
-              <div className="activity-header" onClick={() => setShowMore(showMore === act.id ? null : act.id)}>
-                <div className="activity-title-group">
-                  <span className="activity-icon">{act.icon}</span>
-                  <span className="activity-label">{act.title}</span>
+              <div key={act.id} className="activity-card">
+                <div className="activity-header" onClick={() => setShowMore(showMore === act.id ? null : act.id)}>
+                  <div className="activity-title-group">
+                    <span className="activity-icon">{act.icon}</span>
+                    <span className="activity-label">{act.title}</span>
+                  </div>
+                  <div className="activity-actions">
+                    <Plus size={16} />
+                    <ChevronDown size={18} className={showMore === act.id ? 'rotate-180' : ''} />
+                  </div>
                 </div>
-                <div className="activity-actions">
-                  <Plus size={16} />
-                  <ChevronDown size={18} className={showMore === act.id ? 'rotate-180' : ''} />
-                </div>
-              </div>
-              {showMore === act.id && (
-                <div className="activity-body">
-                  {(activityHistory[act.id] || []).map(note => (
-                    <div key={note.id} className="activity-note">
-                      <div className="note-avatar-wrapper">
-                        <div className="note-avatar">{note.by.substring(0,2).toUpperCase()}</div>
+                {showMore === act.id && (
+                  <div className="activity-body">
+                    {(activityHistory[act.id] || []).map(note => (
+                      <div key={note.id} className="activity-note">
+                        <div className="note-avatar-wrapper">
+                          <div className="note-avatar">{note.by.substring(0,2).toUpperCase()}</div>
+                        </div>
+                        <div className="note-content-wrapper">
+                          {note.text && <p className="note-text">{note.text}</p>}
+                          {note.images && note.images.length > 0 && (
+                            <div className="note-images">
+                              {note.images.map((img, i) => (
+                                <img key={i} src={img} alt="attachment" className="note-img-thumb" onClick={() => window.open(img, '_blank')} />
+                              ))}
+                            </div>
+                          )}
+                          <div className="note-meta">
+                            <span className="note-type">Amy Note - {act.title}</span>
+                            <span className="note-by">By {note.by}</span>
+                            <span className="note-date">{note.date}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="note-content-wrapper">
-                        {note.text && <p className="note-text">{note.text}</p>}
-                        {note.images && note.images.length > 0 && (
-                          <div className="note-images">
-                            {note.images.map((img, i) => (
-                              <img key={i} src={img} alt="attachment" className="note-img-thumb" onClick={() => window.open(img, '_blank')} />
+                    ))}
+                    <div className="add-note-form-v2">
+                      <div className="note-half left-half">
+                        <textarea placeholder={`Write ${act.title} notes...`} className="v2-textarea" value={activityInputs[act.id]?.text || ''} onChange={e => setActivityInputs(prev => ({ ...prev, [act.id]: { ...(prev[act.id] || { text: '', images: [] }), text: e.target.value } }))} />
+                      </div>
+                      <div className="note-half right-half">
+                        <label 
+                          className={`v2-upload-zone ${dragActiveId === act.id ? 'dragging' : ''}`}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragActiveId(act.id);
+                          }}
+                          onDragLeave={() => setDragActiveId(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setDragActiveId(null);
+                            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                              handleImageUpload(act.id, e.dataTransfer.files);
+                            }
+                          }}
+                        >
+                          <Paperclip size={20} />
+                          <span className="upload-text">
+                            {dragActiveId === act.id ? 'Drop images here' : 'Upload Images'}
+                          </span>
+                          {!isMobile && <span className="upload-hint">or Drag & Drop</span>}
+                          <input type="file" multiple accept="image/*" className="hidden-file-input" onChange={e => handleImageUpload(act.id, e.target.files)} />
+                        </label>
+                        {activityInputs[act.id]?.images?.length > 0 && (
+                          <div className="v2-image-previews">
+                            {activityInputs[act.id].images.map((img, i) => (
+                              <div key={i} className="v2-img-item">
+                                <img src={img} alt="attachment" />
+                                <button className="v2-img-remove" onClick={() => handleRemoveImageInput(act.id, i)}><X size={10} /></button>
+                              </div>
                             ))}
                           </div>
                         )}
-                        <div className="note-meta">
-                          <span className="note-type">Amy Note - {act.title}</span>
-                          <span className="note-by">By {note.by}</span>
-                          <span className="note-date">{note.date}</span>
-                        </div>
                       </div>
                     </div>
-                  ))}
-                  <div className="add-note-form-v2">
-                    <div className="note-half left-half">
-                      <textarea placeholder={`Write ${act.title} notes...`} className="v2-textarea" value={activityInputs[act.id]?.text || ''} onChange={e => setActivityInputs(prev => ({ ...prev, [act.id]: { ...(prev[act.id] || { text: '', images: [] }), text: e.target.value } }))} />
-                    </div>
-                    <div className="note-half right-half">
-                      <label className="v2-upload-zone">
-                        <Paperclip size={20} />
-                        <span className="upload-text">Upload Images</span>
-                        <input type="file" multiple accept="image/*" className="hidden-file-input" onChange={e => handleImageUpload(act.id, e.target.files)} />
-                      </label>
-                      {activityInputs[act.id]?.images?.length > 0 && (
-                        <div className="v2-image-previews">
-                          {activityInputs[act.id].images.map((img, i) => (
-                            <div key={i} className="v2-img-item">
-                              <img src={img} alt="attachment" />
-                              <button className="v2-img-remove" onClick={() => handleRemoveImageInput(act.id, i)}><X size={10} /></button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
             );
           })}
         </div>

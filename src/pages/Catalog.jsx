@@ -11,9 +11,14 @@ const Catalog = ({ onNavigate, partnerId }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categories, setCategories] = useState([]);
-  const [selectedBrand, setSelectedBrand] = useState('All');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedSubCategory, setSelectedSubCategory] = useState('All');
+  const [seriesList, setSeriesList] = useState([]);
+  const [colours, setColours] = useState([]);
+  const [wattages, setWattages] = useState([]);
+  const [ccts, setCcts] = useState([]);
+  const [selectedSeries, setSelectedSeries] = useState('All');
+  const [selectedColour, setSelectedColour] = useState('All');
+  const [selectedWattage, setSelectedWattage] = useState('All');
+  const [selectedCCT, setSelectedCCT] = useState('All');
   const [partner, setPartner] = useState(null);
   const [cart, setCart] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -22,7 +27,7 @@ const Catalog = ({ onNavigate, partnerId }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedBrand, selectedCategory]);
+  }, [searchTerm, selectedSeries, selectedColour, selectedWattage, selectedCCT]);
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -34,10 +39,13 @@ const Catalog = ({ onNavigate, partnerId }) => {
         ]);
         
         setProducts(prodData50 || []);
-        setCategories(masterData.categories || []);
+        setSeriesList(masterData.series || masterData.categories || []);
+        setColours(masterData.colours || []);
+        setWattages(masterData.wattages || []);
+        setCcts(masterData.ccts || []);
         
         if (partnerId) {
-          const p = masterData.partners.find(p => p.id === parseInt(partnerId));
+          const p = (masterData.partners || []).find(p => p.id === parseInt(partnerId));
           setPartner(p);
         }
         
@@ -65,12 +73,17 @@ const Catalog = ({ onNavigate, partnerId }) => {
   }, [partnerId]);
 
   const filtered = (products || []).filter(p => {
-    const searchVal = searchTerm.toLowerCase();
+    const searchVal = (searchTerm || '').toLowerCase();
     const nameStr = (p.name || '').toLowerCase();
-    const codeStr = (p.default_code || '').toLowerCase();
+    const codeStr = (p.default_code || p.code || '').toLowerCase();
+    
     const matchesSearch = !searchTerm || nameStr.includes(searchVal) || codeStr.includes(searchVal);
-    const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesSeries = selectedSeries === 'All' || (p.series || p.category) === selectedSeries;
+    const matchesColour = selectedColour === 'All' || p.colour === selectedColour;
+    const matchesWattage = selectedWattage === 'All' || p.wattage === selectedWattage;
+    const matchesCCT = selectedCCT === 'All' || p.cct === selectedCCT;
+
+    return matchesSearch && matchesSeries && matchesColour && matchesWattage && matchesCCT;
   });
 
   const toggleCart = (product, qty = 1) => {
@@ -141,30 +154,57 @@ const Catalog = ({ onNavigate, partnerId }) => {
               </button>
               <h2>Catalog</h2>
             </div>
-            <div style={{ padding: '8px 16px', background: '#eff6ff', borderRadius: '12px', fontSize: '11px', fontWeight: '900', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {filtered.length} Items Found
-            </div>
           </div>
 
-          <div className="catalog-controls-row">
-            <div className="catalog-search-container">
-              <Search className="catalog-search-icon" size={18} />
-              <input 
-                type="text" 
-                className="catalog-search-input"
-                placeholder="Search products by identity..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="catalog-filters-stack">
+            {/* Row 1: Search Only */}
+            <div className="catalog-search-row">
+              <div className="catalog-search-container">
+                <Search className="catalog-search-icon" size={18} />
+                <input 
+                  type="text" 
+                  className="catalog-search-input"
+                  placeholder="Search products by identity, code or specs..." 
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                />
+              </div>
             </div>
-            <select 
-              className="catalog-filter-select"
-              value={selectedCategory} 
-              onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
-            >
-              <option value="All">All Categories</option>
-              {categories.map(c => <option key={c.id || c} value={c.name || c}>{c.name || c}</option>)}
-            </select>
+
+            {/* Row 2: Four Professional Filters */}
+            <div className="catalog-filters-row">
+              <div className="filter-dropdown-v2">
+                <label>Series</label>
+                <select value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)}>
+                  <option value="All">All Series</option>
+                  {seriesList.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div className="filter-dropdown-v2">
+                <label>Colour</label>
+                <select value={selectedColour} onChange={(e) => setSelectedColour(e.target.value)}>
+                  <option value="All">All Colours</option>
+                  {colours.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div className="filter-dropdown-v2">
+                <label>Wattage</label>
+                <select value={selectedWattage} onChange={(e) => setSelectedWattage(e.target.value)}>
+                  <option value="All">All Wattages</option>
+                  {wattages.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+                </select>
+              </div>
+
+              <div className="filter-dropdown-v2">
+                <label>CCT</label>
+                <select value={selectedCCT} onChange={(e) => setSelectedCCT(e.target.value)}>
+                  <option value="All">All CCT</option>
+                  {ccts.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
           </div>
         </div>
         {loadingRest && (

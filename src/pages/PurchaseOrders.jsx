@@ -131,7 +131,7 @@ const PurchaseOrders = () => {
            </div>
         </div>
 
-        <div className="table-wrapper border border-slate-200 rounded-lg">
+            <div className="table-wrapper border border-slate-200 rounded-lg overflow-x-auto">
           <table className="products-datatable w-full">
             <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
               <tr>

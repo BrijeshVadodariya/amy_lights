@@ -58,15 +58,26 @@
 }
 
 /* Search and Filter Row */
-.catalog-controls-row {
+.catalog-filters-stack {
   display: flex;
-  gap: 1rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.catalog-search-row {
+  width: 100%;
+}
+
+.catalog-filters-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  align-items: flex-end;
 }
 
 .catalog-search-container {
   position: relative;
-  flex: 1;
+  width: 100%;
 }
 
 .catalog-search-icon {
@@ -97,19 +108,53 @@
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08);
 }
 
-.catalog-filter-select {
-  padding: 0.875rem 2.5rem 0.875rem 1.25rem;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  font-size: 0.875rem;
+.filter-dropdown-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.filter-dropdown-v2 label {
+  font-size: 10px;
+  font-weight: 850;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding-left: 2px;
+}
+
+.filter-dropdown-v2 select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 2px solid #f1f5f9;
+  border-radius: 12px;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: #475569;
+  color: #334155;
+  outline: none;
   cursor: pointer;
+  transition: all 0.2s;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'%3E%3C/path%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 1rem center;
+}
+
+.filter-dropdown-v2 select:hover {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.filter-dropdown-v2 select:focus {
+  border-color: #3b82f6;
+  background-color: #fff;
+}
+
+@media (max-width: 1024px) {
+  .catalog-filters-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* Grid Layout */

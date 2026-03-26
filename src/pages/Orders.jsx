@@ -81,7 +81,6 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
     const isQuotation = stateType === 'quotation';
     if (!window.confirm(`Confirm this ${isQuotation ? 'quotation' : 'order'}?`)) return;
     try {
-      // Use confirmOrder service for both quotations and orders (mapped by the backend)
       const res = await odooService.confirmOrder(id);
       if (res.success) {
         alert(`${isQuotation ? 'Quotation' : 'Order'} Confirmed!`);
@@ -145,7 +144,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
       <div className="dt-card">
         <div className="dt-header">
           <h2>{title}</h2>
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <button 
               ref={catalogBtnRef}
               className={`btn-ui secondary ${catalogAnchor ? 'active-popover' : ''}`} 
@@ -185,13 +184,14 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
            <div className="dt-flex">
               <span className="text-sm text-slate-600">Search:</span>
               <input 
-                 type="text" 
-                 className="search-input border border-slate-300 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full max-w-[200px] bg-white"
-                 value={searchTerm}
-                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                type="text" 
+                className="search-input border border-slate-300 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full max-w-[200px] bg-white"
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               />
            </div>
         </div>
+
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center">
              <Loader message={`Loading ${title}...`} />
@@ -200,130 +200,130 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
              </div>
           </div>
         ) : (
-          <>
-            <div className="table-wrapper border border-slate-200 rounded-lg">
-          <table className="products-datatable w-full">
-            <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
-              <tr>
-                <th className="py-3 px-4 text-left w-16 border-none">No</th>
-                <th className="py-3 px-4 text-left border-none">{stateType === 'quotation' ? 'Quotation #' : stateType === 'selection' ? 'Selection #' : 'Sale Order #'}</th>
-                <th className="py-3 px-4 text-left border-none">Customer</th>
-                <th className="py-3 px-4 text-center border-none">Date</th>
-                <th className="py-3 px-4 text-center border-none">Status</th>
-                <th className="py-3 px-4 text-center w-36 border-none">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-[13px] text-slate-600">
-              {currentItems.map((order, idx) => (
-                <tr 
-                  key={order.id} 
-                  className="row-hover"
-                  onClick={() => onNavigate('order-detail', order.id)}
-                >
-                  <td className="py-3 px-4" data-label="No">{indexOfFirstItem + idx + 1}</td>
-                  <td className="py-3 px-4 font-bold text-slate-800 text-[12px]" data-label={stateType === 'quotation' ? 'Quotation #' : stateType === 'selection' ? 'Selection #' : 'Sale Order #'}>{order.name}</td>
-                  <td className="py-3 px-4 font-medium text-slate-700" data-label="Customer">{order.customer || '-'}</td>
-                  <td className="py-3 px-4 text-center" data-label="Date">{order.order_date}</td>
-                  <td className="py-3 px-4 text-center" data-label="Status">
-                    <span className={`status-pill status-${order.status} px-2 py-1 rounded text-[10px] font-bold uppercase`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td 
-                    className="py-4 px-4 border-none" 
-                    data-label="Action" 
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseEnter={() => setOpenDropdownId(order.id)}
-                    onMouseLeave={() => setOpenDropdownId(null)}
-                  >
-                    <div className="flex justify-center">
-                      <div className="relative">
-                        <button 
-                          className={`p-2 rounded-full transition-all duration-200 ${openDropdownId === order.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenDropdownId(openDropdownId === order.id ? null : order.id);
-                          }}
-                        >
-                          <ChevronDown size={18} className={`transition-transform duration-200 ${openDropdownId === order.id ? 'rotate-90' : ''}`} />
-                        </button>
+          <div className="table-wrapper-fixed-outer" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+            <div className="table-wrapper-scrollable-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block', width: '100%' }}>
+              <table className="products-datatable" style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse' }}>
+                <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
+                  <tr>
+                    <th className="py-3 px-4 text-left w-16 border-none">No</th>
+                    <th className="py-3 px-4 text-left border-none">{stateType === 'quotation' ? 'Quotation #' : stateType === 'selection' ? 'Selection #' : 'Sale Order #'}</th>
+                    <th className="py-3 px-4 text-left border-none">Customer</th>
+                    <th className="py-3 px-4 text-center border-none">Date</th>
+                    <th className="py-3 px-4 text-center border-none">Status</th>
+                    <th className="py-3 px-4 text-center w-36 border-none">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-[13px] text-slate-600">
+                  {currentItems.map((order, idx) => (
+                    <tr 
+                      key={order.id} 
+                      className="row-hover"
+                      onClick={() => onNavigate('order-detail', order.id)}
+                    >
+                      <td className="py-3 px-4" data-label="No">{indexOfFirstItem + idx + 1}</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 text-[12px]" data-label={stateType === 'quotation' ? 'Quotation #' : stateType === 'selection' ? 'Selection #' : 'Sale Order #'}>{order.name}</td>
+                      <td className="py-3 px-4 font-medium text-slate-700" data-label="Customer">{order.customer || '-'}</td>
+                      <td className="py-3 px-4 text-center" data-label="Date">{order.order_date}</td>
+                      <td className="py-3 px-4 text-center" data-label="Status">
+                        <span className={`status-pill status-${order.status} px-2 py-1 rounded text-[10px] font-bold uppercase`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td 
+                        className="py-4 px-4 border-none" 
+                        data-label="Action" 
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseEnter={() => setOpenDropdownId(order.id)}
+                        onMouseLeave={() => setOpenDropdownId(null)}
+                      >
+                        <div className="flex justify-center">
+                          <div className="relative">
+                            <button 
+                              className={`p-2 rounded-full transition-all duration-200 ${openDropdownId === order.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(openDropdownId === order.id ? null : order.id);
+                              }}
+                            >
+                              <ChevronDown size={18} className={`transition-transform duration-200 ${openDropdownId === order.id ? 'rotate-90' : ''}`} />
+                            </button>
 
-                        {openDropdownId === order.id && (
-                          <div 
-                            className="action-dropdown-popover"
-                            onMouseEnter={() => setOpenDropdownId(order.id)}
-                            onMouseLeave={() => setOpenDropdownId(null)}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {(order.status === 'draft' || order.status === 'sent' || order.status === 'selection') && (
-                              <button 
-                                className="btn-action-soft btn-edit-soft"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownId(null);
-                                  onNavigate(order.status === 'selection' ? 'create-selection' : 'create-order', order.id);
-                                }}
+                            {openDropdownId === order.id && (
+                              <div 
+                                className="action-dropdown-popover"
+                                onMouseEnter={() => setOpenDropdownId(order.id)}
+                                onMouseLeave={() => setOpenDropdownId(null)}
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                <Edit size={14} />
-                                <span>{order.status === 'selection' ? 'Edit Selection' : 'Edit Detail'}</span>
-                              </button>
-                            )}
-                            
-                            {(order.status === 'draft' || order.status === 'sent') && (
-                                <button 
-                                  className="btn-action-soft btn-confirm-soft"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenDropdownId(null);
-                                    handleConfirm(order.id);
-                                  }}
-                                >
-                                  <CheckCircle size={14} />
-                                  <span>Confirm Order</span>
-                                </button>
-                            )}
+                                {(order.status === 'draft' || order.status === 'sent' || order.status === 'selection') && (
+                                  <button 
+                                    className="btn-action-soft btn-edit-soft"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenDropdownId(null);
+                                      onNavigate(order.status === 'selection' ? 'create-selection' : 'create-order', order.id);
+                                    }}
+                                  >
+                                    <Edit size={14} />
+                                    <span>{order.status === 'selection' ? 'Edit Selection' : 'Edit Detail'}</span>
+                                  </button>
+                                )}
+                                
+                                {(order.status === 'draft' || order.status === 'sent') && (
+                                    <button 
+                                      className="btn-action-soft btn-confirm-soft"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenDropdownId(null);
+                                        handleConfirm(order.id);
+                                      }}
+                                    >
+                                      <CheckCircle size={14} />
+                                      <span>Confirm Order</span>
+                                    </button>
+                                )}
 
-                            {(order.status === 'draft' || order.status === 'sent' || order.status === 'sale') && (
-                                <button 
-                                  className="btn-action-soft btn-cancel-soft"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenDropdownId(null);
-                                    handleDecline(order.id);
-                                  }}
-                                >
-                                  <XCircle size={14} />
-                                  <span>{order.status === 'sale' ? 'Cancel Order' : 'Cancel Quotation'}</span>
-                                </button>
+                                {(order.status === 'draft' || order.status === 'sent' || order.status === 'sale') && (
+                                    <button 
+                                      className="btn-action-soft btn-cancel-soft"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenDropdownId(null);
+                                        handleDecline(order.id);
+                                      }}
+                                    >
+                                      <XCircle size={14} />
+                                      <span>{order.status === 'sale' ? 'Cancel Order' : 'Cancel Quotation'}</span>
+                                    </button>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {currentItems.length === 0 && (
-                <tr>
-                   <td colSpan="6" className="py-8 text-center text-slate-400">
-                      No records found matching your request.
-                   </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {currentItems.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className="py-8 text-center text-slate-400">
+                        No records found matching your request.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         <div className="datatable-footer mt-6 dt-flex-between">
-           <div className="entries-info text-sm text-slate-500 font-medium">
-             Showing {totalEntries > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, totalEntries)} of {totalEntries} entries
-           </div>
-           <div className="pagination dt-flex border border-slate-300 rounded overflow-hidden">
-              {renderPagination()}
-           </div>
+          <div className="entries-info text-sm text-slate-500 font-medium">
+            Showing {totalEntries > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, totalEntries)} of {totalEntries} entries
+          </div>
+          <div className="pagination dt-flex border border-slate-300 rounded overflow-hidden">
+            {renderPagination()}
+          </div>
         </div>
-          </>
-      )}
       </div>
 
       {catalogAnchor && createPortal(

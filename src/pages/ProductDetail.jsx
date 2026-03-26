@@ -156,11 +156,6 @@ const ProductDetail = ({ productId, onBack }) => {
             </section>
 
             <div className="detail-footer-actions">
-              <button className="detail-action-btn detail-action-primary detail-action-wide">
-                <ShoppingCart size={18} />
-                <span>Add to Current Quotation</span>
-              </button>
-
               <button className="detail-action-btn detail-action-secondary" onClick={onBack}>
                 <span>Back</span>
               </button>

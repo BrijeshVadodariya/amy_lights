@@ -4,6 +4,7 @@ import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import '../components/Loader.css';
 import './Products.css';
+import './Catalog.css';
 
 const Products = ({ onNavigate }) => {
   const [products, setProducts] = useState([]);
@@ -173,99 +174,68 @@ const Products = ({ onNavigate }) => {
               <div className="absolute h-full bg-indigo-500 animate-[loading-bar_2s_infinite]" style={{ width: '40%' }}></div>
            </div>
         )}
-
-        <div className="table-wrapper border border-slate-200 rounded-lg">
-          <table className="products-datatable w-full">
-            <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
-              <tr>
-                <th className="py-3 px-4 text-left w-16">No</th>
-                <th className="py-3 px-4 text-left">Name</th>
-                <th className="py-3 px-4 text-left">File</th>
-                <th className="py-3 px-4 text-left">Product Code</th>
-                <th className="py-3 px-4 text-left">Unit</th>
-                <th className="py-3 px-4 text-right">Price</th>
-                <th className="py-3 px-4 text-center w-36 border-none">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-[13px] text-slate-600">
-              {currentItems.map((product, idx) => (
-                <tr 
-                  key={product.id} 
-                  className="row-hover"
-                  onClick={() => onNavigate('product-detail', product.id)}
+        <div className="product-view-gallery mt-2">
+          {filtered.length === 0 ? (
+            <div className="py-20 text-center text-slate-400">
+              <Box size={48} className="mx-auto mb-4 opacity-20" />
+              <p>No products found matching your search.</p>
+            </div>
+          ) : (
+            <div className="catalog-grid">
+              {currentItems.map(p => (
+                <div 
+                  key={p.id} 
+                  className="catalog-product-card cursor-pointer group" 
+                  onClick={() => onNavigate('product-detail', p.id)}
                 >
-                  <td className="py-3 px-4" data-label="No">{indexOfFirstItem + idx + 1}</td>
-                  <td className="py-3 px-4 min-w-[240px]" data-label="Name">
-                    <div className="dt-flex">
-                      <div className="product-thumb w-10 h-10 rounded border border-slate-100 overflow-hidden bg-slate-50 flex-shrink-0 flex items-center justify-center relative">
-                        {product.image_url && (
-                          <img 
-                            src={getImageUrl(product.image_url)} 
-                            alt="" 
-                            className="w-full h-full object-contain relative z-10 block bg-slate-50" 
-                            onError={(e) => { 
-                              e.target.style.display = 'none';
-                            }} 
-                          />
-                        )}
+                   <div className="product-media-wrapper">
+                      {p.image_url ? (
+                        <img 
+                          src={getImageUrl(p.image_url)} 
+                          alt={p.name} 
+                          className="product-img group-hover:scale-110 transition-transform duration-500" 
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center text-slate-200">
+                          <Box size={48} />
+                        </div>
+                      )}
+                      
+                      <div className="product-eye-overlay">
+                         <div className="eye-badge">
+                            <Eye size={16} />
+                         </div>
                       </div>
-                      <span className="font-medium text-slate-800 uppercase text-[12px]">{product.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-slate-400" data-label="File">{product.file_name || '-'}</td>
-                  <td className="py-3 px-4 font-mono text-[12px]" data-label="Product Code">{product.default_code || '-'}</td>
-                  <td className="py-3 px-4" data-label="Unit">{product.uom || 'Unit'}</td>
-                  <td className="py-3 px-4 text-right font-medium text-slate-800" data-label="Price">
-                    {product.price?.toLocaleString()}
-                  </td>
-                  <td 
-                    className="py-3 px-4 text-center" 
-                    data-label="Action"
-                    onMouseEnter={() => setOpenDropdownId(product.id)}
-                    onMouseLeave={() => setOpenDropdownId(null)}
-                  >
-                    <div className="flex justify-center">
-                      <div className="relative">
-                        <button 
-                          className={`p-2 rounded-full transition-all duration-200 ${openDropdownId === product.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
-                        >
-                          <ChevronDown size={18} className={`transition-transform duration-200 ${openDropdownId === product.id ? 'rotate-90' : ''}`} />
-                        </button>
+                   </div>
 
-                        {openDropdownId === product.id && (
-                          <div 
-                            className="action-dropdown-popover"
-                            onMouseEnter={() => setOpenDropdownId(product.id)}
-                            onMouseLeave={() => setOpenDropdownId(null)}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button 
-                              className="btn-action-soft btn-edit-soft"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenDropdownId(null);
-                                onNavigate('product-detail', product.id);
-                              }}
-                            >
-                              <Eye size={14} />
-                              <span>View Product</span>
-                            </button>
-                          </div>
-                        )}
+                   <div className="product-info-section">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="product-category-label">{p.category || 'Standard'}</span>
                       </div>
-                    </div>
-                  </td>
-                </tr>
+                      
+                      <h4 className="product-name-heading" title={p.name}>
+                        {p.name}
+                      </h4>
+                      
+                      <p className="product-sku-code">
+                        {p.default_code || '---'}
+                      </p>
+                      
+                      <div className="product-price-qty-row">
+                        <span className="product-price-display">
+                          {p.currency_symbol || '₹'}{p.price?.toLocaleString()}
+                        </span>
+                        
+                        <div className="card-details-label flex-inline items-center gap-1">
+                          <span>Details</span>
+                          <ChevronRight size={14} />
+                        </div>
+                      </div>
+                   </div>
+                </div>
               ))}
-              {currentItems.length === 0 && (
-                <tr>
-                   <td colSpan="7" className="py-8 text-center text-slate-400">
-                      No records found matching your request.
-                   </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
 
         <div className="datatable-footer mt-6 dt-flex-between">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import '../components/Loader.css';
@@ -9,9 +9,20 @@ import './Products.css';
 const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
+  ));
+  const [lightboxImage, setLightboxImage] = useState(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const formatValue = (value, fallback = 'Not available') => {
-    if (value === null || value === undefined || value === '') return fallback;
+    if (value === null || value === undefined || value === '' || value === 'null') return fallback;
     return value;
   };
 
@@ -137,7 +148,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           <div className="detail-hero-copy">
             <span className="detail-eyebrow">Order Details</span>
             <h1>{formatValue(order.name, 'Order')}</h1>
-            <p>{formatValue(order.partner_name, 'Customer details unavailable')}</p>
           </div>
 
           <div className="detail-hero-status">
@@ -178,7 +188,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             </div>
           </div>
 
-          <div className="summary-card">
+          {/* <div className="summary-card">
             <div className="summary-icon">
               <MapPin size={18} />
             </div>
@@ -186,25 +196,34 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               <span className="summary-label">Delivery</span>
               <strong>{formatValue(order.delivery_address, 'Pending address')}</strong>
             </div>
-          </div>
+          </div> */}
         </div>
 
         <section className="detail-section">
-          <div className="detail-section-header">
+          <div 
+            className="detail-section-header collapsible-trigger" 
+            onClick={() => setShowCustomerDetails(!showCustomerDetails)}
+            style={{ cursor: 'pointer', userSelect: 'none' }}
+          >
             <div>
               <span className="detail-section-kicker">Overview</span>
               <h2>Customer and Delivery</h2>
             </div>
+            <div className={`section-toggle-icon ${showCustomerDetails ? 'rotate-180' : ''}`}>
+              <ChevronDown size={20} />
+            </div>
           </div>
 
-          <div className="detail-info-grid">
-            {infoItems.map((item) => (
-              <div key={item.label} className="detail-info-card">
-                <span className="detail-info-label">{item.label}</span>
-                <div className="field-value-box">{item.value}</div>
-              </div>
-            ))}
-          </div>
+          {showCustomerDetails && (
+            <div className="detail-info-grid animate-fade-in">
+              {infoItems.map((item) => (
+                <div key={item.label} className="detail-info-card">
+                  <span className="detail-info-label">{item.label}</span>
+                  <div className="field-value-box">{item.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="detail-section">
@@ -215,63 +234,62 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             </div>
           </div>
 
-          {orderLines.length ? (
-            <div className="table-wrapper overflow-x-auto border border-slate-200 rounded-lg mt-4">
-              <table className="products-datatable w-full">
-                <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
-                  <tr>
-                    <th className="py-3 px-4 text-left w-12 border-none">#</th>
-                    <th className="py-3 px-4 text-left w-16 border-none">Img</th>
-                    <th className="py-3 px-4 text-left border-none">Product Name</th>
-                    <th className="py-3 px-4 text-center w-24 border-none">Qty</th>
-                    <th className="py-3 px-4 text-right w-32 border-none">Unit Price</th>
-                    <th className="py-3 px-4 text-right w-32 border-none">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {orderLines.map((line, idx) => (
-                    <tr key={line.id || idx} className="row-hover">
-                      <td className="py-4 px-4 text-slate-400 font-medium">{idx + 1}</td>
-                      <td className="py-4 px-4">
-                        <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center relative">
-                            {(line.image_url || line.product_id) && (
-                              <img 
-                                src={(() => {
-                                  const token = localStorage.getItem('odoo_session_id') || '';
-                                  const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                  let path = line.image_url;
-                                  
-                                  if (!path && line.product_id) {
-                                     // Construct fallback Odoo image path if URL is missing but ID exists
-                                     const pId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
-                                     if (pId) path = `/web/image/product.template/${pId}/image_128`;
-                                  }
-                                  
-                                  if (!path) return '';
-                                  return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
-                                })()} 
-                                alt="" 
-                                className="w-full h-full object-contain relative z-10" 
-                                onError={(e) => { 
-                                  e.target.style.display = 'none';
-                                }}
-                              />
-                            )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="font-bold text-slate-800">{formatValue(line.product_name, 'Unnamed product')}</div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">{formatValue(line.remark, '')}</div>
-                      </td>
-                      <td className="py-4 px-4 text-center font-medium text-slate-700">{formatValue(line.qty, '0')}</td>
-                      <td className="py-4 px-4 text-right text-slate-700">{formatCurrency(line.price_unit)}</td>
-                      <td className="py-4 px-4 text-right font-bold text-slate-900">
-                        {formatCurrency(Number(line.qty || 0) * Number(line.price_unit || 0))}
-                      </td>
+          {orderLines.length > 0 ? (
+            <div className="table-wrapper-fixed-outer" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '12px', marginTop: '1rem' }}>
+              <div className="table-wrapper-scrollable-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block', width: '100%' }}>
+                <table className="products-datatable" style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse' }}>
+                  <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
+                    <tr>
+                      <th className="py-3 px-4 text-left w-12 border-none">#</th>
+                      <th className="py-3 px-4 text-left w-16 border-none">Img</th>
+                      <th className="py-3 px-4 text-left border-none" style={{ minWidth: '250px' }}>Product Name</th>
+                      <th className="py-3 px-4 text-center w-24 border-none">Qty</th>
+                      <th className="py-3 px-4 text-right w-32 border-none">Unit Price</th>
+                      <th className="py-3 px-4 text-right w-32 border-none">Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {orderLines.map((line, idx) => (
+                      <tr key={line.id || idx} className="row-hover">
+                        <td className="py-4 px-4 text-slate-400 font-medium">{idx + 1}</td>
+                        <td className="py-4 px-4">
+                          <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center relative">
+                              {(line.image_url || line.product_id) && (
+                                <img 
+                                  src={(() => {
+                                    const token = localStorage.getItem('odoo_session_id') || '';
+                                    const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                                    let path = line.image_url;
+                                    
+                                    if (!path && line.product_id) {
+                                       const pId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
+                                       if (pId) path = `/web/image/product.template/${pId}/image_128`;
+                                    }
+                                    
+                                    if (!path) return '';
+                                    return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
+                                  })()} 
+                                  alt="" 
+                                  className="w-full h-full object-contain relative z-10" 
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="font-bold text-slate-800">{formatValue(line.product_name, 'Unnamed product')}</div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">{formatValue(line.remark, '')}</div>
+                        </td>
+                        <td className="py-4 px-4 text-center font-medium text-slate-700">{formatValue(line.qty, '0')}</td>
+                        <td className="py-4 px-4 text-right text-slate-700">{formatCurrency(line.price_unit)}</td>
+                        <td className="py-4 px-4 text-right font-bold text-slate-900">
+                          {formatCurrency(Number(line.qty || 0) * Number(line.price_unit || 0))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             <div className="detail-empty-state">
@@ -291,9 +309,84 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
 
           <div className="remark-value-box">
             <FileText size={18} />
-            <p>{formatValue(order.remark, 'No remark added for this order.')}</p>
+            {order.remark ? (
+              <div 
+                className="remark-html-content" 
+                dangerouslySetInnerHTML={{ __html: order.remark }} 
+              />
+            ) : (
+              <p>No remark added for this order.</p>
+            )}
           </div>
         </section>
+
+        {order.amy_notes && order.amy_notes.length > 0 && (
+          <section className="detail-section">
+            <div className="detail-section-header">
+              <div>
+                <span className="detail-section-kicker">Activity</span>
+                <h2>Activity Notes & Attachments</h2>
+              </div>
+            </div>
+
+            <div className="activity-notes-stack">
+              {order.amy_notes.map((note) => {
+                const getIcon = (type) => {
+                  switch(type) {
+                    case 'switches': return <ToggleRight size={18} />;
+                    case 'fans': return <Wind size={18} />;
+                    case 'ac': return <Activity size={18} />;
+                    case 'curtains': return <Layers size={18} />;
+                    case 'automation': return <Zap size={18} />;
+                    case 'lights': return <Lightbulb size={18} />;
+                    case 'profiles': return <Layers size={18} />;
+                    default: return <MoreHorizontal size={18} />;
+                  }
+                };
+
+                return (
+                  <div key={note.id} className="detail-info-card activity-note-card">
+                    <div className="activity-note-type-label">
+                      {getIcon(note.note_type)}
+                      <span>{note.note_type}</span>
+                    </div>
+                    
+                    {note.text && (
+                      <div className="activity-note-text-box">
+                        <p>{note.text}</p>
+                      </div>
+                    )}
+
+                    {note.images && note.images.length > 0 && (
+                      <div className="activity-note-media-grid">
+                        {note.images.map((img, i) => (
+                          <div 
+                            key={i} 
+                            className="activity-media-item"
+                            onClick={() => {
+                              const token = localStorage.getItem('odoo_session_id') || '';
+                              const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                              setLightboxImage(`${img}${img.includes('?') ? '&' : '?'}token=${token}&db=${db}`);
+                            }}
+                          >
+                            <img 
+                              src={`${img}${img.includes('?') ? '&' : '?'}token=${localStorage.getItem('odoo_session_id') || ''}&db=${import.meta.env.VITE_ODOO_DB || 'stage'}`} 
+                              alt="Attachment" 
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                            {note.images.length > 1 && (
+                                <span className="media-count-badge">{i + 1}/{note.images.length}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <div className="detail-footer-actions">
           {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
@@ -356,6 +449,17 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           </button>
         </div>
       </div>
+
+      {lightboxImage && (
+        <div className="lightbox-overlay" onClick={() => setLightboxImage(null)}>
+          <div className="lightbox-close" onClick={() => setLightboxImage(null)}>
+            <XCircle size={32} />
+          </div>
+          <div className="lightbox-frame" onClick={(e) => e.stopPropagation()}>
+            <img src={lightboxImage} alt="Fullscreen View" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

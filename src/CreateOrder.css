@@ -75,7 +75,8 @@
   padding: 1.25rem;
 }
 
-.lead-left, .lead-right {
+.lead-left,
+.lead-right {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -151,7 +152,7 @@
   color: #64748b;
   font-size: 0.85rem;
   border: 2px solid #fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .gn-content {
@@ -234,7 +235,7 @@
   gap: 1rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .add-note-form-v2 {
     flex-direction: column;
   }
@@ -278,17 +279,25 @@
   min-height: 120px;
 }
 
-.v2-upload-zone:hover {
+.v2-upload-zone:hover,
+.v2-upload-zone.dragging {
   border-color: #3b82f6;
   background: #f1f7ff;
   color: #3b82f6;
+  transform: scale(1.01);
 }
 
 .upload-text {
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-weight: 800;
+  font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.upload-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
 }
 
 .v2-image-previews {
@@ -326,7 +335,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 /* Tab Styling Overrides */
@@ -355,7 +364,7 @@
 .co-tab.active {
   background: white;
   color: #1e293b;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .co-expand-header-inner:hover {
@@ -411,12 +420,13 @@
   margin-bottom: 0;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .product-item-card {
     position: relative;
     padding-top: 1rem;
     padding-right: 0.5rem;
   }
+
   .pi-header {
     position: absolute;
     top: 0.25rem;
@@ -442,6 +452,23 @@
   letter-spacing: 0.05em;
   margin-bottom: 0.15rem;
   display: block;
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  .product-item-card .mobile-only {
+    display: none !important;
+  }
+
+  .desktop-only {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .desktop-only {
+    display: none !important;
+  }
 }
 
 .form-group.no-label {
@@ -456,15 +483,35 @@
   cursor: pointer;
   padding: 4px;
   opacity: 0.6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.pi-remove:hover { opacity: 1; }
+.pi-remove.highlighted {
+  opacity: 1;
+  width: 24px;
+  /* Slightly smaller for inline look */
+  height: 24px;
+  background: #fff;
+  border: 1.5px solid #ef4444;
+  border-radius: 50%;
+  color: #ef4444;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.1);
+}
+
+.pi-remove.highlighted:hover {
+  background: #fef2f2;
+  transform: scale(1.1);
+  box-shadow: 0 2px 5px rgba(239, 68, 68, 0.2);
+}
 
 .pi-grid {
-  padding: 0 1rem;
+  padding: 0 1.5rem 0 0rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .pi-sub-grid {
@@ -478,23 +525,27 @@
   display: none;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .pi-grid {
     flex-direction: row;
     align-items: flex-start;
     min-width: max-content;
     padding-bottom: 8px;
-    padding-right: 3.5rem; /* space for absolute delete button */
-    gap: 1.5rem !important; /* Consistent gap between columns */
+    padding-right: 4.5rem;
+    gap: 1.5rem !important;
+    /* Consistent gap between columns */
   }
+
   .desktop-alignment-label {
     display: block;
     visibility: hidden;
   }
+
   .product-select-group {
     flex: 0 0 320px !important;
     width: 320px !important;
   }
+
   .pi-sub-grid {
     flex: 0 0 280px !important;
     width: 280px !important;
@@ -502,6 +553,7 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
   }
+
   .pi-small-input {
     flex: 0 0 auto !important;
   }
@@ -637,6 +689,7 @@
   .note-input-row {
     flex-direction: column;
   }
+
   .note-upload-col {
     align-self: flex-start;
   }
@@ -655,7 +708,7 @@
   resize: vertical;
   outline: none;
   transition: all 0.2s;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .add-note-textarea:focus {
@@ -713,7 +766,8 @@
   color: #64748b;
 }
 
-.contact-val, .address-val {
+.contact-val,
+.address-val {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -723,7 +777,8 @@
 }
 
 .address-val {
-  font-size: 0.95rem; /* Slightly smaller than phone for long addresses */
+  font-size: 0.95rem;
+  /* Slightly smaller than phone for long addresses */
   line-height: 1.4;
   align-items: flex-start;
   padding-top: 2px;
@@ -836,12 +891,14 @@
   cursor: pointer;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .pi-sub-grid {
-    grid-template-columns: 1fr;
-    min-width: 200px;
+    grid-template-columns: repeat(3, 1fr);
+    min-width: 0 !important;
+    max-width: 100%;
+    gap: 1.25rem !important;
   }
-  
+
   .dummy-cards-grid {
     grid-template-columns: 1fr;
   }

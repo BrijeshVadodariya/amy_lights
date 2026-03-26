@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_TIMEOUT_MS = 30000;
 
 const api = axios.create({
   baseURL: '', // Use empty string to avoid "//" prefix, keeping paths relative to origin
