@@ -29,8 +29,8 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
   const visibleOptions = useMemo(() => filtered.slice(0, 100), [filtered]);
   const hasMore = filtered.length > 100;
 
-  const handleSelect = (val) => {
-    onChange(val);
+  const handleSelect = (opt) => {
+    onChange(opt.value, opt);
     setOpen(false);
   };
 
@@ -107,7 +107,7 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
                   key={opt.value}
                   type="button"
                   className="ss-option"
-                  onClick={() => handleSelect(opt.value)}
+                  onClick={() => handleSelect(opt)}
                 >
                   {opt.label}
                 </button>

@@ -89,7 +89,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     try {
       const res = await odooService.convertSelection(orderId, targetState);
       if (res.success) {
-        alert(`${stateName} created successfully!`);
         onNavigate(targetState === 'sale' ? 'orders' : 'quotations');
       } else {
         alert(res.error?.message || `Error converting to ${stateName}`);
@@ -117,8 +116,14 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     { label: 'Contact Person', value: formatValue(order.contact_person) },
     { label: 'Mobile Number', value: formatValue(order.mobile) },
     { label: 'Order Date', value: formatValue(order.date_order) },
-    { label: 'Billing Address', value: formatValue(order.billing_address) },
-    { label: 'Delivery Address', value: formatValue(order.delivery_address) },
+    // Granular Address instead of big blob
+    { label: 'House/Building', value: formatValue(order.street) },
+    { label: 'Area', value: formatValue(order.street2) },
+    { label: 'City', value: formatValue(order.city) },
+    { label: 'Pincode', value: formatValue(order.zip) },
+    { label: 'State', value: formatValue(order.state_id?.[1] || order.state_name) },
+    { label: 'Billing Address (Full)', value: formatValue(order.billing_address) },
+    { label: 'Delivery Address (Full)', value: formatValue(order.delivery_address) },
     { label: 'Electrician', value: formatValue(order.electrician) },
   ];
 

@@ -24,7 +24,12 @@ import {
   ShoppingCart,
   MapPin,
   Pencil,
-  Trash
+  Trash,
+  Calendar,
+  User,
+  Mail,
+  MessageCircle,
+  Clock
 } from 'lucide-react';
 import './CreateOrder.css';
 
@@ -50,6 +55,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const [masterData, setMasterData] = useState({
     partners: [],
     products: [],
+    users: [],
+    activity_types: []
   });
 
   const [orderHeader, setOrderHeader] = useState({
@@ -136,6 +143,16 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
   const [debugRawData, setDebugRawData] = useState(null);
   const [dragActiveId, setDragActiveId] = useState(null);
+
+  const [scheduledActivities, setScheduledActivities] = useState([]);
+  const [newActivity, setNewActivity] = useState({
+    activity_type_id: '',
+    summary: '',
+    note: '',
+    user_id: '',
+    date_deadline: new Date().toISOString().split('T')[0]
+  });
+  const [showActivitySection, setShowActivitySection] = useState(true);
 
   const handleAddGeneralNote = () => {
     if (!generalNoteInput.trim()) return;
@@ -386,7 +403,17 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         
         if (pId) {
           const exists = masterData.partners.find(p => String(p.id) === String(pId));
-          if (!exists) missingPartners.push({ id: pId, name: pName });
+          if (!exists) {
+             missingPartners.push({ 
+               id: pId, 
+               name: pName,
+               street: data.street || '',
+               street2: data.street2 || '',
+               city: data.city || '',
+               zip: data.zip || '',
+               state_id: data.state_id || false
+             });
+          }
         }
 
         setOrderHeader({
@@ -741,7 +768,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         is_beam: !!orderHeader.is_beam,
         is_automate: !!orderHeader.is_automate,
         state: isSelection ? 'selection' : isOrder ? 'sale' : 'draft',
-        date_order: ensureIsoDate(orderHeader.date)
+        date_order: ensureIsoDate(orderHeader.date),
+        activities: scheduledActivities
       };
 
 
@@ -838,7 +866,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                     <span className="lead-label">Address</span>
                     <div className="lead-value address-val">
                       <MapPin size={14} className="text-blue-500" />
-                      <span>{[selectedPartner.street, selectedPartner.city, selectedPartner.zip].filter(Boolean).join(', ') || 'No address provided'}</span>
+                      <span>{[selectedPartner.street, selectedPartner.street2, selectedPartner.city, selectedPartner.state_name || (selectedPartner.state_id ? selectedPartner.state_id[1] : null), selectedPartner.zip].filter(Boolean).join(', ') || 'No address provided'}</span>
                     </div>
                   </div>
                 </div>
@@ -889,18 +917,22 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                         padding: '0.25rem 0.5rem', 
                         borderBottom: '2px solid #f8fafc', 
                         display: 'grid',
-                        gridTemplateColumns: '400px 210px 80px 80px 40px',
+                        gridTemplateColumns: `minmax(300px, 1fr) 210px ${orderHeader.is_image ? '80px' : ''} ${orderHeader.is_beam ? '80px' : ''} 40px`.trim().replace(/\s+/g, ' '),
                         gap: '8px',
                         alignItems: 'center'
                     }}>
                       <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Product</div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Qty</div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Price</div>
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Disc</div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Price</div>
                       </div>
-                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>{orderHeader.is_image ? 'Image' : ''}</div>
-                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>{orderHeader.is_beam ? 'Beam' : ''}</div>
+                      {orderHeader.is_image && (
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Image</div>
+                      )}
+                      {orderHeader.is_beam && (
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Beam</div>
+                      )}
                       <div />
                     </div>
                   )}
@@ -918,11 +950,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                       return (
                         <div key={r.id} className="product-item-card" style={{ 
                           position: 'relative',
-                          padding: isMobile ? '1.25rem' : '0 0.25rem', 
+                          padding: isMobile ? '1rem' : '0 0.25rem', 
                           border: isMobile ? '1px solid #e2e8f0' : 'none', 
                           borderBottom: isMobile ? '1px solid #e2e8f0' : '1px solid #f1f5f9', 
                           borderRadius: isMobile ? '12px' : 0,
-                          marginBottom: isMobile ? '1rem' : 0,
+                          marginBottom: isMobile ? '0.75rem' : 0,
                           backgroundColor: '#fff',
                           boxShadow: isMobile ? '0 2px 4px rgba(0,0,0,0.02)' : 'none'
                         }}>
@@ -948,7 +980,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                           <div className={isMobile ? "" : "pi-grid-row"} style={{ 
                             marginTop: 0, 
                             display: isMobile ? 'flex' : 'grid', 
-                            gridTemplateColumns: isMobile ? 'none' : '400px 210px 80px 80px 40px',
+                            gridTemplateColumns: isMobile ? 'none' : `minmax(300px, 1fr) 210px ${orderHeader.is_image ? '80px' : ''} ${orderHeader.is_beam ? '80px' : ''} 40px`.trim().replace(/\s+/g, ' '),
                             alignItems: 'flex-start', 
                             gap: '8px', 
                             flexWrap: isMobile ? 'wrap' : 'nowrap' 
@@ -972,7 +1004,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                      </div>
                                      <button 
                                        onClick={() => onNavigate('create-product')}
-                                       style={{ flex: '0 0 24px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
+                                       style={{ flex: '0 0 24px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
                                        title="Create New Product"
                                      >
                                        <Plus size={14} />
@@ -989,33 +1021,33 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                             <div className="pi-sub-grid" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? '1rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
                               <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
                                 {isMobile && <label className="pi-small-label">Qty</label>}
-                                <input type="number" className="co-input-border" value={r.qty} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} style={{ width: '100%', height: '28px', fontSize: '12px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
-                              </div>
-                              <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
-                                {isMobile && <label className="pi-small-label">Price</label>}
-                                <input type="number" className="co-input-border" value={r.price} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} style={{ width: '100%', height: '28px', fontSize: '12px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
+                                <input type="number" className="co-input-border" value={r.qty} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} style={{ width: '100%', height: '42px', fontSize: '14px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
                               </div>
                               <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
                                 {isMobile && <label className="pi-small-label">Disc%</label>}
-                                <input type="number" className="co-input-border" value={r.discount} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} style={{ width: '100%', height: '28px', fontSize: '12px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
+                                <input type="number" className="co-input-border" value={r.discount} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} style={{ width: '100%', height: '42px', fontSize: '14px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
+                              </div>
+                              <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                                {isMobile && <label className="pi-small-label">Price</label>}
+                                <input type="number" className="co-input-border" value={r.price} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} style={{ width: '100%', height: '42px', fontSize: '14px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
                               </div>
                             </div>
 
                              <div style={{ 
                                display: (isMobile && !orderHeader.is_image) ? 'none' : 'flex',
-                               visibility: orderHeader.is_image ? 'visible' : 'hidden', 
+                               display: orderHeader.is_image ? 'flex' : 'none', 
                                justifyContent: 'center',
                                minWidth: 0,
                                overflow: 'hidden'
                              }}>
-                               <div className="h-[54px] w-[54px] bg-slate-50 border border-slate-100 rounded overflow-hidden relative">
+                               <div className="h-[70px] w-full bg-slate-50 border border-slate-100 rounded overflow-hidden relative">
                                  {selectedProduct?.id && (
                                    <img 
                                      src={(() => {
                                        const token = localStorage.getItem('odoo_session_id') || '';
                                        const db = import.meta.env.VITE_ODOO_DB || 'stage';
                                        let path = selectedProduct.image_url;
-                                       if (!path) path = `/web/image/product.template/${selectedProduct.id}/image_128`;
+                                       if (!path) path = `/web/image/product.template/${selectedProduct.id}/image_256`;
                                        return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
                                      })()} 
                                      alt="p" className="h-full w-full object-contain"
@@ -1027,7 +1059,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
                              <div style={{ 
                                display: (isMobile && !orderHeader.is_beam) ? 'none' : 'block',
-                               visibility: orderHeader.is_beam ? 'visible' : 'hidden', 
+                               display: orderHeader.is_beam ? 'block' : 'none', 
                                fontSize: '11px', 
                                color: '#475569', 
                                textAlign: 'center', 
@@ -1040,11 +1072,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                              </div>
 
                              {!isMobile && (
-                               <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '4px' }}>
+                               <div style={{ display: 'flex', justifyContent: 'center' }}>
                                  <button 
                                    className="pi-remove-row" 
                                    onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))}
-                                   style={{ padding: '6px', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                   style={{ width: '40px', height: '42px', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                    title="Delete Row"
                                  >
                                    <Trash size={16} />
@@ -1063,6 +1095,180 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                 <Plus size={18} style={{ marginRight: '8px' }} />
                 Add Product Row
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* Schedule Activity Section */}
+        <div className="co-expandable-card activity-schedule-card" style={{ marginBottom: '1.25rem' }}>
+          <div className="co-expand-header" onClick={() => setShowActivitySection(!showActivitySection)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="co-card-icon-pill" style={{ backgroundColor: '#f0f9ff', color: '#0ea5e9' }}>
+                <Calendar size={18} />
+              </div>
+              <div className="co-card-title-stack">
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Schedule Activity</h2>
+              </div>
+            </div>
+            <div className={`co-chevron ${showActivitySection ? 'open' : ''}`}>
+              <ChevronRight size={18} />
+            </div>
+          </div>
+
+          {showActivitySection && (
+            <div className="co-card-body" style={{ padding: '1.25rem' }}>
+              {/* Activity Type Selection */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '10px', display: 'block' }}>Choose Activity Type</label>
+                <div className="activity-type-tabs" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {(!masterData.activity_types || masterData.activity_types.length === 0) ? (
+                    <div style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', padding: '10px', backgroundColor: '#f8fafc', borderRadius: '8px', width: '100%' }}>
+                      No activity types found in Odoo. Please check your permissions or backend configuration.
+                    </div>
+                  ) : (
+                    masterData.activity_types.map(type => (
+                      <button 
+                        key={type.id}
+                        type="button"
+                        onClick={() => setNewActivity(prev => ({ ...prev, activity_type_id: type.id, summary: type.summary || type.name }))}
+                        style={{ 
+                          padding: '8px 16px', 
+                          borderRadius: '999px', 
+                          border: '1px solid',
+                          borderColor: newActivity.activity_type_id === type.id ? '#3b82f6' : '#e2e8f0',
+                          backgroundColor: newActivity.activity_type_id === type.id ? '#eff6ff' : '#fff',
+                          color: newActivity.activity_type_id === type.id ? '#3b82f6' : '#64748b',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {newActivity.activity_type_id === type.id && <CheckSquare size={14} />}
+                        {type.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Form Grid */}
+              <div className="activity-form-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.25rem' }}>
+                <div className="form-group">
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '6px', display: 'block' }}>Summary</label>
+                  <input 
+                    type="text" 
+                    className="co-input-border"
+                    value={newActivity.summary} 
+                    onChange={e => setNewActivity(prev => ({ ...prev, summary: e.target.value }))}
+                    placeholder="e.g. Discuss Quotation"
+                    style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '6px', display: 'block' }}>Due Date</label>
+                  <input 
+                    type="date" 
+                    className="co-input-border"
+                    value={newActivity.date_deadline} 
+                    onChange={e => setNewActivity(prev => ({ ...prev, date_deadline: e.target.value }))}
+                    style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '6px', display: 'block' }}>Assigned To</label>
+                  <select 
+                    className="co-input-border"
+                    value={newActivity.user_id} 
+                    onChange={e => setNewActivity(prev => ({ ...prev, user_id: e.target.value }))}
+                    style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#fff' }}
+                  >
+                    <option value="">Select User</option>
+                    {masterData.users?.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group" style={{ gridColumn: isMobile ? 'auto' : 'span 2' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '6px', display: 'block' }}>Note</label>
+                  <textarea 
+                    className="co-textarea"
+                    value={newActivity.note} 
+                    onChange={e => setNewActivity(prev => ({ ...prev, note: e.target.value }))}
+                    placeholder="Internal notes..."
+                    style={{ width: '100%', minHeight: '80px', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={() => {
+                    if (!newActivity.activity_type_id) return alert("Select activity type");
+                    setScheduledActivities(prev => [...prev, { ...newActivity, id: Date.now() }]);
+                    setNewActivity({
+                      activity_type_id: '',
+                      summary: '',
+                      note: '',
+                      user_id: '',
+                      date_deadline: new Date().toISOString().split('T')[0]
+                    });
+                  }}
+                  style={{ 
+                    padding: '10px 20px', 
+                    background: '#3b82f6', 
+                    color: '#fff', 
+                    borderRadius: '10px', 
+                    border: 'none', 
+                    fontWeight: 700, 
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Plus size={18} />
+                  Add Activity
+                </button>
+              </div>
+
+              {/* List of planned activities */}
+              {scheduledActivities.length > 0 && (
+                <div className="planned-activities" style={{ marginTop: '1.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b', marginBottom: '1rem' }}>Planned Activities</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {scheduledActivities.map(act => {
+                      const typeName = masterData.activity_types?.find(t => t.id === act.activity_type_id)?.name || 'Activity';
+                      const userName = masterData.users?.find(u => u.id === parseInt(act.user_id))?.name || 'Self';
+                      return (
+                        <div key={act.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0' }}>
+                              <Clock size={16} className="text-blue-500" />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{act.summary || typeName}</div>
+                              <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
+                                <span>📅 {act.date_deadline}</span>
+                                <span>👤 {userName}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => setScheduledActivities(prev => prev.filter(a => a.id !== act.id))}
+                            style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                          >
+                            <Trash size={16} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -114,19 +114,39 @@
 .selection-group {
   display: flex;
   gap: 1.5rem;
+  overflow-x: auto; /* Allow horizontal scroll if they exceed width */
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
 }
 
 @media (max-width: 768px) {
   .selection-group {
     flex-direction: column;
+    overflow-x: visible;
+  }
+  .selection-item {
+    flex: 1 0 auto !important;
+    width: 100% !important;
   }
 }
 
-.selection-item {
-  flex: 1;
+.selection-group::-webkit-scrollbar {
+  height: 4px;
+}
+
+.selection-group::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* selection-item styled below in single-row section */
+
+.selection-item-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  height: 32px; /* Fixed height for consistent vertical alignment */
+  margin-bottom: 0.5rem;
 }
 
 .selection-item label {
@@ -142,9 +162,10 @@
   border: none;
   border-radius: 20px;
   display: flex;
+  flex-direction: column;
   padding: 1.25rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 110px;
+  height: 135px; /* Fixed height for uniformity */
   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
 }
 
@@ -207,16 +228,7 @@
   transform: translateX(2px);
 }
 
-/* Other Details Card Styles */
-.other-details-card {
-  background: #fff;
-  border: none;
-  border-radius: 20px;
-  padding: 1.75rem;
-  margin-top: 1.5rem;
-  max-width: 480px;
-  box-shadow: 0 4px 25px rgba(0,0,0,0.06);
-}
+/* Other Details Header Styles */
 
 .od-header {
   display: flex;
@@ -280,23 +292,11 @@
 }
 
 /* Small adjustments to group for 4 items */
-@media (min-width: 1200px) {
-  .selection-group {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-  .selection-item {
-    flex: 0 0 calc(25% - 1.125rem);
-  }
-}
-
-@media (max-width: 1199px) and (min-width: 769px) {
-  .selection-group {
-    flex-wrap: wrap;
-  }
-  .selection-item {
-    flex: 0 0 calc(50% - 0.75rem);
-  }
+.selection-item {
+  flex: 0 0 250px; /* Consistent width for all cards to stay in row */
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 /* Input Overrides for "Client" card */
@@ -344,14 +344,31 @@
   right: 0 !important;
 }
 
-/* Address Details Card */
-.address-details-card {
+/* Side-by-Side Bottom Layout */
+.bottom-cards-layout {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .bottom-cards-layout {
+    flex-direction: column;
+    gap: 0;
+  }
+  .address-details-card, .other-details-card {
+    max-width: 100% !important;
+  }
+}
+
+.address-details-card, .other-details-card {
   background: #fff;
   border: none;
   border-radius: 20px;
   padding: 1.75rem;
-  margin-top: 1.5rem;
-  max-width: 480px;
+  flex: 1;
+  max-width: none;
   box-shadow: 0 4px 25px rgba(0,0,0,0.06);
 }
 
@@ -390,4 +407,18 @@
   .address-grid-3 {
     flex-direction: column;
   }
+  .address-flex-row {
+    flex-direction: row !important; /* Keep House + Building in one row if possible */
+  }
+}
+
+.address-details-card .od-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.address-form-content input::placeholder {
+  color: #94a3b8;
+  font-weight: 300;
 }

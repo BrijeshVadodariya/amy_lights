@@ -83,7 +83,6 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
     try {
       const res = await odooService.confirmOrder(id);
       if (res.success) {
-        alert(`${isQuotation ? 'Quotation' : 'Order'} Confirmed!`);
         fetchOrders();
       } else {
         alert(res.error?.message || "Failed to confirm");
@@ -99,7 +98,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
       if (!window.confirm("Decline this quotation?")) return;
       try {
         const res = await odooService.declineOrder(id);
-        if (res.success) { alert("Quotation Declined"); fetchOrders(); }
+        if (res.success) { fetchOrders(); }
         else alert(res.error?.message || "Failed to decline");
       } catch { alert("Error declining quotation"); }
     } else {
@@ -107,7 +106,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
       if (reason === null) return;
       try {
         const res = await odooService.declineOrder(id, reason);
-        if (res.success) { alert("Order Declined!"); fetchOrders(); }
+        if (res.success) { fetchOrders(); }
         else alert(res.error?.message || "Failed to decline");
       } catch { alert("Network error"); }
     }

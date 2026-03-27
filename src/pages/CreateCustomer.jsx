@@ -9,22 +9,19 @@ const CreateCustomer = ({ onNavigate }) => {
   const [masterData, setMasterData] = useState({ partners: [], architects: [], electricians: [] });
   const [customer, setCustomer] = useState({
     name: '',
-    phone: '',
+    mobile: '',
     email: '',
     electricianId: '',
     architectId: '',
     otherName: '',
     otherNumber: '',
-    // Address details
-    street: '',
-    street2: '',
+    houseNo: '',
+    buildingName: '',
+    area: '',
+    pincode: '',
     city: '',
-    zip: '',
     state: '',
-    country: '',
-    // Other details
     empAssigned: '',
-    channelPartner: '',
     sourceType: '',
     source: '',
     competitor: '',
@@ -33,7 +30,8 @@ const CreateCustomer = ({ onNavigate }) => {
 
   const [modalState, setModalState] = useState({ 
     show: false, 
-    selectedId: '', 
+    newName: '', 
+    newPhone: '',
     isArchitect: false, 
     isElectrician: false 
   });
@@ -96,13 +94,13 @@ const CreateCustomer = ({ onNavigate }) => {
       const res = await odooService.createPartner({
         name: customer.name,
         phone: customer.mobile,
-        comment: customer.billing_address,
-        street: customer.street,
-        street2: customer.street2,
+        // Consolidate House + Building into street
+        street: [customer.houseNo, customer.buildingName].filter(Boolean).join(', '),
+        street2: customer.area,
         city: customer.city,
-        zip: customer.zip,
+        zip: customer.pincode,
         state_name: customer.state,
-        country_name: customer.country,
+        country_name: customer.country || 'India',
         electrician_id: parseInt(customer.electricianId) || false,
         architect_id: parseInt(customer.architectId) || false,
         other_name: customer.otherName,
@@ -116,10 +114,7 @@ const CreateCustomer = ({ onNavigate }) => {
 
       if (!res) {
         alert('Customer creation failed');
-        return;
       }
-
-      alert('Customer created');
       onNavigate('create-order');
     } catch {
       alert('Customer creation failed');
@@ -129,19 +124,20 @@ const CreateCustomer = ({ onNavigate }) => {
   };
 
   const handleUpdateFlags = async () => {
-    if (!modalState.selectedId || savingFlags) return;
+    if (!modalState.newName || savingFlags) return;
     setSavingFlags(true);
     try {
-      const res = await odooService.updatePartnerFlags(modalState.selectedId, {
+      const res = await odooService.createPartner({
+        name: modalState.newName,
+        phone: modalState.newPhone,
         is_architect: modalState.isArchitect,
         is_electrician: modalState.isElectrician
       });
       if (res && res.id) {
-        alert("Professional status updated!");
-        setModalState({ ...modalState, show: false });
+        setModalState({ ...modalState, show: false, newName: '', newPhone: '' });
         fetchMasterData(); // Refresh dropdowns
       } else {
-        alert("Failed to update status");
+        alert("Failed to add professional");
       }
     } catch (err) {
       console.error(err);
@@ -168,7 +164,9 @@ const CreateCustomer = ({ onNavigate }) => {
           <div className="selection-group">
             {/* Client (New Customer Details) */}
             <div className="selection-item">
-              <label>Client</label>
+              <div className="selection-item-header">
+                <label>Client</label>
+              </div>
               <div className="selection-card-box">
                 <div className="selection-card-content">
                   <div className="selection-card-top p-input-field">
@@ -195,12 +193,12 @@ const CreateCustomer = ({ onNavigate }) => {
 
             {/* Electrician Selection */}
             <div className="selection-item">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ margin: 0 }}>Electrician</label>
+              <div className="selection-item-header">
+                <label>Electrician</label>
                 <button 
                   className="btn-ui secondary mini" 
                   style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
-                  onClick={() => setModalState({ show: true, selectedId: '', isArchitect: false, isElectrician: true })}
+                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', isArchitect: false, isElectrician: true })}
                 >
                   <Plus size={10} style={{ marginRight: '4px' }} /> Add New
                 </button>
@@ -227,12 +225,12 @@ const CreateCustomer = ({ onNavigate }) => {
 
             {/* Architect Selection */}
             <div className="selection-item">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ margin: 0 }}>Architect</label>
+              <div className="selection-item-header">
+                <label>Architect</label>
                 <button 
                   className="btn-ui secondary mini" 
                   style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
-                  onClick={() => setModalState({ show: true, selectedId: '', isArchitect: true, isElectrician: false })}
+                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', isArchitect: true, isElectrician: false })}
                 >
                   <Plus size={10} style={{ marginRight: '4px' }} /> Add New
                 </button>
@@ -259,7 +257,9 @@ const CreateCustomer = ({ onNavigate }) => {
 
             {/* Others Block */}
             <div className="selection-item">
-              <label>Others</label>
+              <div className="selection-item-header">
+                <label>Others</label>
+              </div>
               <div className="selection-card-box">
                 <div className="selection-card-content">
                   <div className="selection-card-top p-input-field">
@@ -286,122 +286,136 @@ const CreateCustomer = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Address Details Card (Odoo Style) */}
-        <div className="address-details-card">
-          <div className="od-header">
-            <MapPin size={18} />
-            <h3>Address</h3>
-          </div>
-          <div className="address-form-content">
-            <input 
-              className="clean-input w-full mb-3" 
-              placeholder="Street..." 
-              value={customer.street} 
-              onChange={(e) => setCustomer({...customer, street: e.target.value})} 
-            />
-            <input 
-              className="clean-input w-full mb-3" 
-              placeholder="Street 2..." 
-              value={customer.street2} 
-              onChange={(e) => setCustomer({...customer, street2: e.target.value})} 
-            />
-            <div className="address-grid-3 mb-3">
+        {/* Side-by-Side Address and Other Details */}
+        <div className="bottom-cards-layout">
+          {/* Address Details (Matching Image Pattern) */}
+          <div className="address-details-card">
+            <div className="od-header">
+              <MapPin size={18} />
+              <h3>Address<span style={{color: 'red'}}>*</span></h3>
+            </div>
+            <div className="address-form-content">
+              <div className="address-flex-row" style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ flex: '0 0 100px' }}>
+                  <input 
+                    className="clean-input w-full" 
+                    placeholder="H.No." 
+                    value={customer.houseNo} 
+                    onChange={(e) => setCustomer({...customer, houseNo: e.target.value})} 
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input 
+                    className="clean-input w-full" 
+                    placeholder="Building/Society Name" 
+                    value={customer.buildingName} 
+                    onChange={(e) => setCustomer({...customer, buildingName: e.target.value})} 
+                  />
+                </div>
+              </div>
+              
               <input 
-                className="clean-input" 
-                placeholder="City" 
-                value={customer.city} 
-                onChange={(e) => setCustomer({...customer, city: e.target.value})} 
+                className="clean-input w-full mb-3" 
+                placeholder="Area" 
+                value={customer.area} 
+                onChange={(e) => setCustomer({...customer, area: e.target.value})} 
               />
+  
+              <div className="address-grid-2 mb-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <input 
+                  className="clean-input" 
+                  placeholder="Pincode" 
+                  value={customer.pincode} 
+                  onChange={(e) => setCustomer({...customer, pincode: e.target.value})} 
+                />
+                <div className="custom-city-select-wrapper">
+                   <input 
+                    className="clean-input w-full" 
+                    placeholder="City" 
+                    value={customer.city} 
+                    onChange={(e) => setCustomer({...customer, city: e.target.value})} 
+                  />
+                </div>
+              </div>
+              
               <input 
-                className="clean-input" 
-                placeholder="ZIP" 
-                value={customer.zip} 
-                onChange={(e) => setCustomer({...customer, zip: e.target.value})} 
-              />
-              <input 
-                className="clean-input" 
+                className="clean-input w-full" 
                 placeholder="State" 
                 value={customer.state} 
                 onChange={(e) => setCustomer({...customer, state: e.target.value})} 
               />
             </div>
-            <input 
-              className="clean-input w-full" 
-              placeholder="Country" 
-              value={customer.country} 
-              onChange={(e) => setCustomer({...customer, country: e.target.value})} 
-            />
           </div>
-        </div>
-
-        {/* Other Details Card */}
-        <div className="other-details-card">
-          <div className="od-header">
-            <Activity size={18} />
-            <h3>Other Details</h3>
-          </div>
-          <div className="od-content">
-            <div className="od-row">
-              <span className="od-label">Emp assigned</span>
-              <input 
-                className="od-input" 
-                value={customer.empAssigned} 
-                onChange={(e) => setCustomer({ ...customer, empAssigned: e.target.value })} 
-                placeholder="Name" 
-              />
+  
+          {/* Other Details Card */}
+          <div className="other-details-card">
+            <div className="od-header">
+              <Activity size={18} />
+              <h3>Other Details</h3>
             </div>
-            <div className="od-row">
-              <span className="od-label">Channel Partner</span>
-              <input 
-                className="od-input" 
-                value={customer.channelPartner}
-                onChange={(e) => setCustomer({ ...customer, channelPartner: e.target.value })} 
-                placeholder="Channel Partner" 
-              />
-            </div>
-            <div className="od-row">
-              <span className="od-label">Source Type</span>
-              <input 
-                className="od-input" 
-                value={customer.sourceType} 
-                onChange={(e) => setCustomer({ ...customer, sourceType: e.target.value })} 
-                placeholder="Source Type" 
-              />
-            </div>
-            <div className="od-row">
-              <span className="od-label">Source</span>
-              <input 
-                className="od-input" 
-                value={customer.source} 
-                onChange={(e) => setCustomer({ ...customer, source: e.target.value })} 
-                placeholder="Source" 
-              />
-            </div>
-            <div className="od-row">
-              <span className="od-label">Want to cover</span>
-              <input 
-                className="od-input" 
-                placeholder="--" 
-              />
-            </div>
-            <div className="od-row">
-              <span className="od-label">Competitor</span>
-              <input 
-                className="od-input" 
-                value={customer.competitor} 
-                onChange={(e) => setCustomer({ ...customer, competitor: e.target.value })} 
-                placeholder="--" 
-              />
-            </div>
-            <div className="od-row">
-              <span className="od-label">Budget</span>
-              <input 
-                className="od-input" 
-                type="number"
-                value={customer.budget} 
-                onChange={(e) => setCustomer({ ...customer, budget: e.target.value })} 
-                placeholder="0" 
-              />
+            <div className="od-content">
+              <div className="od-row">
+                <span className="od-label">Emp assigned</span>
+                <input 
+                  className="od-input" 
+                  value={customer.empAssigned} 
+                  onChange={(e) => setCustomer({ ...customer, empAssigned: e.target.value })} 
+                  placeholder="Name" 
+                />
+              </div>
+              <div className="od-row">
+                <span className="od-label">Channel Partner</span>
+                <input 
+                  className="od-input" 
+                  value={customer.channelPartner}
+                  onChange={(e) => setCustomer({ ...customer, channelPartner: e.target.value })} 
+                  placeholder="Channel Partner" 
+                />
+              </div>
+              <div className="od-row">
+                <span className="od-label">Source Type</span>
+                <input 
+                  className="od-input" 
+                  value={customer.sourceType} 
+                  onChange={(e) => setCustomer({ ...customer, sourceType: e.target.value })} 
+                  placeholder="Source Type" 
+                />
+              </div>
+              <div className="od-row">
+                <span className="od-label">Source</span>
+                <input 
+                  className="od-input" 
+                  value={customer.source} 
+                  onChange={(e) => setCustomer({ ...customer, source: e.target.value })} 
+                  placeholder="Source" 
+                />
+              </div>
+              <div className="od-row">
+                <span className="od-label">Want to cover</span>
+                <input 
+                  className="od-input" 
+                  placeholder="--" 
+                />
+              </div>
+              <div className="od-row">
+                <span className="od-label">Competitor</span>
+                <input 
+                  className="od-input" 
+                  value={customer.competitor} 
+                  onChange={(e) => setCustomer({ ...customer, competitor: e.target.value })} 
+                  placeholder="--" 
+                />
+              </div>
+              <div className="od-row">
+                <span className="od-label">Budget</span>
+                <input 
+                  className="od-input" 
+                  type="number"
+                  value={customer.budget} 
+                  onChange={(e) => setCustomer({ ...customer, budget: e.target.value })} 
+                  placeholder="0" 
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -445,14 +459,27 @@ const CreateCustomer = ({ onNavigate }) => {
               </button>
             </div>
             
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 500, color: '#64748b' }}>Select Customer</label>
-              <SearchableSelect 
-                placeholder="Search existing customer..."
-                value={modalState.selectedId}
-                onChange={(val) => setModalState({ ...modalState, selectedId: val })}
-                options={masterData.partners.map(p => ({ value: p.id, label: p.name || 'Unknown' }))}
-              />
+            <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Customer Name *</label>
+                <input 
+                  className="clean-input w-full" 
+                  value={modalState.newName} 
+                  onChange={(e) => setModalState({ ...modalState, newName: e.target.value })} 
+                  placeholder="Enter Professional Name" 
+                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Mobile Number</label>
+                <input 
+                  className="clean-input w-full" 
+                  value={modalState.newPhone} 
+                  onChange={(e) => setModalState({ ...modalState, newPhone: e.target.value })} 
+                  placeholder="Enter Contact No." 
+                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}
+                />
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
@@ -495,9 +522,9 @@ const CreateCustomer = ({ onNavigate }) => {
                 className="btn-ui primary lg" 
                 style={{ flex: 1 }}
                 onClick={handleUpdateFlags}
-                disabled={!modalState.selectedId || savingFlags}
+                disabled={!modalState.newName || savingFlags}
               >
-                {savingFlags ? 'Updating...' : 'Save Changes'}
+                {savingFlags ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>

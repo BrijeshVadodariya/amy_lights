@@ -179,6 +179,7 @@ export const odooService = {
   },
   updatePartnerFlags: async (partnerId, flags) => {
     const res = await api.post('/api/partner/update_flags', { params: { partner_id: partnerId, ...flags } });
-    return res.data.result || { success: false, error: res.data.error };
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
   }
 };

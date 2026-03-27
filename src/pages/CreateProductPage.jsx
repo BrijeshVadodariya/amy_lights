@@ -78,7 +78,6 @@ const CreateProductPage = ({ onNavigate }) => {
         return;
       }
 
-      alert('Product created');
       onNavigate('create-order');
     } catch {
       alert('Product creation failed');
