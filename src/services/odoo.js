@@ -176,5 +176,9 @@ export const odooService = {
   convertSelection: async (orderId, targetState = 'draft') => {
     const res = await api.post('/api/orders/convert_selection', { params: { order_id: orderId, target_state: targetState } });
     return res.data.result || { success: false, error: res.data.error };
+  },
+  updatePartnerFlags: async (partnerId, flags) => {
+    const res = await api.post('/api/partner/update_flags', { params: { partner_id: partnerId, ...flags } });
+    return res.data.result || { success: false, error: res.data.error };
   }
 };

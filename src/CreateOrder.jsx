@@ -4,6 +4,7 @@ import SearchableSelect from './components/SearchableSelect';
 import { 
   Plus, 
   X, 
+  ChevronLeft,
   ChevronRight, 
   ChevronDown,
   Activity, 
@@ -19,9 +20,11 @@ import {
   Lightbulb,
   Layers,
   MoreHorizontal,
-  MapPin,
+  ShoppingBag,
   ShoppingCart,
-  Zap
+  MapPin,
+  Pencil,
+  Trash
 } from 'lucide-react';
 import './CreateOrder.css';
 
@@ -59,12 +62,42 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     is_automate: false
   });
 
-  const [showProducts, setShowProducts] = useState(false);
-  const [showMore, setShowMore] = useState('call');
+  const [showProducts, setShowProducts] = useState(true);
+  const [showNotes, setShowNotes] = useState(false);
+  const [showMore, setShowMore] = useState(null);
+  const [showCategories, setShowCategories] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [noteEditText, setNoteEditText] = useState("");
+  const [editingActivityNoteId, setEditingActivityNoteId] = useState(null);
+  const [activityNoteEditText, setActivityNoteNoteEditText] = useState("");
 
   const [rows, setRows] = useState([
     createProductRow()
   ]);
+
+  const [generalNotes, setGeneralNotes] = useState([]);
+  const [generalNoteInput, setGeneralNoteInput] = useState('');
+  const [deletedActivityIds, setDeletedActivityIds] = useState([]);
+  const [hasChanges, setHasChanges] = useState(false);
+  
+  // Track changes to prompt user on exit
+  useEffect(() => {
+    const isDirty = rows.some(r => r.productId !== '' && r.productId !== null) || 
+                   (orderHeader.partnerId !== '' && orderHeader.partnerId !== null) || 
+                   generalNotes.length > 0;
+    setHasChanges(isDirty);
+  }, [rows, orderHeader, generalNotes]);
+
+  const safeNavigate = (to) => {
+    if (hasChanges) {
+      if (window.confirm("You have unsaved changes. Navigating away will lose your data. Are you sure?")) {
+        setHasChanges(false);
+        onNavigate(to);
+      }
+    } else {
+      onNavigate(to);
+    }
+  };
 
   const [activityInputs, setActivityInputs] = useState({});
   const [activityHistory, setActivityHistory] = useState({
@@ -101,24 +134,36 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-
-  const [generalNotes, setGeneralNotes] = useState([]);
-  const [generalNoteInput, setGeneralNoteInput] = useState('');
   const [debugRawData, setDebugRawData] = useState(null);
-  const [showCategories, setShowCategories] = useState(false);
   const [dragActiveId, setDragActiveId] = useState(null);
 
   const handleAddGeneralNote = () => {
     if (!generalNoteInput.trim()) return;
     const newNote = {
-      id: Date.now(),
+      id: `new-${Date.now()}`,
       text: generalNoteInput,
-      by: 'CurrentUser',
-      date: new Date().toLocaleString(),
-      is_new: true
+      by: localStorage.getItem('user_name') || 'You',
+      date: 'Just now',
+      is_new: true,
+      images: []
     };
     setGeneralNotes(prev => [...prev, newNote]);
-    setGeneralNoteInput('');
+    setGeneralNoteInput("");
+  };
+
+  const handleEditNote = (id, currentText) => {
+    setEditingNoteId(id);
+    setNoteEditText(currentText);
+  };
+
+  const saveEditNote = (id) => {
+    setGeneralNotes(prev => prev.map(n => n.id === id ? { ...n, text: noteEditText } : n));
+    setEditingNoteId(null);
+    setNoteEditText("");
+  };
+
+  const handleDeleteNote = (id) => {
+    setGeneralNotes(prev => prev.filter(n => n.id !== id));
   };
 
   const handleImageUpload = async (id, files) => {
@@ -199,6 +244,30 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       [id]: [...(prev[id] || []), newNote]
     }));
     setActivityInputs(prev => ({ ...prev, [id]: { text: '', images: [] } }));
+  };
+  
+  const handleEditActivityNote = (catId, noteId, text) => {
+    setEditingActivityNoteId(noteId);
+    setActivityNoteNoteEditText(text);
+  };
+
+  const handleSaveActivityNote = (catId, noteId) => {
+    setActivityHistory(prev => ({
+      ...prev,
+      [catId]: prev[catId].map(n => n.id === noteId ? { ...n, text: activityNoteEditText } : n)
+    }));
+    setEditingActivityNoteId(null);
+  };
+
+  const handleDeleteActivityNote = (catId, noteId) => {
+    // Collect ID only if it was already saved in Odoo (numeric ID)
+    if (typeof noteId === 'number') {
+      setDeletedActivityIds(prev => [...prev, noteId]);
+    }
+    setActivityHistory(prev => ({
+      ...prev,
+      [catId]: prev[catId].filter(n => n.id !== noteId)
+    }));
   };
 
   // fetchMasterData and fetchEditOrder are managed below.
@@ -355,15 +424,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
             const processedNote = {
               id: note.id || Math.random(),
-              text: note.text || '',
+              text: (note.text || '').replace(/<[^>]*>?/gm, '').trim(),
               images: noteImages,
-              by: note.author || 'Amy Bot',
+              by: note.author || 'System',
               date: note.create_date || '', // Use backend date if available
               is_from_backend: true,
               is_new: false
             };
             
-            if (type === 'others') {
+            if (type === 'others' || type === 'remark' || type === 'note') {
               allTypeNotes.push(processedNote);
             } else {
               if (!mappedHistory[type]) mappedHistory[type] = [];
@@ -371,7 +440,24 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             }
           });
           
-          setGeneralNotes(allTypeNotes);
+          setGeneralNotes(prev => {
+            const combined = [...allTypeNotes];
+            if (combined.length === 0 && data.remark) {
+              // Strip HTML from fallback remark field too
+              const cleanRemark = data.remark.replace(/<\/?[^>]+(>|$)/g, "").trim();
+              if (cleanRemark) {
+                combined.push({
+                  id: 'existing-remark',
+                  text: cleanRemark,
+                  by: 'System',
+                  date: 'Imported',
+                  is_from_backend: true,
+                  is_new: false
+                });
+              }
+            }
+            return combined;
+          });
           setActivityHistory(mappedHistory);
           // Auto-expand categories if we have history
           if (Object.keys(mappedHistory).length > 0) {
@@ -387,9 +473,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           let prodId = extractId(l.product_id) || extractId(l.product);
           const searchName = l.product_name || l.name || extractName(l.product_id);
           
-          if (!prodId && searchName) {
-            const cachedProduct = dataCache.products?.find(p => p.name === searchName || p.default_code === l.product_code);
-            prodId = cachedProduct ? cachedProduct.id : `_GHOST_PRODUCT-${searchName}`;
+          if (!prodId) {
+            // Check cache or master data by name/code
+            const cachedProduct = dataCache.products?.find(p => p.name === searchName || p.default_code === l.product_code)
+                               || masterData.products.find(p => p.name === searchName || p.default_code === l.product_code);
+            prodId = cachedProduct ? cachedProduct.id : (searchName ? `_GHOST_PRODUCT-${searchName}` : '');
           }
 
           if (prodId) {
@@ -412,7 +500,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             qty: l.product_uom_qty || l.qty || l.product_qty || 1,
             price: l.price_unit ?? l.price ?? 0,
             discount: l.discount || 0,
-            remark: l.remark || l.name || ''
+            remark: l.remark || l.name || '',
+            // Carry over specs from lines to ensure they show even if product catalog is incomplete
+            image_url: l.image_url || '',
+            beam: l.beam || '-',
+            description: l.description || l.remark || ''
           };
         });
 
@@ -510,11 +602,17 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
     const resolveGhostId = (ghostId, type) => {
       if (!ghostId) return null;
-      if (String(ghostId).startsWith(`_GHOST_${type.toUpperCase()}-`)) {
-        const trueName = String(ghostId).replace(`_GHOST_${type.toUpperCase()}-`, '');
+      const ghostStr = String(ghostId);
+      
+      // If it's already a numeric string, return it
+      if (/^\d+$/.test(ghostStr)) return ghostStr;
+
+      if (ghostStr.startsWith(`_GHOST_${type.toUpperCase()}-`)) {
+        const trueName = ghostStr.replace(`_GHOST_${type.toUpperCase()}-`, '');
         const list = type === 'partner' ? masterData.partners : masterData.products;
-        const real = list.find(item => item.name === trueName);
-        return real ? real.id : ghostId; // Return self as fallback if not matched in list
+        // Try to find by name - this time looking for a REAL numeric ID
+        const real = list.find(item => item.name === trueName && !String(item.id).startsWith('_GHOST_'));
+        return real ? real.id : ghostId;
       }
       return ghostId;
     };
@@ -549,12 +647,14 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         }
 
         // Return Odoo command tuple format [0, 0, {data}] for proper backend parsing
+        // Note: The backend uses a (5, 0, 0) clear-all strategy on edit, 
+        // so we can safely send every line as a New Line [0, 0, vals] to ensure sync.
         return [0, 0, {
           product_id: parseInt(finalProdId),
           product_uom_qty: parseFloat(r.qty) || 1,
           price_unit: parseFloat(r.price) || 0,
           discount: parseFloat(r.discount) || 0,
-          name: r.remark || '',
+          name: r.remark || '', 
           line_type: 'product'
         }];
       }).filter(Boolean);
@@ -573,38 +673,51 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       // Helper to generate a unique filename
       const genName = (type, i) => `${type}_note_${Date.now()}_${i}.png`;
 
-      // 1. Process New Notes from Inputs (Switches, Fan, etc.)
+      // 1. Process Activity Notes (Selective commands for update/create/delete)
+      // Historical or Edited notes
+      Object.keys(activityHistory).forEach(type => {
+        (activityHistory[type] || []).forEach(hNote => {
+           if (typeof hNote.id === 'number') {
+             // UPDATE Command (1, id, vals)
+             amyNoteLines.push([1, hNote.id, {
+               note_type: type,
+               text: hNote.text || ''
+             }]);
+           } else {
+             // fallback for safety (is_new handled below)
+           }
+        });
+      });
+
+      // Deletions 
+      deletedActivityIds.forEach(delId => {
+        amyNoteLines.push([2, delId, 0]); // DELETE Command
+      });
+
+      // New inputs being added
       Object.keys(activityInputs).forEach(type => {
         const input = activityInputs[type];
         if (input && (input.text || (input.images && input.images.length > 0))) {
           const images = (input.images || []).map(img => img.includes(',') ? img.split(',')[1] : null).filter(Boolean);
-          
-          const noteVals = {
+          // CREATE Command (0, 0, vals)
+          amyNoteLines.push([0, 0, {
             note_type: type,
             text: input.text || '',
-            // Odoo Many2many (0, 0, {datas: ...}) command format for new attachments
-            image: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }]),
-            images: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }]),
-            attachment_ids: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
-          };
-          
-          // Odoo One2many (0, 0, vals) command format for atomic creation
-          amyNoteLines.push([0, 0, noteVals]);
-          // Note: Activity notes are NO LONGER added to chatterText to avoid duplication in Remarks
+            image: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
+          }]);
         }
       });
 
-      // 2. Process General Notes as 'others' (and ensure ALL show in Remark box)
-      const generalNoteHistory = generalNotes.map(n => n.text).filter(Boolean).join('\n');
-      chatterText = generalNoteHistory;
-
-      // Only push NEW general notes into amyNoteLines (to avoid duplicates in Odoo records)
-      generalNotes.filter(n => n.is_new).forEach((note, i) => {
-        amyNoteLines.push([0, 0, { 
-          note_type: 'others', 
-          text: note.text,
-        }]);
-      });
+      // 2. Consolidate ONLY current session's NEW general notes for the 'Remark' box
+      // (Technical activity like 'Decorative' is now strictly saved to amy_note_ids only)
+      const newGeneralNotes = generalNotes.filter(n => n.is_new).map(n => n.text).filter(Boolean).join('\n');
+      
+      chatterText = newGeneralNotes;
+      
+      // chatterNotes for message log
+      const chatterNotes = generalNotes.filter(n => n.is_new).map(n => n.text).filter(Boolean);
+      console.log("[Save Order] Focused chatter text length:", chatterText.length);
+      console.log("[Save Order] Consolidated chatter text length:", chatterText.length);
 
       const ensureIsoDate = (dateVal) => {
         if (!dateVal) return null;
@@ -620,6 +733,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         electrician_id: parseInt(orderHeader.electricianId) || false,
         remark: chatterText.trim() || orderHeader.remark || '', // Prioritize general notes for Remark box
         amy_note_lines: amyNoteLines,
+        chatter_notes: chatterNotes,
         note: chatterText.trim() || '', 
         log_note: chatterText.trim() || '', 
         is_desc: !!orderHeader.is_desc,
@@ -658,6 +772,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         
       if (res.success) {
         setActivityHistory({});
+        setHasChanges(false);
         onNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations');
       } else {
         alert(res.error?.message || "Error processing order");
@@ -675,11 +790,19 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
   return (
     <div className="create-order-page dt-page">
+      <div className="co-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderBottom: '1px solid #e2e8f0', marginBottom: '1rem', backgroundColor: '#fff' }}>
+        <button className="co-btn-icon" onClick={() => safeNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations')} style={{ backgroundColor: '#f1f5f9' }}>
+          <ChevronLeft size={20} />
+        </button>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#1e293b' }}>
+          {editId ? (isSelection ? 'Edit Selection' : isOrder ? 'Edit Order' : 'Edit Quotation') : (isSelection ? 'Create Selection' : isOrder ? 'Create Order' : 'Create Quotation')}
+        </h1>
+      </div>
       <div className="co-container">
         <div className="co-card lead-card">
           <div className="co-card-header">
             <h3>Customer Selection</h3>
-            <button className="co-btn-icon" onClick={() => onNavigate('create-customer')}>
+            <button className="co-btn-icon" onClick={() => safeNavigate('create-customer')}>
               <Plus size={18} />
             </button>
           </div>
@@ -761,126 +884,178 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
               <div className="product-scroll-wrapper" style={{ overflowX: isMobile ? 'visible' : 'auto', paddingBottom: '1rem', marginTop: '1rem' }}>
                 <div style={{ minWidth: isMobile ? '0' : 'max-content' }}>
-                  {/* Shared Header for Product Rows (Desktop Only) */}
-                  {rows.length > 0 && (
-                    <div className="product-list-header-row desktop-only pi-grid" style={{ 
-                        padding: '0 0.5rem 0.5rem', 
+                  {rows.length > 0 && !isMobile && (
+                    <div className="product-list-header-row" style={{ 
+                        padding: '0.25rem 0.5rem', 
                         borderBottom: '2px solid #f8fafc', 
-                        gap: '1rem', 
-                        paddingRight: '1rem',
-                        display: 'flex',
-                        alignItems: 'flex-end'
+                        display: 'grid',
+                        gridTemplateColumns: '400px 210px 80px 80px 40px',
+                        gap: '8px',
+                        alignItems: 'center'
                     }}>
-                      <div className="product-select-group" style={{ flex: '1 1 auto', minWidth: '200px', fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Product</div>
-                      <div className="pi-sub-grid" style={{ minWidth: '280px', flex: '0 0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Qty</div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price</div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Disc</div>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Product</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Qty</div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Price</div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Disc</div>
                       </div>
-                      {orderHeader.is_image && <div style={{ flex: '0 0 80px', minWidth: '80px', maxWidth: '80px', fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Image</div>}
-                      {orderHeader.is_beam && <div style={{ flex: '0 0 100px', minWidth: '100px', maxWidth: '100px', fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Beam</div>}
-                      {orderHeader.is_desc && <div style={{ flex: '0 0 250px', minWidth: '250px', maxWidth: '250px', fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</div>}
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>{orderHeader.is_image ? 'Image' : ''}</div>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>{orderHeader.is_beam ? 'Beam' : ''}</div>
+                      <div />
                     </div>
                   )}
 
-                  <div className="product-rows-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div className="product-rows-container" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                     {rows.map((r) => {
-                    const selectedProduct = masterData.products.find(p => p.id === parseInt(r.productId));
-                    return (
-                    <div key={r.id} className="product-item-card" style={{ padding: isMobile ? '1rem 1.5rem' : '0.5rem 0.25rem', border: 'none', borderBottom: '1px solid #f8fafc', borderRadius: 0 }}>
-                      {!isMobile && (
-                        <div className="pi-header">
-                          <button className="pi-remove highlighted" onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))} title="Remove Row">
-                            <X size={14} />
-                          </button>
-                        </div>
-                      )}
-                      <div className="pi-grid-container" style={{ paddingBottom: '4px' }}>
-                        <div className="pi-grid pi-grid-scrollable" style={{ gap: '1rem', paddingRight: isMobile ? '0rem' : '1rem' }}>
-                          <div className="form-group product-select-group" style={{ minWidth: '200px', flex: '1 1 auto', marginBottom: isMobile ? '1rem' : '0', position: 'relative' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                              <label className="pi-small-label mobile-only">Select Product</label>
-                              {isMobile && (
-                                <button className="pi-remove highlighted" onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))} title="Remove Row">
-                                  <X size={14} />
-                                </button>
-                              )}
+                      const selectedProduct = masterData.products.find(p => String(p.id) === String(r.productId)) || {
+                        id: r.productId,
+                        name: r.productName,
+                        beam: r.beam,
+                        image_url: r.image_url,
+                        description: r.description
+                      };
+
+                      return (
+                        <div key={r.id} className="product-item-card" style={{ 
+                          position: 'relative',
+                          padding: isMobile ? '1.25rem' : '0 0.25rem', 
+                          border: isMobile ? '1px solid #e2e8f0' : 'none', 
+                          borderBottom: isMobile ? '1px solid #e2e8f0' : '1px solid #f1f5f9', 
+                          borderRadius: isMobile ? '12px' : 0,
+                          marginBottom: isMobile ? '1rem' : 0,
+                          backgroundColor: '#fff',
+                          boxShadow: isMobile ? '0 2px 4px rgba(0,0,0,0.02)' : 'none'
+                        }}>
+                          {isMobile && (
+                            <button 
+                              className="pi-remove" 
+                              onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))} 
+                              style={{ 
+                                position: 'absolute', 
+                                top: '0.75rem', 
+                                right: '0.75rem',
+                                backgroundColor: '#fee2e2', 
+                                color: '#ef4444', 
+                                borderRadius: '6px', 
+                                padding: '6px',
+                                border: 'none',
+                                zIndex: 10
+                              }}
+                            >
+                              <Trash size={14} />
+                            </button>
+                          )}
+                          <div className={isMobile ? "" : "pi-grid-row"} style={{ 
+                            marginTop: 0, 
+                            display: isMobile ? 'flex' : 'grid', 
+                            gridTemplateColumns: isMobile ? 'none' : '400px 210px 80px 80px 40px',
+                            alignItems: 'flex-start', 
+                            gap: '8px', 
+                            flexWrap: isMobile ? 'wrap' : 'nowrap' 
+                          }}>
+                             <div className="pi-main-info" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                               <div className="pi-main-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                                 <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: 0 }}>
+                                   {isMobile && <label className="pi-small-label">Product</label>}
+                                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                     <div style={{ flex: 1, minWidth: 0 }}>
+                                       <SearchableSelect
+                                         placeholder="Select Product"
+                                         options={masterData.products
+                                           .filter(p => orderHeader.is_automate ? true : !p.is_automation)
+                                           .map(p => ({ value: p.id, label: p.name }))}
+                                         value={r.productId}
+                                         defaultValue={r.productName}
+                                         onChange={(val) => handleRowChange(r.id, 'productId', val)}
+                                         className="co-search-select-mini"
+                                       />
+                                     </div>
+                                     <button 
+                                       onClick={() => onNavigate('create-product')}
+                                       style={{ flex: '0 0 24px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
+                                       title="Create New Product"
+                                     >
+                                       <Plus size={14} />
+                                     </button>
+                                   </div>
+                                 </div>
+                               </div>
+                               {orderHeader.is_desc && selectedProduct?.id && selectedProduct.description && (
+                                 <div className="pi-desc-box" style={{ padding: '0 8px 4px', fontSize: '11px', color: '#64748b', whiteSpace: 'pre-wrap', fontStyle: 'italic', lineHeight: '1.4' }}>
+                                   {selectedProduct.description}
+                                 </div>
+                               )}
+                             </div>
+                            <div className="pi-sub-grid" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? '1rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
+                              <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                                {isMobile && <label className="pi-small-label">Qty</label>}
+                                <input type="number" className="co-input-border" value={r.qty} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} style={{ width: '100%', height: '28px', fontSize: '12px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
+                              </div>
+                              <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                                {isMobile && <label className="pi-small-label">Price</label>}
+                                <input type="number" className="co-input-border" value={r.price} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} style={{ width: '100%', height: '28px', fontSize: '12px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
+                              </div>
+                              <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                                {isMobile && <label className="pi-small-label">Disc%</label>}
+                                <input type="number" className="co-input-border" value={r.discount} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} style={{ width: '100%', height: '28px', fontSize: '12px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
+                              </div>
                             </div>
-                            <SearchableSelect
-                              placeholder="Select Product..."
-                              value={r.productId}
-                              defaultValue={r.productName} // Ensure label is visible on Edit
-                              options={masterData.products.filter(p => orderHeader.is_automate ? true : !p.is_automation).map(p => ({ ...p, value: p.id, label: p.name }))}
-                              onChange={(val) => handleRowChange(r.id, 'productId', val)}
-                            />
+
+                             <div style={{ 
+                               display: (isMobile && !orderHeader.is_image) ? 'none' : 'flex',
+                               visibility: orderHeader.is_image ? 'visible' : 'hidden', 
+                               justifyContent: 'center',
+                               minWidth: 0,
+                               overflow: 'hidden'
+                             }}>
+                               <div className="h-[54px] w-[54px] bg-slate-50 border border-slate-100 rounded overflow-hidden relative">
+                                 {selectedProduct?.id && (
+                                   <img 
+                                     src={(() => {
+                                       const token = localStorage.getItem('odoo_session_id') || '';
+                                       const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                                       let path = selectedProduct.image_url;
+                                       if (!path) path = `/web/image/product.template/${selectedProduct.id}/image_128`;
+                                       return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
+                                     })()} 
+                                     alt="p" className="h-full w-full object-contain"
+                                     onError={(e) => { e.target.style.display='none'; }}
+                                   />
+                                 )}
+                               </div>
+                             </div>
+
+                             <div style={{ 
+                               display: (isMobile && !orderHeader.is_beam) ? 'none' : 'block',
+                               visibility: orderHeader.is_beam ? 'visible' : 'hidden', 
+                               fontSize: '11px', 
+                               color: '#475569', 
+                               textAlign: 'center', 
+                               whiteSpace: 'nowrap', 
+                               overflow: 'hidden', 
+                               textOverflow: 'ellipsis', 
+                               paddingTop: '8px' 
+                             }}>
+                               {selectedProduct?.beam || '-'}
+                             </div>
+
+                             {!isMobile && (
+                               <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '4px' }}>
+                                 <button 
+                                   className="pi-remove-row" 
+                                   onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))}
+                                   style={{ padding: '6px', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                   title="Delete Row"
+                                 >
+                                   <Trash size={16} />
+                                 </button>
+                               </div>
+                             )}
+
                           </div>
-                          <div className="pi-sub-grid" style={{ minWidth: '280px', flex: '0 0 auto', gap: '1rem', marginBottom: isMobile ? '1rem' : '0' }}>
-                            <div className="form-group pi-small-input">
-                              <label className="pi-small-label mobile-only">Qty</label>
-                              <input type="number" min="1" className="co-input-clean" value={r.qty} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} />
-                            </div>
-                            <div className="form-group pi-small-input">
-                              <label className="pi-small-label mobile-only">Price</label>
-                              <input type="number" className="co-input-clean" value={r.price} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} />
-                            </div>
-                            <div className="form-group pi-small-input">
-                              <label className="pi-small-label mobile-only">Disc %</label>
-                              <input type="number" className="co-input-clean" value={r.discount} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} />
-                            </div>
-                          </div>
-                           {orderHeader.is_image && (
-                             <div className="form-group pi-small-input" style={{ 
-                               flex: isMobile ? '0 0 auto' : '0 0 80px', 
-                               minWidth: isMobile ? '0' : '80px',
-                               marginBottom: isMobile ? '1.25rem' : '0'
-                             }}>
-                               <label className="pi-small-label mobile-only">Image</label>
-                               <div className="flex items-center justify-center h-[42px] w-[60px] bg-slate-50 border border-slate-200 rounded overflow-hidden relative">
-                                   {selectedProduct?.id && (
-                                     <img 
-                                       src={(() => {
-                                         const token = localStorage.getItem('odoo_session_id') || '';
-                                         const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                         let path = selectedProduct.image_url;
-                                         if (!path) path = `/web/image/product.template/${selectedProduct.id}/image_128`;
-                                         return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
-                                       })()} 
-                                       alt="Prod" 
-                                       className="h-full w-full object-cover relative z-10" 
-                                       onError={(e) => { e.target.style.display = 'none'; }} 
-                                     />
-                                   )}
-                               </div>
-                             </div>
-                           )}
-                           {orderHeader.is_beam && (
-                             <div className="form-group pi-small-input" style={{ 
-                               flex: isMobile ? '0 0 auto' : '0 0 100px', 
-                               minWidth: isMobile ? '0' : '100px',
-                               marginBottom: isMobile ? '1.25rem' : '0'
-                             }}>
-                               <label className="pi-small-label mobile-only">Beam</label>
-                               <div className="text-sm text-slate-600 font-medium p-2 bg-slate-50 rounded border border-slate-200 whitespace-pre-wrap break-words leading-relaxed" title={selectedProduct?.beam || ''} style={{ minHeight: '42px' }}>
-                                 {selectedProduct?.beam || '-'}
-                               </div>
-                             </div>
-                           )}
-                           {orderHeader.is_desc && (
-                             <div className="form-group pi-small-input" style={{ 
-                               flex: isMobile ? '0 0 auto' : '0 0 250px', 
-                               minWidth: isMobile ? '0' : '250px',
-                               marginBottom: isMobile ? '1.5rem' : '0'
-                             }}>
-                               <label className="pi-small-label mobile-only">Description</label>
-                               <div className="text-sm text-slate-600 font-medium p-2 bg-slate-50 rounded border border-slate-200 whitespace-pre-wrap break-words leading-relaxed" title={selectedProduct?.description || ''} style={{ minHeight: '42px', overflow: 'hidden' }}>
-                                 {selectedProduct?.description || '-'}
-                               </div>
-                             </div>
-                           )}
                         </div>
-                      </div>
-                    </div>
-                  )})}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -892,45 +1067,74 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           )}
         </div>
 
-        <div className="co-card main-notes-card">
-          <div className="co-card-header">
-            <h2>Notes</h2>
-            <Plus size={18} />
+        <div className="co-expandable-card main-notes-card">
+          <div className="co-expand-header" onClick={() => setShowNotes(!showNotes)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="co-card-icon-pill" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
+                <Send size={18} />
+              </div>
+              <div className="co-card-title-stack">
+                <h2>Notes</h2>
+              </div>
+            </div>
+            <div className={`co-chevron ${showNotes ? 'open' : ''}`}>
+              <ChevronRight size={18} />
+            </div>
           </div>
-          <div className="co-card-body">
-            <div className="general-notes-list">
-              {generalNotes.map(note => (
-                <div key={note.id} className="general-note-item">
-                  <div className="gn-avatar-wrapper">
-                    <div className="gn-avatar">{note.by.substring(0,2).toUpperCase()}</div>
-                  </div>
-                  <div className="gn-content">
-                    <p className="gn-text">{note.text}</p>
-                    {note.images && note.images.length > 0 && (
-                      <div className="gn-images-preview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
-                        {note.images.map((img, i) => (
-                          <div key={i} className="gn-img-item" style={{ width: '120px', height: '120px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', backgroundColor: '#f8fafc' }}>
-                            <img src={img} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'contain', cursor: 'pointer' }} />
+          
+          {showNotes && (
+            <div className="co-card-body">
+              <div className="general-notes-list">
+                {generalNotes.map(note => (
+                  <div key={note.id} className="general-note-item">
+                    <div className="gn-avatar-wrapper">
+                      <div className="gn-avatar">{note.by.substring(0,2).toUpperCase()}</div>
+                    </div>
+                    <div className="gn-content">
+                      {editingNoteId === note.id ? (
+                        <div className="gn-edit-mode">
+                          <textarea className="co-textarea" value={noteEditText} onChange={e => setNoteEditText(e.target.value)} />
+                          <div className="gn-edit-actions" style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                            <button className="co-btn-text text-blue-600" onClick={() => saveEditNote(note.id)}>Save</button>
+                            <button className="co-btn-text text-slate-500" onClick={() => setEditingNoteId(null)}>Cancel</button>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="gn-meta">
-                      <span className="gn-tag">Task - NOTE</span>
-                      <div className="gn-bottom">
-                        <span className="gn-by">By {note.by}</span>
-                        <span className="gn-date">{note.date}</span>
+                        </div>
+                      ) : (
+                        <p className="gn-text">{note.text}</p>
+                      )}
+                      {note.images && note.images.length > 0 && (
+                        <div className="gn-images-preview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                          {note.images.map((img, i) => (
+                            <div key={i} className="gn-img-item" style={{ width: '80px', height: '80px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                              <img src={img} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'contain', cursor: 'pointer' }} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="gn-meta">
+                        <div className="gn-bottom">
+                          <span className="gn-by">By {note.by}</span>
+                          <span className="gn-date">{note.date}</span>
+                        </div>
+                        <div className="gn-item-actions" style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => handleEditNote(note.id, note.text)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }} title="Edit Note">
+                            <Pencil size={14} className="text-slate-400 hover:text-blue-500" />
+                          </button>
+                          <button onClick={() => handleDeleteNote(note.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }} title="Delete Note">
+                            <Trash size={14} className="text-slate-400 hover:text-red-500" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="gn-input-wrapper" style={{ marginTop: '1rem' }}>
+                <input type="text" placeholder="Add Note" className="gn-input" value={generalNoteInput} onChange={e => setGeneralNoteInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleAddGeneralNote()} style={{ border: '1px solid #e2e8f0', padding: '8px 40px 8px 12px', borderRadius: '8px', width: '100%' }} />
+                <Send size={18} className="gn-send-icon" onClick={handleAddGeneralNote} />
+              </div>
             </div>
-            <div className="gn-input-wrapper">
-              <input type="text" placeholder="Add Note" className="gn-input" value={generalNoteInput} onChange={e => setGeneralNoteInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleAddGeneralNote()} />
-              <Send size={18} className="gn-send-icon" onClick={handleAddGeneralNote} />
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="activity-section">
@@ -991,28 +1195,60 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                 </div>
                 {showMore === act.id && (
                   <div className="activity-body">
-                    {(activityHistory[act.id] || []).map(note => (
-                      <div key={note.id} className="activity-note">
-                        <div className="note-avatar-wrapper">
-                          <div className="note-avatar">{note.by.substring(0,2).toUpperCase()}</div>
-                        </div>
-                        <div className="note-content-wrapper">
-                          {note.text && <p className="note-text">{note.text}</p>}
-                          {note.images && note.images.length > 0 && (
-                            <div className="note-images">
-                              {note.images.map((img, i) => (
-                                <img key={i} src={img} alt="attachment" className="note-img-thumb" onClick={() => window.open(img, '_blank')} />
-                              ))}
+                      {(activityHistory[act.id] || []).map(note => (
+                        <div key={note.id} className="activity-note" style={{ position: 'relative' }}>
+                          <div className="note-avatar-wrapper">
+                            <div className="note-avatar">{note.by.substring(0,2).toUpperCase()}</div>
+                          </div>
+                          <div className="note-content-wrapper">
+                            {editingActivityNoteId === note.id ? (
+                              <div style={{ marginBottom: '10px' }}>
+                                <textarea 
+                                  className="v2-textarea" 
+                                  value={activityNoteEditText} 
+                                  onChange={e => setActivityNoteNoteEditText(e.target.value)}
+                                  style={{ minHeight: '60px', width: '100%', padding: '8px' }}
+                                />
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                                  <button className="text-blue-600 font-semibold text-[13px]" onClick={() => handleSaveActivityNote(act.id, note.id)}>Save</button>
+                                  <button className="text-slate-500 text-[13px]" onClick={() => setEditingActivityNoteId(null)}>Cancel</button>
+                                </div>
+                              </div>
+                            ) : (
+                              note.text && <p className="note-text" style={{ fontSize: '14px', lineHeight: '1.4' }}>{note.text}</p>
+                            )}
+                            
+                            {note.images && note.images.length > 0 && (
+                              <div className="note-images" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '12px' }}>
+                                {note.images.map((img, i) => (
+                                  <div key={i} style={{ position: 'relative', width: '110px', height: '110px' }}>
+                                    <img 
+                                      src={img} 
+                                      alt="attachment" 
+                                      style={{ width: '110px', height: '110px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer' }}
+                                      onClick={() => window.open(img, '_blank')} 
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="note-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', gap: '8px', color: '#94a3b8', fontSize: '12px' }}>
+                                <span className="note-by">By {note.by}</span>
+                                <span className="note-date">{note.date}</span>
+                              </div>
+                              <div className="note-actions" style={{ display: 'flex', gap: '10px' }}>
+                                <button onClick={() => handleEditActivityNote(act.id, note.id, note.text)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '2px' }}>
+                                  <Pencil size={14} className="text-slate-300 hover:text-blue-500" />
+                                </button>
+                                <button onClick={() => handleDeleteActivityNote(act.id, note.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '2px' }}>
+                                  <Trash size={14} className="text-slate-300 hover:text-red-500" />
+                                </button>
+                              </div>
                             </div>
-                          )}
-                          <div className="note-meta">
-                            <span className="note-type">Amy Note - {act.title}</span>
-                            <span className="note-by">By {note.by}</span>
-                            <span className="note-date">{note.date}</span>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                     <div className="add-note-form-v2">
                       <div className="note-half left-half">
                         <textarea placeholder={`Write ${act.title} notes...`} className="v2-textarea" value={activityInputs[act.id]?.text || ''} onChange={e => setActivityInputs(prev => ({ ...prev, [act.id]: { ...(prev[act.id] || { text: '', images: [] }), text: e.target.value } }))} />
@@ -1063,7 +1299,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           <button className="co-btn co-btn-primary co-btn-lg" onClick={handleProcess}>
             {loading ? "Processing..." : (editId ? (isSelection ? "Update Selection" : "Update Target") : (isSelection ? "Create Selection" : isOrder ? "Create Order" : "Submit Quotation"))}
           </button>
-          <button className="co-btn co-btn-secondary co-btn-lg" onClick={() => onNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations')}>
+          <button className="co-btn co-btn-secondary co-btn-lg" onClick={() => safeNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations')}>
             Cancel
           </button>
         </div>

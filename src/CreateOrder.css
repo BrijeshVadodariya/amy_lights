@@ -518,7 +518,6 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  min-width: 280px;
 }
 
 .desktop-alignment-label {
@@ -547,8 +546,6 @@
   }
 
   .pi-sub-grid {
-    flex: 0 0 280px !important;
-    width: 280px !important;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;

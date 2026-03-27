@@ -18,14 +18,34 @@ const CreateProductPage = ({ onNavigate }) => {
     image: '', // Base64 string
   });
 
+  const [hasChanges, setHasChanges] = useState(false);
+  
+  useEffect(() => {
+    const isDirty = product.name !== '' || product.price !== '';
+    setHasChanges(isDirty);
+  }, [product]);
+
+  const safeNavigate = (to) => {
+    if (hasChanges) {
+      if (window.confirm("You have unsaved changes. Are you sure?")) {
+        setHasChanges(false);
+        onNavigate(to);
+      }
+    } else {
+      onNavigate(to);
+    }
+  };
+
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = '';
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  }, [hasChanges]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -75,7 +95,7 @@ const CreateProductPage = ({ onNavigate }) => {
             <h2>Create Product</h2>
             <p className="form-subtitle">Add a new product and return to quotation.</p>
           </div>
-          <button className="btn-ui secondary" onClick={() => onNavigate('create-order')} aria-label="Back to quotation">
+          <button className="btn-ui secondary" onClick={() => safeNavigate('create-order')} aria-label="Back to quotation">
             <X size={16} /> Close
           </button>
         </div>
@@ -120,7 +140,7 @@ const CreateProductPage = ({ onNavigate }) => {
           <button className="btn-ui primary lg" onClick={handleSubmit} disabled={!canSubmit || saving}>
             {saving ? 'Submitting...' : 'Submit'}
           </button>
-          <button className="btn-ui secondary lg" onClick={() => onNavigate('create-order')}>
+          <button className="btn-ui secondary lg" onClick={() => safeNavigate('create-order')}>
             Back
           </button>
         </div>

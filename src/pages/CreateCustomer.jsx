@@ -31,14 +31,22 @@ const CreateCustomer = ({ onNavigate }) => {
     budget: '',
   });
 
+  const [modalState, setModalState] = useState({ 
+    show: false, 
+    selectedId: '', 
+    isArchitect: false, 
+    isElectrician: false 
+  });
+  const [savingFlags, setSavingFlags] = useState(false);
+
   const fetchMasterData = async () => {
     try {
       const res = await odooService.getMasterData();
-      if (res && res.partners) {
+      if (res) {
         setMasterData({
-          partners: res.partners,
-          architects: res.partners.filter(p => p.is_architect),
-          electricians: res.partners.filter(p => p.is_electrician),
+          partners: res.partners || [],
+          architects: res.architects || (res.partners || []).filter(p => p.is_architect),
+          electricians: res.electricians || (res.partners || []).filter(p => p.is_electrician),
         });
       }
     } catch (err) {
@@ -50,14 +58,34 @@ const CreateCustomer = ({ onNavigate }) => {
     fetchMasterData();
   }, []);
 
+  const [hasChanges, setHasChanges] = useState(false);
+  
+  useEffect(() => {
+    const isDirty = customer.name !== '' || customer.mobile !== '' || customer.street !== '';
+    setHasChanges(isDirty);
+  }, [customer]);
+
+  const safeNavigate = (to) => {
+    if (hasChanges) {
+      if (window.confirm("You have unsaved changes. Are you sure?")) {
+        setHasChanges(false);
+        onNavigate(to);
+      }
+    } else {
+      onNavigate(to);
+    }
+  };
+
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = '';
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  }, [hasChanges]);
 
   const canSubmit = useMemo(() => customer.name.trim().length > 0, [customer.name]);
 
@@ -100,6 +128,29 @@ const CreateCustomer = ({ onNavigate }) => {
     }
   };
 
+  const handleUpdateFlags = async () => {
+    if (!modalState.selectedId || savingFlags) return;
+    setSavingFlags(true);
+    try {
+      const res = await odooService.updatePartnerFlags(modalState.selectedId, {
+        is_architect: modalState.isArchitect,
+        is_electrician: modalState.isElectrician
+      });
+      if (res && res.id) {
+        alert("Professional status updated!");
+        setModalState({ ...modalState, show: false });
+        fetchMasterData(); // Refresh dropdowns
+      } else {
+        alert("Failed to update status");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating professional status");
+    } finally {
+      setSavingFlags(false);
+    }
+  };
+
   return (
     <div className="form-page">
       <div className="form-card">
@@ -108,7 +159,7 @@ const CreateCustomer = ({ onNavigate }) => {
             <h2>Create Customer</h2>
             <p className="form-subtitle">Add customer details and return to quotation.</p>
           </div>
-          <button className="btn-ui secondary" onClick={() => onNavigate('create-order')} aria-label="Back to quotation">
+          <button className="btn-ui secondary" onClick={() => safeNavigate('create-order')} aria-label="Back to quotation">
             <X size={16} /> Close
           </button>
         </div>
@@ -144,7 +195,16 @@ const CreateCustomer = ({ onNavigate }) => {
 
             {/* Electrician Selection */}
             <div className="selection-item">
-              <label>Electrician</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ margin: 0 }}>Electrician</label>
+                <button 
+                  className="btn-ui secondary mini" 
+                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
+                  onClick={() => setModalState({ show: true, selectedId: '', isArchitect: false, isElectrician: true })}
+                >
+                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
+                </button>
+              </div>
               <div className="selection-card-box">
                 <div className="selection-card-content">
                   <div className="selection-card-top">
@@ -163,14 +223,20 @@ const CreateCustomer = ({ onNavigate }) => {
                   </div>
                 </div>
               </div>
-              <button className="selection-add-new">
-                <Plus size={14} /> Add New
-              </button>
             </div>
 
             {/* Architect Selection */}
             <div className="selection-item">
-              <label>Architect</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ margin: 0 }}>Architect</label>
+                <button 
+                  className="btn-ui secondary mini" 
+                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
+                  onClick={() => setModalState({ show: true, selectedId: '', isArchitect: true, isElectrician: false })}
+                >
+                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
+                </button>
+              </div>
               <div className="selection-card-box">
                 <div className="selection-card-content">
                   <div className="selection-card-top">
@@ -189,9 +255,6 @@ const CreateCustomer = ({ onNavigate }) => {
                   </div>
                 </div>
               </div>
-              <button className="selection-add-new">
-                <Plus size={14} /> Add New
-              </button>
             </div>
 
             {/* Others Block */}
@@ -347,11 +410,99 @@ const CreateCustomer = ({ onNavigate }) => {
           <button className="btn-ui primary lg" onClick={handleSubmit} disabled={!canSubmit || saving}>
             {saving ? 'Submitting...' : 'Submit'}
           </button>
-          <button className="btn-ui secondary lg" onClick={() => onNavigate('create-order')}>
+          <button className="btn-ui secondary lg" onClick={() => safeNavigate('create-order')}>
             Back
           </button>
         </div>
       </div>
+
+      {modalState.show && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div className="modal-content" style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '440px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Designate Professional</h3>
+              <button onClick={() => setModalState({ ...modalState, show: false })} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 500, color: '#64748b' }}>Select Customer</label>
+              <SearchableSelect 
+                placeholder="Search existing customer..."
+                value={modalState.selectedId}
+                onChange={(val) => setModalState({ ...modalState, selectedId: val })}
+                options={masterData.partners.map(p => ({ value: p.id, label: p.name || 'Unknown' }))}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '12px', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}>
+                <input 
+                  type="checkbox" 
+                  checked={modalState.isElectrician} 
+                  onChange={(e) => setModalState({ ...modalState, isElectrician: e.target.checked })}
+                />
+                <span style={{ fontSize: '14px' }}>Electrician</span>
+              </label>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '12px', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}>
+                <input 
+                  type="checkbox" 
+                  checked={modalState.isArchitect} 
+                  onChange={(e) => setModalState({ ...modalState, isArchitect: e.target.checked })}
+                />
+                <span style={{ fontSize: '14px' }}>Architect</span>
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                className="btn-ui primary lg" 
+                style={{ flex: 1 }}
+                onClick={handleUpdateFlags}
+                disabled={!modalState.selectedId || savingFlags}
+              >
+                {savingFlags ? 'Updating...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
