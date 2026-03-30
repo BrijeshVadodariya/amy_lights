@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import './Sidebar.css';
 
-const Sidebar = ({ user, activeTab, onTabChange, onLogout, isOpen, onCloseSidebar }) => {
+const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, onCloseSidebar }) => {
   const [isSaleOrderOpen, setIsSaleOrderOpen] = useState(true);
 
   const menuItems = [
@@ -46,15 +46,30 @@ const Sidebar = ({ user, activeTab, onTabChange, onLogout, isOpen, onCloseSideba
     setIsSaleOrderOpen(!isSaleOrderOpen);
   };
 
+  const renderLogo = () => {
+    if (companyInfo?.logo_base64) {
+      return <img src={`data:image/png;base64,${companyInfo.logo_base64}`} alt={companyInfo.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
+    }
+    if (companyInfo?.logo_url) {
+       const token = localStorage.getItem('odoo_session_id') || '';
+       const db = import.meta.env.VITE_ODOO_DB || 'stage';
+       const url = `${companyInfo.logo_url}${companyInfo.logo_url.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
+       return <img src={url} alt={companyInfo.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
+    }
+    return (
+       <svg width="40" height="40" viewBox="0 0 200 200">
+         <path d="M100 30 L160 150 L100 120 L40 150 Z" fill="#84cc16" />
+         <path d="M100 120 L130 150 L100 140 L70 150 Z" fill="#1e40af" />
+         <text x="100" y="145" textAnchor="middle" fill="white" fontSize="40" fontWeight="bold">E</text>
+       </svg>
+    );
+  };
+
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="sidebar-header">
         <div className="sidebar-logo">
-           <svg width="40" height="40" viewBox="0 0 200 200">
-             <path d="M100 30 L160 150 L100 120 L40 150 Z" fill="#84cc16" />
-             <path d="M100 120 L130 150 L100 140 L70 150 Z" fill="#1e40af" />
-             <text x="100" y="145" textAnchor="middle" fill="white" fontSize="40" fontWeight="bold">E</text>
-           </svg>
+           {renderLogo()}
         </div>
       </div>
       

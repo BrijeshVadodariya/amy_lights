@@ -204,10 +204,11 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
               <table className="products-datatable" style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse' }}>
                 <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
                   <tr>
-                    <th className="py-3 px-4 text-left w-16 border-none">No</th>
-                    <th className="py-3 px-4 text-left border-none">{stateType === 'quotation' ? 'Quotation #' : stateType === 'selection' ? 'Selection #' : 'Sale Order #'}</th>
+                    <th className="py-3 px-4 text-left border-none">Number</th>
                     <th className="py-3 px-4 text-left border-none">Customer</th>
                     <th className="py-3 px-4 text-center border-none">Date</th>
+                    <th className="py-3 px-4 text-left border-none">Architect</th>
+                    <th className="py-3 px-4 text-left border-none">Electrician</th>
                     <th className="py-3 px-4 text-center border-none">Status</th>
                     <th className="py-3 px-4 text-center w-36 border-none">Action</th>
                   </tr>
@@ -219,10 +220,14 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                       className="row-hover"
                       onClick={() => onNavigate('order-detail', order.id)}
                     >
-                      <td className="py-3 px-4" data-label="No">{indexOfFirstItem + idx + 1}</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 text-[12px]" data-label={stateType === 'quotation' ? 'Quotation #' : stateType === 'selection' ? 'Selection #' : 'Sale Order #'}>{order.name}</td>
-                      <td className="py-3 px-4 font-medium text-slate-700" data-label="Customer">{order.customer || '-'}</td>
-                      <td className="py-3 px-4 text-center" data-label="Date">{order.order_date}</td>
+                      <td className="py-3 px-4 font-bold text-slate-800 text-[12px]" data-label="Number">{order.name}</td>
+                      <td className="py-3 px-4" data-label="Customer">
+                        <div className="font-semibold text-slate-700">{order.customer || '-'}</div>
+                        {order.phone && <div className="text-[11px] text-slate-400 mt-0.5">{order.phone}</div>}
+                      </td>
+                      <td className="py-3 px-4 text-center" data-label="Date">{order.order_date || '-'}</td>
+                      <td className="py-3 px-4" data-label="Architect">{order.architect || '-'}</td>
+                      <td className="py-3 px-4" data-label="Electrician">{order.electrician || '-'}</td>
                       <td className="py-3 px-4 text-center" data-label="Status">
                         <span className={`status-pill status-${order.status} px-2 py-1 rounded text-[10px] font-bold uppercase`}>
                           {order.status}
@@ -304,7 +309,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                   ))}
                   {currentItems.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="py-8 text-center text-slate-400">
+                      <td colSpan="7" className="py-8 text-center text-slate-400">
                         No records found matching your request.
                       </td>
                     </tr>

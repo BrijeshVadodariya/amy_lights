@@ -44,7 +44,7 @@ const createProductRow = () => ({
   price: 0,
   discount: 0,
   remark: '',
-  line_type: 'product'
+  uom: 'Units'
 });
 
 // Simple in-memory cache for products/partners to speed up loading
@@ -142,9 +142,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           productId: p.productId,
           qty: p.qty || 1,
           price: p.price || 0,
-          discount: 0,
           remark: '',
-          line_type: 'product'
+          uom: 'Units',
         })));
       }
     }
@@ -571,10 +570,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             price: l.price_unit ?? l.price ?? 0,
             discount: l.discount || 0,
             remark: l.remark || l.name || '',
-            line_type: l.line_type || 'product',
-            // Carry over specs from lines to ensure they show even if product catalog is incomplete
-            image_url: l.image_url || '',
-            beam: l.beam || '-',
+            display_type: l.display_type || false,
             description: l.description || l.remark || ''
           };
         });
@@ -635,7 +631,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
   const addRow = () => {
     const newId = Date.now();
-    setRows([...rows, { 
+    setRows(prev => [...prev, { 
       id: newId, 
       productId: '', 
       productName: '', 
@@ -644,14 +640,35 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       discount: 0,
       remark: '', 
       image_url: '',
-      uom: 'Units',
-      line_type: 'product'
+      uom: 'Units'
     }]);
     
     // TAB Focus logic: Focus the new product select after it renders
     setTimeout(() => {
-      const lastRowSelect = document.querySelector(`.product-row:last-child .ss-control`);
-      if (lastRowSelect) lastRowSelect.focus();
+      const rows = document.querySelectorAll('.product-row');
+      const lastRow = rows[rows.length - 1];
+      const select = lastRow?.querySelector('.ss-control');
+      if (select) select.focus();
+    }, 50);
+  };
+
+  const addSection = () => {
+    const newId = Date.now();
+    setRows(prev => [...prev, { 
+      id: newId, 
+      display_type: 'line_section', 
+      productName: '', 
+      qty: 0, 
+      price: 0, 
+      discount: 0, 
+      remark: 'Section Name' 
+    }]);
+
+    setTimeout(() => {
+      const rows = document.querySelectorAll('.product-row');
+      const lastRow = rows[rows.length - 1];
+      const input = lastRow?.querySelector('input[type="text"]');
+      if (input) input.focus();
     }, 50);
   };
 
@@ -718,7 +735,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         return alert("Please select a valid customer before proceeding.");
     }
 
-    const productLines = rows.filter(r => r.productId !== '' && r.productId !== null && r.productId !== undefined);
+    const productLines = rows.filter(r => r.display_type === 'line_section' || (r.productId !== '' && r.productId !== null && r.productId !== undefined));
     if (productLines.length === 0) {
         return alert("Please select at least one product before saving.");
     }
@@ -726,6 +743,18 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     setLoading(true);
     try {
       const finalProductLines = productLines.map((r, idx) => {
+        // If it's a section, we send it without product_id and with display_type
+        if (r.display_type === 'line_section') {
+          return [0, 0, {
+            display_type: 'line_section',
+            name: r.productName || 'Section',
+            product_id: false,
+            product_uom_qty: 0,
+            price_unit: 0,
+            discount: 0
+          }];
+        }
+
         let finalProdId = resolveGhostId(r.productId, 'product');
         const numericProdId = Number(finalProdId);
 
@@ -751,7 +780,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           price_unit: parseFloat(r.price) || 0,
           discount: parseFloat(r.discount) || 0,
           name: r.remark || '', 
-          line_type: 'product',
           architect_id: parseInt(orderHeader.architectId) || false,
           electrician_id: parseInt(orderHeader.electricianId) || false
         }];
@@ -1089,15 +1117,16 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                       };
 
                       return (
-                        <div key={r.id} className={`product-item-card product-row`} style={{ 
+                        <div key={r.id} className={`product-item-card product-row ${r.display_type === 'line_section' ? 'is-section-row' : ''}`} style={{ 
                           position: 'relative',
-                          padding: isMobile ? '1rem' : '0 0.25rem', 
+                          padding: isMobile ? '1rem' : '0.25rem 0.5rem', 
                           border: isMobile ? '1px solid #e2e8f0' : 'none', 
                           borderBottom: isMobile ? '1px solid #e2e8f0' : '1px solid #f1f5f9', 
                           borderRadius: isMobile ? '12px' : 0,
                           marginBottom: isMobile ? '0.75rem' : 0,
-                          backgroundColor: '#fff',
-                          boxShadow: isMobile ? '0 2px 4px rgba(0,0,0,0.02)' : 'none'
+                          backgroundColor: r.display_type === 'line_section' ? '#f8fafc' : '#fff',
+                          boxShadow: isMobile ? '0 2px 4px rgba(0,0,0,0.02)' : 'none',
+                          borderLeft: r.display_type === 'line_section' ? '4px solid #3b82f6' : 'none'
                         }}>
                           {isMobile && (
                             <button 
@@ -1118,100 +1147,175 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                               <Trash size={14} />
                             </button>
                           )}
-                          <div className={isMobile ? "" : "pi-grid-row"} style={{ 
-                            marginTop: 0, 
-                            display: isMobile ? 'flex' : 'grid', 
-                            gridTemplateColumns: isMobile ? 'none' : `minmax(300px, 1fr) 210px ${orderHeader.is_image ? '80px' : ''} ${orderHeader.is_beam ? '80px' : ''} 40px`.trim().replace(/\s+/g, ' '),
-                            alignItems: 'flex-start', 
-                            gap: '8px', 
-                            flexWrap: isMobile ? 'wrap' : 'nowrap' 
-                          }}>
-                             <div className="pi-main-info" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                               <div className="pi-main-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                                 <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: 0 }}>
-                                   {isMobile && <label className="pi-small-label">Product</label>}
-                                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                       <SearchableSelect
-                                         placeholder="Select Product"
-                                         options={masterData.products
-                                           .filter(p => orderHeader.is_automate ? true : !p.is_automation)
-                                           .map(p => ({ value: p.id, label: p.name }))}
-                                         value={r.productId}
-                                         defaultValue={r.productName}
-                                         onChange={(val) => handleRowChange(r.id, 'productId', val)}
-                                         small
-                                       />
+                          <div 
+                            className={isMobile ? "" : "pi-grid-row"} 
+                            style={{ 
+                              marginTop: 0, 
+                              display: isMobile ? 'flex' : 'grid', 
+                              gridTemplateColumns: r.display_type === 'line_section' 
+                                ? `1fr 40px` 
+                                : isMobile ? 'none' : `minmax(300px, 1fr) 210px ${orderHeader.is_image ? '80px' : ''} ${orderHeader.is_beam ? '80px' : ''} 40px`.trim().replace(/\s+/g, ' '),
+                              alignItems: 'flex-start', 
+                              gap: '8px', 
+                              flexWrap: isMobile ? 'wrap' : 'nowrap',
+                              minHeight: '42px'
+                            }}
+                          >
+                             {r.display_type === 'line_section' ? (
+                               <div style={{ flex: 1, padding: '4px 8px' }}>
+                                 <input 
+                                   type="text"
+                                   placeholder="Section Name (e.g. Living Room)"
+                                   value={r.productName}
+                                   onChange={(e) => handleRowChange(r.id, 'productName', e.target.value)}
+                                   onKeyDown={(e) => {
+                                     if (e.key === 'Enter' && idx === rows.length - 1) {
+                                       e.preventDefault();
+                                       addRow();
+                                     }
+                                   }}
+                                   style={{ 
+                                     width: '100%', 
+                                     border: 'none', 
+                                     outline: 'none', 
+                                     fontSize: '14px', 
+                                     fontWeight: 800, 
+                                     color: '#1e293b',
+                                     backgroundColor: 'transparent',
+                                     padding: '4px 0'
+                                   }}
+                                 />
+                               </div>
+                             ) : (
+                               <>
+                                 <div className="pi-main-info" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                   <div className="pi-main-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                                     <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: 0 }}>
+                                       {isMobile && <label className="pi-small-label">Product</label>}
+                                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                         <div style={{ flex: 1, minWidth: 0 }}>
+                                           <SearchableSelect
+                                             placeholder="Select Product"
+                                             options={masterData.products
+                                               .filter(p => orderHeader.is_automate ? true : !p.is_automation)
+                                               .map(p => ({ value: p.id, label: p.name }))}
+                                             value={r.productId}
+                                             defaultValue={r.productName}
+                                             onChange={(val) => handleRowChange(r.id, 'productId', val)}
+                                              onSelect={() => {
+                                                setTimeout(() => {
+                                                  const input = document.getElementById(`qty-input-${r.id}`);
+                                                  if (input) input.focus();
+                                                }, 50);
+                                              }}
+                                             small
+                                           />
+                                         </div>
+                                         <button 
+                                           onClick={() => onNavigate('create-product')}
+                                           style={{ flex: '0 0 24px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
+                                           title="Create New Product"
+                                         >
+                                           <Plus size={14} />
+                                         </button>
+                                       </div>
                                      </div>
-                                     <button 
-                                       onClick={() => onNavigate('create-product')}
-                                       style={{ flex: '0 0 24px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
-                                       title="Create New Product"
-                                     >
-                                       <Plus size={14} />
-                                     </button>
+                                   </div>
+                                   {orderHeader.is_desc && selectedProduct?.id && selectedProduct.description && (
+                                     <div className="pi-desc-box" style={{ padding: '0 8px 4px', fontSize: '11px', color: '#64748b', whiteSpace: 'pre-wrap', fontStyle: 'italic', lineHeight: '1.4' }}>
+                                       {selectedProduct.description}
+                                     </div>
+                                   )}
+                                 </div>
+                                <div className="pi-sub-grid" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? '1rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
+                                   <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                                    {isMobile && <label className="pi-small-label">Qty</label>}
+                                     <input 
+                                       id={`qty-input-${r.id}`}
+                                       type="number" 
+                                       className="co-input-border" 
+                                       value={r.qty} 
+                                       onFocus={(e) => e.target.select()} 
+                                       onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} 
+                                       style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
+                                     />
+                                  </div>
+                                  <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                                    {isMobile && <label className="pi-small-label">Disc%</label>}
+                                    <input 
+                                       type="number" 
+                                       className="co-input-border" 
+                                       value={r.discount} 
+                                       onFocus={(e) => e.target.select()} 
+                                       onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} 
+                                       onKeyDown={(e) => {
+                                         if (e.key === 'Enter' && idx === rows.length - 1) {
+                                           e.preventDefault();
+                                           addRow();
+                                         }
+                                       }}
+                                       style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
+                                     />
+                                  </div>
+                                  <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                                    {isMobile && <label className="pi-small-label">Price</label>}
+                                    <input 
+                                       type="number" 
+                                       className="co-input-border" 
+                                       value={r.price} 
+                                       onFocus={(e) => e.target.select()} 
+                                       onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} 
+                                       onKeyDown={(e) => {
+                                         if (e.key === 'Enter' && idx === rows.length - 1) {
+                                           e.preventDefault();
+                                           addRow();
+                                         }
+                                       }}
+                                       style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
+                                     />
+                                  </div>
+                                </div>
+    
+                                 <div style={{ 
+                                   display: (isMobile && !orderHeader.is_image) ? 'none' : 'flex',
+                                   display: orderHeader.is_image ? 'flex' : 'none', 
+                                   justifyContent: 'center',
+                                   minWidth: 0,
+                                   overflow: 'hidden'
+                                 }}>
+                                   <div className="h-[70px] w-full bg-slate-50 border border-slate-100 rounded overflow-hidden relative">
+                                     {selectedProduct?.id && (
+                                       <img 
+                                         src={(() => {
+                                           const token = localStorage.getItem('odoo_session_id') || '';
+                                           const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                                           let path = selectedProduct.image_url;
+                                           if (!path) path = `/web/image/product.template/${selectedProduct.id}/image_256`;
+                                           return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
+                                         })()} 
+                                         alt="p" className="h-full w-full object-contain"
+                                         onError={(e) => { e.target.style.display='none'; }}
+                                       />
+                                     )}
                                    </div>
                                  </div>
-                               </div>
-                               {orderHeader.is_desc && selectedProduct?.id && selectedProduct.description && (
-                                 <div className="pi-desc-box" style={{ padding: '0 8px 4px', fontSize: '11px', color: '#64748b', whiteSpace: 'pre-wrap', fontStyle: 'italic', lineHeight: '1.4' }}>
-                                   {selectedProduct.description}
+    
+                                 <div style={{ 
+                                   display: (isMobile && !orderHeader.is_beam) ? 'none' : 'block',
+                                   display: orderHeader.is_beam ? 'block' : 'none', 
+                                   fontSize: '11px', 
+                                   color: '#475569', 
+                                   textAlign: 'center', 
+                                   whiteSpace: 'nowrap', 
+                                   overflow: 'hidden', 
+                                   textOverflow: 'ellipsis', 
+                                   paddingTop: '8px' 
+                                 }}>
+                                   {selectedProduct?.beam || '-'}
                                  </div>
-                               )}
-                             </div>
-                            <div className="pi-sub-grid" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? '1rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
-                               <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
-                                {isMobile && <label className="pi-small-label">Qty</label>}
-                                <input type="number" className="co-input-border" value={r.qty} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
-                              </div>
-                              <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
-                                {isMobile && <label className="pi-small-label">Disc%</label>}
-                                <input type="number" className="co-input-border" value={r.discount} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
-                              </div>
-                              <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
-                                {isMobile && <label className="pi-small-label">Price</label>}
-                                <input type="number" className="co-input-border" value={r.price} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
-                              </div>
-                            </div>
-
-                             <div style={{ 
-                               display: (isMobile && !orderHeader.is_image) ? 'none' : 'flex',
-                               display: orderHeader.is_image ? 'flex' : 'none', 
-                               justifyContent: 'center',
-                               minWidth: 0,
-                               overflow: 'hidden'
-                             }}>
-                               <div className="h-[70px] w-full bg-slate-50 border border-slate-100 rounded overflow-hidden relative">
-                                 {selectedProduct?.id && (
-                                   <img 
-                                     src={(() => {
-                                       const token = localStorage.getItem('odoo_session_id') || '';
-                                       const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                       let path = selectedProduct.image_url;
-                                       if (!path) path = `/web/image/product.template/${selectedProduct.id}/image_256`;
-                                       return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
-                                     })()} 
-                                     alt="p" className="h-full w-full object-contain"
-                                     onError={(e) => { e.target.style.display='none'; }}
-                                   />
-                                 )}
-                               </div>
-                             </div>
-
-                             <div style={{ 
-                               display: (isMobile && !orderHeader.is_beam) ? 'none' : 'block',
-                               display: orderHeader.is_beam ? 'block' : 'none', 
-                               fontSize: '11px', 
-                               color: '#475569', 
-                               textAlign: 'center', 
-                               whiteSpace: 'nowrap', 
-                               overflow: 'hidden', 
-                               textOverflow: 'ellipsis', 
-                               paddingTop: '8px' 
-                             }}>
-                               {selectedProduct?.beam || '-'}
-                             </div>
-
+                               </>
+                             )}
+    
                              {!isMobile && (
                                <div style={{ display: 'flex', justifyContent: 'center' }}>
                                   <button 
@@ -1234,23 +1338,37 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
               </div>
 
               <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem', gap: '1rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
-                <button className="co-btn-secondary" onClick={addRow} style={{ flex: isMobile ? '1' : '0 0 auto', height: '42px', padding: '0 24px', whiteSpace: 'nowrap' }}>
-                  <Plus size={18} style={{ marginRight: '8px' }} />
-                  Add Product Row
+              <div style={{ display: 'flex', gap: '8px', flex: isMobile ? '1' : '0 0 auto' }}>
+                <button 
+                  className="co-btn-secondary" 
+                  onClick={addRow} 
+                  style={{ height: '32px', padding: '0 12px', fontSize: '13px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Plus size={14} />
+                  Add Product
                 </button>
+                <button 
+                  className="co-btn-secondary" 
+                  onClick={addSection} 
+                  style={{ height: '32px', padding: '0 12px', fontSize: '13px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Plus size={14} />
+                  Add Section
+                </button>
+              </div>
                 
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '8px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginLeft: isMobile ? '0' : 'auto', width: isMobile ? '100%' : 'auto', flexWrap: 'wrap', justifyContent: 'center' }}>
-                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                     <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>Gross Total:</span>
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', marginLeft: isMobile ? '0' : 'auto', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'center' : 'flex-end', padding: '4px 8px' }}>
+                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                     <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 800, letterSpacing: '0.02em' }}>GROSS:</span>
                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>Rs.{rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0), 0).toLocaleString()}</span>
                    </div>
-                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                     <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>Total Disc:</span>
+                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                     <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 800, letterSpacing: '0.02em' }}>DISC:</span>
                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#ef4444' }}>-Rs.{rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0)*(parseFloat(r.discount)||0)/100, 0).toLocaleString()}</span>
                    </div>
-                   <div style={{ width: '1px', height: '20px', backgroundColor: '#cbd5e1', display: isMobile ? 'none' : 'block' }} />
+                   <div style={{ width: '1px', height: '16px', backgroundColor: '#e2e8f0' }} />
                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                     <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: 900 }}>Final Total:</span>
+                     <span style={{ fontSize: '12px', color: '#1e293b', fontWeight: 900, letterSpacing: '0.02em' }}>FINAL:</span>
                      <span style={{ fontSize: '18px', fontWeight: 900, color: '#059669' }}>Rs.{total.toLocaleString()}</span>
                    </div>
                 </div>

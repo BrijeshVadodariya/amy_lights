@@ -25,9 +25,25 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState(() => localStorage.getItem('amy_selected_id') || null);
   const [extraData, setExtraData] = useState(null); // New state for extra data
+  const [companyInfo, setCompanyInfo] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth > 768 : true
   ));
+
+  const fetchCompanyInfo = async () => {
+    try {
+      const res = await odooService.getCompanyInfo();
+      if (res.success && res.data) {
+        setCompanyInfo(res.data);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch company info", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCompanyInfo();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -102,7 +118,7 @@ function App() {
   };
 
   if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} loading={loading} />;
+    return <Login onLogin={handleLogin} loading={loading} companyInfo={companyInfo} />;
   }
 
   const renderContent = () => {
@@ -152,6 +168,7 @@ function App() {
       <div className={`sidebar-backdrop ${isSidebarOpen ? 'show' : ''}`} onClick={() => setIsSidebarOpen(false)} />
       <Sidebar 
         user={user}
+        companyInfo={companyInfo}
         isOpen={isSidebarOpen} 
         activeTab={activeTab} 
         onTabChange={handleNavigate} 
@@ -161,6 +178,7 @@ function App() {
       <div className="main-content">
         <Header 
           user={user} 
+          companyInfo={companyInfo}
           title={activeTab} 
           onLogout={handleLogout} 
           onMenuToggle={toggleSidebar} 

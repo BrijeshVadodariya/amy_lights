@@ -9,7 +9,7 @@ import './Products.css';
 const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(true);
   const [isMobile, setIsMobile] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
   ));
@@ -110,21 +110,47 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     return <div className="p-8 text-center text-red-500 card">Order not found or access denied.</div>;
   }
 
+  const fullAddress = [
+    order.street,
+    order.street2,
+    order.city,
+    order.zip,
+    order.state_id?.[1] || order.state_name
+  ].filter(part => part && part !== 'Not available' && part !== 'null').join(', ');
+
   const infoItems = [
-    { label: 'Customer Name', value: formatValue(order.partner_name) },
-    { label: 'Billing Name', value: formatValue(order.billing_name) },
-    { label: 'Contact Person', value: formatValue(order.contact_person) },
-    { label: 'Mobile Number', value: formatValue(order.mobile) },
-    { label: 'Order Date', value: formatValue(order.date_order) },
-    // Granular Address instead of big blob
-    { label: 'House/Building', value: formatValue(order.street) },
-    { label: 'Area', value: formatValue(order.street2) },
-    { label: 'City', value: formatValue(order.city) },
-    { label: 'Pincode', value: formatValue(order.zip) },
-    { label: 'State', value: formatValue(order.state_id?.[1] || order.state_name) },
-    { label: 'Billing Address (Full)', value: formatValue(order.billing_address) },
-    { label: 'Delivery Address (Full)', value: formatValue(order.delivery_address) },
-    { label: 'Electrician', value: formatValue(order.electrician) },
+    { 
+      label: 'Customer', 
+      value: (
+        <div>
+          <div className="font-bold text-slate-900">{formatValue(order.partner_name)}</div>
+          <div className="text-[12px] text-slate-500 font-medium">{formatValue(order.mobile)}</div>
+        </div>
+      ) 
+    },
+    { 
+      label: 'Architect', 
+      value: (
+        <div>
+          <div className="font-bold text-slate-900">{formatValue(order.architect)}</div>
+          {order.architect_phone && order.architect_phone !== 'null' && (
+            <div className="text-[12px] text-slate-500 font-medium">{order.architect_phone}</div>
+          )}
+        </div>
+      ) 
+    },
+    { 
+      label: 'Electrician', 
+      value: (
+        <div>
+          <div className="font-bold text-slate-900">{formatValue(order.electrician)}</div>
+          {order.electrician_phone && order.electrician_phone !== 'null' && (
+            <div className="text-[12px] text-slate-500 font-medium">{order.electrician_phone}</div>
+          )}
+        </div>
+      ) 
+    },
+    { label: 'Customer Address', value: formatValue(fullAddress) },
   ];
 
   const orderLines = order.lines || [];
@@ -144,15 +170,14 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           }}>
             <ChevronLeft size={18} />
             <span>
-              {order.state === 'selection' ? 'Back to Selections' : 
-               (order.state === 'sale' || order.state === 'done') ? 'Back to Orders' : 
-               'Back to Quotations'}
+              {order.state === 'selection' ? 'Back' : 
+               (order.state === 'sale' || order.state === 'done') ? 'Back' : 
+               'Back'}
             </span>
           </button>
 
           <div className="detail-hero-copy">
             <span className="detail-eyebrow">Order Details</span>
-            <h1>{formatValue(order.name, 'Order')}</h1>
           </div>
 
           <div className="detail-hero-status">
@@ -160,48 +185,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               {formatValue(order.state, 'draft')}
             </span>
           </div>
-        </div>
-
-        <div className="detail-summary-grid">
-          <div className="summary-card">
-            <div className="summary-icon">
-              <UserRound size={18} />
-            </div>
-            <div>
-              <span className="summary-label">Customer</span>
-              <strong>{formatValue(order.partner_name)}</strong>
-            </div>
-          </div>
-
-          <div className="summary-card">
-            <div className="summary-icon">
-              <CalendarDays size={18} />
-            </div>
-            <div>
-              <span className="summary-label">Order Date</span>
-              <strong>{formatValue(order.date_order)}</strong>
-            </div>
-          </div>
-
-          <div className="summary-card">
-            <div className="summary-icon">
-              <Package2 size={18} />
-            </div>
-            <div>
-              <span className="summary-label">Line Items</span>
-              <strong>{orderLines.length}</strong>
-            </div>
-          </div>
-
-          {/* <div className="summary-card">
-            <div className="summary-icon">
-              <MapPin size={18} />
-            </div>
-            <div>
-              <span className="summary-label">Delivery</span>
-              <strong>{formatValue(order.delivery_address, 'Pending address')}</strong>
-            </div>
-          </div> */}
         </div>
 
         <section className="detail-section">
@@ -212,7 +195,12 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           >
             <div>
               <span className="detail-section-kicker">Overview</span>
-              <h2>Customer and Delivery</h2>
+              <h2 style={{ marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <span className="font-bold">{formatValue(order.name)}</span>
+                <span style={{ fontSize: '1.05rem', color: '#64748b', fontWeight: 700 }}>
+                  {formatValue(order.date_order ? order.date_order.split(' ')[0] : '')}
+                </span>
+              </h2>
             </div>
             <div className={`section-toggle-icon ${showCustomerDetails ? 'rotate-180' : ''}`}>
               <ChevronDown size={20} />
@@ -220,13 +208,19 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           </div>
 
           {showCustomerDetails && (
-            <div className="detail-info-grid animate-fade-in">
-              {infoItems.map((item) => (
-                <div key={item.label} className="detail-info-card">
-                  <span className="detail-info-label">{item.label}</span>
-                  <div className="field-value-box">{item.value}</div>
-                </div>
-              ))}
+            <div className="animate-fade-in" style={{ padding: '0 1.5rem 1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                {infoItems.slice(0, 3).map((item) => (
+                  <div key={item.label} className="detail-info-card" style={{ border: 'none', background: 'none', padding: 0 }}>
+                    <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{item.label}</span>
+                    <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="detail-info-card" style={{ border: 'none', background: 'none', padding: 0 }}>
+                <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{infoItems[3].label}</span>
+                <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{infoItems[3].value}</div>
+              </div>
             </div>
           )}
         </section>
@@ -242,58 +236,116 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           {orderLines.length > 0 ? (
             <div className="table-wrapper-fixed-outer" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '12px', marginTop: '1rem' }}>
               <div className="table-wrapper-scrollable-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block', width: '100%' }}>
-                <table className="products-datatable" style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse' }}>
+                <table className="products-datatable" style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse' }}>
                   <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
                     <tr>
-                      <th className="py-3 px-4 text-left w-12 border-none">#</th>
-                      <th className="py-3 px-4 text-left w-16 border-none">Img</th>
                       <th className="py-3 px-4 text-left border-none" style={{ minWidth: '250px' }}>Product Name</th>
+                      <th className="py-3 px-4 text-left w-16 border-none">Img</th>
                       <th className="py-3 px-4 text-center w-24 border-none">Qty</th>
                       <th className="py-3 px-4 text-right w-32 border-none">Unit Price</th>
-                      <th className="py-3 px-4 text-right w-32 border-none">Total</th>
+                      <th className="py-3 px-4 text-center w-20 border-none">Disc (%)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {orderLines.map((line, idx) => (
-                      <tr key={line.id || idx} className="row-hover">
-                        <td className="py-4 px-4 text-slate-400 font-medium">{idx + 1}</td>
-                        <td className="py-4 px-4">
-                          <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center relative">
-                              {(line.image_url || line.product_id) && (
-                                <img 
-                                  src={(() => {
-                                    const token = localStorage.getItem('odoo_session_id') || '';
-                                    const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                    let path = line.image_url;
-                                    
-                                    if (!path && line.product_id) {
-                                       const pId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
-                                       if (pId) path = `/web/image/product.template/${pId}/image_128`;
-                                    }
-                                    
-                                    if (!path) return '';
-                                    return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
-                                  })()} 
-                                  alt="" 
-                                  className="w-full h-full object-contain relative z-10" 
-                                  onError={(e) => { e.target.style.display = 'none'; }}
-                                />
-                              )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="font-bold text-slate-800">{formatValue(line.product_name, 'Unnamed product')}</div>
-                          <div className="text-[11px] text-slate-500 mt-0.5">{formatValue(line.remark, '')}</div>
-                        </td>
-                        <td className="py-4 px-4 text-center font-medium text-slate-700">{formatValue(line.qty, '0')}</td>
-                        <td className="py-4 px-4 text-right text-slate-700">{formatCurrency(line.price_unit)}</td>
-                        <td className="py-4 px-4 text-right font-bold text-slate-900">
-                          {formatCurrency(Number(line.qty || 0) * Number(line.price_unit || 0))}
-                        </td>
-                      </tr>
-                    ))}
+                    {orderLines.map((line, idx) => {
+                      // Robust section identification: Odoo display_type OR special case for empty product_id
+                      const isSection = line.display_type === 'line_section' || (!line.product_id && line.product_name && line.qty === 0);
+                      const isNote = line.display_type === 'line_note';
+                      
+                      if (isSection || isNote) {
+                        return (
+                          <tr key={line.id || idx} className={`${isSection ? 'bg-slate-100/60' : 'bg-slate-50/20'}`}>
+                            <td colSpan={5} className="py-5 px-6">
+                              <span style={{ 
+                                fontWeight: 700, 
+                                color: 'black', 
+                                fontSize: '15px', 
+                                textTransform: 'uppercase', 
+                                letterSpacing: '-0.03em',
+                                display: 'block'
+                              }}>
+                                {line.product_name}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const lineTotal = Number(line.qty || 0) * Number(line.price_unit || 0);
+                      const discountAmount = lineTotal * (Number(line.discount || 0) / 100);
+                      const netTotal = lineTotal - discountAmount;
+
+                      return (
+                        <tr key={line.id || idx} className="row-hover">
+                          <td className="py-4 px-4">
+                            <div className="font-bold text-slate-800">{formatValue(line.product_name, 'Unnamed product')}</div>
+                            <div className="text-[11px] text-slate-500 mt-0.5">{formatValue(line.remark, '')}</div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-white flex items-center justify-center relative">
+                                {(line.image_url || line.product_id) && (
+                                  <img 
+                                    src={(() => {
+                                      const token = localStorage.getItem('odoo_session_id') || '';
+                                      const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                                      let path = line.image_url;
+                                      
+                                      if (!path && line.product_id) {
+                                         const pId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
+                                         if (pId) path = `/web/image/product.template/${pId}/image_128`;
+                                      }
+                                      
+                                      if (!path) return '';
+                                      return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
+                                    })()} 
+                                    alt="" 
+                                    className="w-full h-full object-contain relative z-10" 
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-4 text-center font-medium text-slate-700">{formatValue(line.qty, '0')}</td>
+                          <td className="py-4 px-4 text-right text-slate-700">{formatCurrency(line.price_unit)}</td>
+                          <td className="py-4 px-4 text-center text-slate-500 font-medium">
+                            {line.discount ? `${line.discount}%` : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Summary Block outside table */}
+              <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', padding: '0 1rem 1rem' }}>
+                <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Untaxed Amount:</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
+                    {formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0)), 0))}
+                  </span>
+                </div>
+                
+                {orderLines.some(l => l.discount) && (
+                  <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 600 }}>Discount:</span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
+                      -{formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (Number(l.discount || 0) / 100)), 0))}
+                    </span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Taxes:</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
+                    {formatCurrency((order?.amount_total || 0) - orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (1 - (Number(l.discount || 0) / 100))), 0))}
+                  </span>
+                </div>
+
+                <div style={{ borderTop: '2px solid #f1f5f9', width: '320px', margin: '8px 0', padding: '12px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: 900 }}>Total:</span>
+                  <span style={{ fontSize: '24px', fontWeight: 950, color: '#059669' }}>{formatCurrency(order?.amount_total || 0)}</span>
+                </div>
               </div>
             </div>
           ) : (
@@ -349,8 +401,14 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                   }
                 };
 
+                const isLong = (note.text && note.text.length > 200) || (note.images && note.images.length > 3);
+                
                 return (
-                  <div key={note.id} className="detail-info-card activity-note-card">
+                  <div 
+                    key={note.id} 
+                    className="detail-info-card activity-note-card"
+                    style={isLong ? { gridColumn: 'span 2' } : {}}
+                  >
                     <div className="activity-note-type-label">
                       {getIcon(note.note_type)}
                       <span>{note.note_type}</span>

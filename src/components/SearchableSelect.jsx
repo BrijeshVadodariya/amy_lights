@@ -6,7 +6,7 @@ import './SearchableSelect.css';
  * SearchableSelect component.
  * Reusable dropdown with search input and scrollable list.
  */
-const SearchableSelect = ({ placeholder, options, value, onChange, small }) => {
+const SearchableSelect = ({ placeholder, options, value, onChange, onSelect, small }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [menuStyle, setMenuStyle] = useState({});
@@ -29,9 +29,35 @@ const SearchableSelect = ({ placeholder, options, value, onChange, small }) => {
   const visibleOptions = useMemo(() => filtered.slice(0, 100), [filtered]);
   const hasMore = filtered.length > 100;
 
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const scrollRef = useRef(null);
+
   const handleSelect = (opt) => {
     onChange(opt.value, opt);
+    if (onSelect) onSelect(opt.value, opt);
     setOpen(false);
+    setFocusedIndex(0);
+  };
+
+  useEffect(() => {
+    setFocusedIndex(0);
+  }, [query, open]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev + 1) % visibleOptions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev - 1 + visibleOptions.length) % visibleOptions.length);
+    } else if (e.key === 'Tab' || e.key === 'Enter') {
+      if (visibleOptions[focusedIndex]) {
+        e.preventDefault();
+        handleSelect(visibleOptions[focusedIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
   };
 
   useEffect(() => {
@@ -55,6 +81,26 @@ const SearchableSelect = ({ placeholder, options, value, onChange, small }) => {
       inputRef.current.focus({ preventScroll: true });
     }
   }, [open]);
+
+  // Handle scrolling of focused item into view (CONTAINER ONLY, avoid page scroll)
+  useEffect(() => {
+    if (open && scrollRef.current) {
+      const focusedEl = scrollRef.current.querySelector(`.ss-option.focused`);
+      if (focusedEl) {
+        const container = scrollRef.current;
+        const itemTop = focusedEl.offsetTop;
+        const itemBottom = itemTop + focusedEl.offsetHeight;
+        const containerTop = container.scrollTop;
+        const containerBottom = containerTop + container.offsetHeight;
+
+        if (itemTop < containerTop) {
+          container.scrollTop = itemTop;
+        } else if (itemBottom > containerBottom) {
+          container.scrollTop = itemBottom - container.offsetHeight;
+        }
+      }
+    }
+  }, [focusedIndex, open]);
 
   // Close on scroll or resize to keep position sync (v1)
   useEffect(() => {
@@ -83,6 +129,12 @@ const SearchableSelect = ({ placeholder, options, value, onChange, small }) => {
         type="button"
         className={`ss-control ${small ? 'ss-small' : ''}`}
         onClick={() => setOpen((prev) => !prev)}
+        onKeyDown={(e) => {
+          if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
       >
         <span className={selectedLabel ? 'ss-value' : 'ss-placeholder'}>
           {selectedLabel || placeholder}
@@ -99,14 +151,15 @@ const SearchableSelect = ({ placeholder, options, value, onChange, small }) => {
                 placeholder="Search by name or code..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
               />
             </div>
-            <div className="ss-options">
-              {visibleOptions.map((opt) => (
+            <div className="ss-options" ref={scrollRef}>
+              {visibleOptions.map((opt, idx) => (
                 <button
                   key={opt.value}
                   type="button"
-                  className="ss-option"
+                  className={`ss-option ${idx === focusedIndex ? 'focused' : ''}`}
                   onClick={() => handleSelect(opt)}
                 >
                   {opt.label}

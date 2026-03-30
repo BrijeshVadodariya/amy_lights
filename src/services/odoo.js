@@ -177,8 +177,13 @@ export const odooService = {
     const res = await api.post('/api/orders/convert_selection', { params: { order_id: orderId, target_state: targetState } });
     return res.data.result || { success: false, error: res.data.error };
   },
-  updatePartnerFlags: async (partnerId, flags) => {
+    updatePartnerFlags: async (partnerId, flags) => {
     const res = await api.post('/api/partner/update_flags', { params: { partner_id: partnerId, ...flags } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  getCompanyInfo: async () => {
+    const res = await api.post('/api/company_info', { params: {} });
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   }

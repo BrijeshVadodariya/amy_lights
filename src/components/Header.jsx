@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Menu, ChevronDown, LogOut, User as UserIcon } from 'lucide-react';
 import './Header.css';
 
-const Header = ({ user, title, onLogout, onMenuToggle, isSidebarOpen }) => {
+const Header = ({ user, companyInfo, title, onLogout, onMenuToggle, isSidebarOpen }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const pageTitleMap = {
     dashboard: 'Dashboard',
@@ -34,7 +34,7 @@ const Header = ({ user, title, onLogout, onMenuToggle, isSidebarOpen }) => {
             </div>
             <div className="user-meta">
               <span className="user-name">{user?.name || 'User'}</span>
-              <span className="user-role">{user?.company || 'Company'}</span>
+              <span className="user-role">{companyInfo?.name || user?.company || 'Company'}</span>
             </div>
             <ChevronDown size={14} className={showDropdown ? 'rotate-180' : ''} />
           </div>

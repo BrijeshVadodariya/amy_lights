@@ -24,6 +24,7 @@ const CreateCustomer = ({ onNavigate }) => {
     source: '',
     competitor: '',
     budget: '',
+    gstNo: '',
   });
 
   const [hasChanges, setHasChanges] = useState(false);
@@ -79,7 +80,8 @@ const CreateCustomer = ({ onNavigate }) => {
         competitor: customer.competitor,
         source_type: customer.sourceType,
         source_name: customer.source,
-        emp_assigned: customer.empAssigned
+        emp_assigned: customer.empAssigned,
+        vat: customer.gstNo
       });
 
       if (!res) {
@@ -109,7 +111,7 @@ const CreateCustomer = ({ onNavigate }) => {
         <div className="form-selection-layout">
           <div className="selection-group">
             {/* Client (New Customer Details) */}
-            <div className="selection-item">
+            <div className="selection-item" style={{ marginLeft: '12px' }}>
               <div className="selection-item-header">
                 <label>Client</label>
               </div>
@@ -273,22 +275,6 @@ const CreateCustomer = ({ onNavigate }) => {
                 />
               </div>
               <div className="od-row">
-                <span className="od-label">Want to cover</span>
-                <input 
-                  className="od-input" 
-                  placeholder="--" 
-                />
-              </div>
-              <div className="od-row">
-                <span className="od-label">Competitor</span>
-                <input 
-                  className="od-input" 
-                  value={customer.competitor} 
-                  onChange={(e) => setCustomer({ ...customer, competitor: e.target.value })} 
-                  placeholder="--" 
-                />
-              </div>
-              <div className="od-row">
                 <span className="od-label">Budget</span>
                 <input 
                   className="od-input" 
@@ -296,6 +282,15 @@ const CreateCustomer = ({ onNavigate }) => {
                   value={customer.budget} 
                   onChange={(e) => setCustomer({ ...customer, budget: e.target.value })} 
                   placeholder="0" 
+                />
+              </div>
+              <div className="od-row">
+                <span className="od-label">GST No</span>
+                <input 
+                  className="od-input" 
+                  value={customer.gstNo} 
+                  onChange={(e) => setCustomer({ ...customer, gstNo: e.target.value })} 
+                  placeholder="GST Number" 
                 />
               </div>
             </div>
