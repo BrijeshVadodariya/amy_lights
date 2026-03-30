@@ -11,8 +11,6 @@ const CreateCustomer = ({ onNavigate }) => {
     name: '',
     mobile: '',
     email: '',
-    electricianId: '',
-    architectId: '',
     otherName: '',
     otherNumber: '',
     houseNo: '',
@@ -27,34 +25,6 @@ const CreateCustomer = ({ onNavigate }) => {
     competitor: '',
     budget: '',
   });
-
-  const [modalState, setModalState] = useState({ 
-    show: false, 
-    newName: '', 
-    newPhone: '',
-    isArchitect: false, 
-    isElectrician: false 
-  });
-  const [savingFlags, setSavingFlags] = useState(false);
-
-  const fetchMasterData = async () => {
-    try {
-      const res = await odooService.getMasterData();
-      if (res) {
-        setMasterData({
-          partners: res.partners || [],
-          architects: res.architects || (res.partners || []).filter(p => p.is_architect),
-          electricians: res.electricians || (res.partners || []).filter(p => p.is_electrician),
-        });
-      }
-    } catch (err) {
-      console.error("Master data fetch failed", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchMasterData();
-  }, []);
 
   const [hasChanges, setHasChanges] = useState(false);
   
@@ -123,30 +93,6 @@ const CreateCustomer = ({ onNavigate }) => {
     }
   };
 
-  const handleUpdateFlags = async () => {
-    if (!modalState.newName || savingFlags) return;
-    setSavingFlags(true);
-    try {
-      const res = await odooService.createPartner({
-        name: modalState.newName,
-        phone: modalState.newPhone,
-        is_architect: modalState.isArchitect,
-        is_electrician: modalState.isElectrician
-      });
-      if (res && res.id) {
-        setModalState({ ...modalState, show: false, newName: '', newPhone: '' });
-        fetchMasterData(); // Refresh dropdowns
-      } else {
-        alert("Failed to add professional");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error updating professional status");
-    } finally {
-      setSavingFlags(false);
-    }
-  };
-
   return (
     <div className="form-page">
       <div className="form-card">
@@ -186,70 +132,6 @@ const CreateCustomer = ({ onNavigate }) => {
                       onChange={(e) => setCustomer({ ...customer, mobile: e.target.value })} 
                       placeholder="Enter Mobile Number" 
                     />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Electrician Selection */}
-            <div className="selection-item">
-              <div className="selection-item-header">
-                <label>Electrician</label>
-                <button 
-                  className="btn-ui secondary mini" 
-                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
-                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', isArchitect: false, isElectrician: true })}
-                >
-                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
-                </button>
-              </div>
-              <div className="selection-card-box">
-                <div className="selection-card-content">
-                  <div className="selection-card-top">
-                    <SearchableSelect
-                      placeholder="Select Electrician"
-                      value={customer.electricianId}
-                      onChange={(val) => setCustomer({ ...customer, electricianId: val })}
-                      options={masterData.electricians.map((e) => ({ value: e.id, label: e.name || 'Unknown' }))}
-                      className="clean-select"
-                    />
-                  </div>
-                  <div className="selection-divider"></div>
-                  <div className="selection-card-bottom">
-                    <Phone size={14} className="text-slate-400" />
-                    <span>{(masterData.electricians.find(e => e.id === parseInt(customer.electricianId)))?.phone || '-'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Architect Selection */}
-            <div className="selection-item">
-              <div className="selection-item-header">
-                <label>Architect</label>
-                <button 
-                  className="btn-ui secondary mini" 
-                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
-                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', isArchitect: true, isElectrician: false })}
-                >
-                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
-                </button>
-              </div>
-              <div className="selection-card-box">
-                <div className="selection-card-content">
-                  <div className="selection-card-top">
-                    <SearchableSelect
-                      placeholder="Select Architect"
-                      value={customer.architectId}
-                      onChange={(val) => setCustomer({ ...customer, architectId: val })}
-                      options={masterData.architects.map((a) => ({ value: a.id, label: a.name || 'Unknown' }))}
-                      className="clean-select"
-                    />
-                  </div>
-                  <div className="selection-divider"></div>
-                  <div className="selection-card-bottom">
-                    <Phone size={14} className="text-slate-400" />
-                    <span>{(masterData.architects.find(a => a.id === parseInt(customer.architectId)))?.phone || '-'}</span>
                   </div>
                 </div>
               </div>
@@ -430,106 +312,6 @@ const CreateCustomer = ({ onNavigate }) => {
         </div>
       </div>
 
-      {modalState.show && (
-        <div className="modal-overlay" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div className="modal-content" style={{
-            backgroundColor: '#fff',
-            padding: '24px',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '440px',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Designate Professional</h3>
-              <button onClick={() => setModalState({ ...modalState, show: false })} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Customer Name *</label>
-                <input 
-                  className="clean-input w-full" 
-                  value={modalState.newName} 
-                  onChange={(e) => setModalState({ ...modalState, newName: e.target.value })} 
-                  placeholder="Enter Professional Name" 
-                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Mobile Number</label>
-                <input 
-                  className="clean-input w-full" 
-                  value={modalState.newPhone} 
-                  onChange={(e) => setModalState({ ...modalState, newPhone: e.target.value })} 
-                  placeholder="Enter Contact No." 
-                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                padding: '12px', 
-                border: '1px solid #e2e8f0', 
-                borderRadius: '8px',
-                cursor: 'pointer'
-              }}>
-                <input 
-                  type="checkbox" 
-                  checked={modalState.isElectrician} 
-                  onChange={(e) => setModalState({ ...modalState, isElectrician: e.target.checked })}
-                />
-                <span style={{ fontSize: '14px' }}>Electrician</span>
-              </label>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                padding: '12px', 
-                border: '1px solid #e2e8f0', 
-                borderRadius: '8px',
-                cursor: 'pointer'
-              }}>
-                <input 
-                  type="checkbox" 
-                  checked={modalState.isArchitect} 
-                  onChange={(e) => setModalState({ ...modalState, isArchitect: e.target.checked })}
-                />
-                <span style={{ fontSize: '14px' }}>Architect</span>
-              </label>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                className="btn-ui primary lg" 
-                style={{ flex: 1 }}
-                onClick={handleUpdateFlags}
-                disabled={!modalState.newName || savingFlags}
-              >
-                {savingFlags ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

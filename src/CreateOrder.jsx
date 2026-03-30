@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { odooService } from './services/odoo';
 import SearchableSelect from './components/SearchableSelect';
 import { 
@@ -29,7 +29,11 @@ import {
   User,
   Mail,
   MessageCircle,
-  Clock
+  Clock,
+  CheckCircle,
+  MoreVertical,
+  Edit2,
+  AlertCircle
 } from 'lucide-react';
 import './CreateOrder.css';
 
@@ -39,7 +43,8 @@ const createProductRow = () => ({
   qty: 1,
   price: 0,
   discount: 0,
-  remark: ''
+  remark: '',
+  line_type: 'product'
 });
 
 // Simple in-memory cache for products/partners to speed up loading
@@ -56,13 +61,26 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     partners: [],
     products: [],
     users: [],
-    activity_types: []
+    activity_types: [],
+    architects: [],
+    electricians: []
   });
+
+  const [modalState, setModalState] = useState({ 
+    show: false, 
+    newName: '', 
+    newPhone: '',
+    isArchitect: false, 
+    isElectrician: false 
+  });
+  const [savingFlags, setSavingFlags] = useState(false);
 
   const [orderHeader, setOrderHeader] = useState({
     partnerId: '',
     date: new Date().toISOString().split('T')[0],
     remark: '',
+    architectId: '',
+    electricianId: '',
     is_desc: false,
     is_image: false,
     is_beam: false,
@@ -125,7 +143,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           qty: p.qty || 1,
           price: p.price || 0,
           discount: 0,
-          remark: ''
+          remark: '',
+          line_type: 'product'
         })));
       }
     }
@@ -147,7 +166,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const [scheduledActivities, setScheduledActivities] = useState([]);
   const [newActivity, setNewActivity] = useState({
     activity_type_id: '',
-    summary: '',
+    summary: 'To Do',
     note: '',
     user_id: '',
     date_deadline: new Date().toISOString().split('T')[0]
@@ -285,6 +304,30 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       ...prev,
       [catId]: prev[catId].filter(n => n.id !== noteId)
     }));
+  };
+
+  const handleUpdateFlags = async () => {
+    if (!modalState.newName || savingFlags) return;
+    setSavingFlags(true);
+    try {
+      const res = await odooService.createPartner({
+        name: modalState.newName,
+        phone: modalState.newPhone,
+        is_architect: modalState.isArchitect,
+        is_electrician: modalState.isElectrician
+      });
+      if (res && res.id) {
+        setModalState({ ...modalState, show: false, newName: '', newPhone: '' });
+        fetchMasterData(); // Refresh dropdowns
+      } else {
+        alert("Failed to add professional");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating professional status");
+    } finally {
+      setSavingFlags(false);
+    }
   };
 
   // fetchMasterData and fetchEditOrder are managed below.
@@ -528,6 +571,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             price: l.price_unit ?? l.price ?? 0,
             discount: l.discount || 0,
             remark: l.remark || l.name || '',
+            line_type: l.line_type || 'product',
             // Carry over specs from lines to ensure they show even if product catalog is incomplete
             image_url: l.image_url || '',
             beam: l.beam || '-',
@@ -582,8 +626,33 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     }));
   };
 
+  const selectedArchitect = useMemo(() => masterData.architects.find(a => a.id === parseInt(orderHeader.architectId)), [masterData.architects, orderHeader.architectId]);
+  const selectedElectrician = useMemo(() => masterData.electricians.find(e => e.id === parseInt(orderHeader.electricianId)), [masterData.electricians, orderHeader.electricianId]);
+
+  const total = useMemo(() => {
+    return rows.reduce((sum, row) => sum + ((parseFloat(row.price) || 0) * (parseFloat(row.qty) || 0) * (1 - (parseFloat(row.discount) || 0) / 100)), 0);
+  }, [rows]);
+
   const addRow = () => {
-    setRows(prev => [...prev, createProductRow(prev.length)]);
+    const newId = Date.now();
+    setRows([...rows, { 
+      id: newId, 
+      productId: '', 
+      productName: '', 
+      qty: 1, 
+      price: 0, 
+      discount: 0,
+      remark: '', 
+      image_url: '',
+      uom: 'Units',
+      line_type: 'product'
+    }]);
+    
+    // TAB Focus logic: Focus the new product select after it renders
+    setTimeout(() => {
+      const lastRowSelect = document.querySelector(`.product-row:last-child .ss-control`);
+      if (lastRowSelect) lastRowSelect.focus();
+    }, 50);
   };
 
   const handleSaveCustomer = async () => {
@@ -682,7 +751,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           price_unit: parseFloat(r.price) || 0,
           discount: parseFloat(r.discount) || 0,
           name: r.remark || '', 
-          line_type: 'product'
+          line_type: 'product',
+          architect_id: parseInt(orderHeader.architectId) || false,
+          electrician_id: parseInt(orderHeader.electricianId) || false
         }];
       }).filter(Boolean);
 
@@ -767,6 +838,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         is_image: !!orderHeader.is_image,
         is_beam: !!orderHeader.is_beam,
         is_automate: !!orderHeader.is_automate,
+        architect_id: parseInt(orderHeader.architectId) || false,
+        electrician_id: parseInt(orderHeader.electricianId) || false,
         state: isSelection ? 'selection' : isOrder ? 'sale' : 'draft',
         date_order: ensureIsoDate(orderHeader.date),
         activities: scheduledActivities
@@ -835,43 +908,95 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             </button>
           </div>
           <div className="co-card-body">
-            <div className="form-group">
-              <label>Select Customer *</label>
-              <SearchableSelect
-                placeholder="Choose a customer..."
-                value={orderHeader.partnerId}
-                defaultValue={orderHeader.partnerName} // Ensure label is visible on Edit
-                onChange={(val) => setOrderHeader({ ...orderHeader, partnerId: val })}
-                options={masterData.partners.map((p) => ({ value: p.id, label: p.name }))}
-              />
-            </div>
-
-            {selectedPartner && (
-              <div className="lead-body-simple" style={{ marginTop: '1.25rem' }}>
-                <div className="lead-left">
-                  <div className="lead-info-row">
-                    <span className="lead-label">Customer Name</span>
-                    <span className="lead-value-name">{selectedPartner.name}</span>
-                  </div>
-                  <div className="lead-info-row" style={{ marginTop: '0.5rem' }}>
-                    <span className="lead-label">Contact No.</span>
-                    <div className="lead-value contact-val">
-                      <Phone size={14} className="text-blue-500" />
-                      <span>{selectedPartner.phone || selectedPartner.mobile || '-'}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="lead-right">
-                  <div className="lead-info-row address-row">
-                    <span className="lead-label">Address</span>
-                    <div className="lead-value address-val">
-                      <MapPin size={14} className="text-blue-500" />
-                      <span>{[selectedPartner.street, selectedPartner.street2, selectedPartner.city, selectedPartner.state_name || (selectedPartner.state_id ? selectedPartner.state_id[1] : null), selectedPartner.zip].filter(Boolean).join(', ') || 'No address provided'}</span>
-                    </div>
-                  </div>
+            {/* Row 1: Select Customer, Phone and GST */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1rem', alignItems: 'flex-end', marginBottom: '1rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Select Customer *</label>
+                <SearchableSelect
+                  placeholder="Choose a customer..."
+                  value={orderHeader.partnerId}
+                  defaultValue={orderHeader.partnerName}
+                  onChange={(val) => setOrderHeader({ ...orderHeader, partnerId: val })}
+                  options={masterData.partners.map((p) => ({ value: p.id, label: p.name }))}
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Phone Number</label>
+                <div style={{ height: '42px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                  {selectedPartner?.phone || 'No phone number'}
                 </div>
               </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>GSTIN</label>
+                <div style={{ height: '42px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                  {selectedPartner?.vat || 'No GST provided'}
+                </div>
+              </div>
+            </div>
+
+            {/* Row 2: Full Address */}
+            {selectedPartner && (
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                 <label>Full Address</label>
+                 <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   <MapPin size={16} className="text-blue-500" style={{ flexShrink: 0 }} />
+                   <span style={{ color: '#334155', fontWeight: 500 }}>
+                     {[selectedPartner.street, selectedPartner.street2, selectedPartner.city, selectedPartner.state_name || (selectedPartner.state_id ? selectedPartner.state_id[1] : null), selectedPartner.zip].filter(Boolean).join(', ') || 'No address provided'}
+                   </span>
+                 </div>
+              </div>
             )}
+
+            {/* Row 3: Professionals */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.25rem', marginTop: '1.25rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>Architect</label>
+                  <button 
+                    onClick={() => setModalState({ show: true, newName: '', newPhone: '', isArchitect: true, isElectrician: false })}
+                    style={{ border: 'none', background: 'none', color: '#3b82f6', fontSize: '11px', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                  >
+                    + Add New
+                  </button>
+                </div>
+                <SearchableSelect
+                  placeholder="Select Architect"
+                  value={orderHeader.architectId}
+                  onChange={(val) => setOrderHeader({ ...orderHeader, architectId: val })}
+                  options={masterData.architects.map((a) => ({ value: a.id, label: a.name }))}
+                  small
+                />
+                {selectedArchitect?.phone && (
+                   <div style={{ marginTop: '6px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontWeight: 600 }}>
+                     <Phone size={12} className="text-blue-400" /> {selectedArchitect.phone}
+                   </div>
+                )}
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>Electrician</label>
+                  <button 
+                    onClick={() => setModalState({ show: true, newName: '', newPhone: '', isArchitect: false, isElectrician: true })}
+                    style={{ border: 'none', background: 'none', color: '#3b82f6', fontSize: '11px', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                  >
+                    + Add New
+                  </button>
+                </div>
+                <SearchableSelect
+                  placeholder="Select Electrician"
+                  value={orderHeader.electricianId}
+                  onChange={(val) => setOrderHeader({ ...orderHeader, electricianId: val })}
+                  options={masterData.electricians.map((e) => ({ value: e.id, label: e.name }))}
+                  small
+                />
+                {selectedElectrician?.phone && (
+                   <div style={{ marginTop: '6px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontWeight: 600 }}>
+                     <Phone size={12} className="text-blue-400" /> {selectedElectrician.phone}
+                   </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -890,8 +1015,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             </div>
           </div>
           {showProducts && (
-            <div className="co-card-body product-cards-list">
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center', marginBottom: '0.5rem', paddingBottom: '1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+            <div className="co-card-body product-cards-list" style={{ paddingTop: '0.75rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center', marginBottom: '0.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid #f1f5f9' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
                   <input type="checkbox" checked={orderHeader.is_desc} onChange={(e) => setOrderHeader({...orderHeader, is_desc: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                   Description
@@ -908,9 +1033,25 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                   <input type="checkbox" checked={orderHeader.is_automate} onChange={(e) => setOrderHeader({...orderHeader, is_automate: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                   Automation
                 </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: isMobile ? '0' : 'auto', background: '#f8fafc', padding: '6px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', width: isMobile ? '100%' : 'auto' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748b' }}>Global Disc %</span>
+                  <input 
+                    type="number" 
+                    placeholder="Apply to all..."
+                    style={{ width: '80px', height: '32px', border: '1px solid #d7dee8', borderRadius: '8px', textAlign: 'center', fontWeight: 800, color: '#1e293b' }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = parseFloat(e.target.value) || 0;
+                        setRows(rows.map(r => ({ ...r, discount: val })));
+                        e.target.blur();
+                      }
+                    }}
+                  />
+                  <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>(Enter to apply)</span>
+                </div>
               </div>
 
-              <div className="product-scroll-wrapper" style={{ overflowX: isMobile ? 'visible' : 'auto', paddingBottom: '1rem', marginTop: '1rem' }}>
+              <div className="product-scroll-wrapper" style={{ overflowX: isMobile ? 'visible' : 'auto', paddingBottom: '0.5rem', marginTop: '0.5rem' }}>
                 <div style={{ minWidth: isMobile ? '0' : 'max-content' }}>
                   {rows.length > 0 && !isMobile && (
                     <div className="product-list-header-row" style={{ 
@@ -948,7 +1089,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                       };
 
                       return (
-                        <div key={r.id} className="product-item-card" style={{ 
+                        <div key={r.id} className={`product-item-card product-row`} style={{ 
                           position: 'relative',
                           padding: isMobile ? '1rem' : '0 0.25rem', 
                           border: isMobile ? '1px solid #e2e8f0' : 'none', 
@@ -999,12 +1140,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                          value={r.productId}
                                          defaultValue={r.productName}
                                          onChange={(val) => handleRowChange(r.id, 'productId', val)}
-                                         className="co-search-select-mini"
+                                         small
                                        />
                                      </div>
                                      <button 
                                        onClick={() => onNavigate('create-product')}
-                                       style={{ flex: '0 0 24px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
+                                       style={{ flex: '0 0 24px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
                                        title="Create New Product"
                                      >
                                        <Plus size={14} />
@@ -1019,17 +1160,17 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                )}
                              </div>
                             <div className="pi-sub-grid" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? '1rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
-                              <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                               <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
                                 {isMobile && <label className="pi-small-label">Qty</label>}
-                                <input type="number" className="co-input-border" value={r.qty} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} style={{ width: '100%', height: '42px', fontSize: '14px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
+                                <input type="number" className="co-input-border" value={r.qty} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
                               </div>
                               <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
                                 {isMobile && <label className="pi-small-label">Disc%</label>}
-                                <input type="number" className="co-input-border" value={r.discount} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} style={{ width: '100%', height: '42px', fontSize: '14px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
+                                <input type="number" className="co-input-border" value={r.discount} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
                               </div>
                               <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
                                 {isMobile && <label className="pi-small-label">Price</label>}
-                                <input type="number" className="co-input-border" value={r.price} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} style={{ width: '100%', height: '42px', fontSize: '14px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
+                                <input type="number" className="co-input-border" value={r.price} onFocus={(e) => e.target.select()} onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} />
                               </div>
                             </div>
 
@@ -1073,15 +1214,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
                              {!isMobile && (
                                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                 <button 
-                                   className="pi-remove-row" 
-                                   onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))}
-                                   style={{ width: '40px', height: '42px', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                   title="Delete Row"
-                                 >
-                                   <Trash size={16} />
-                                 </button>
-                               </div>
+                                  <button 
+                                    className="pi-remove-row" 
+                                    onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))}
+                                    style={{ width: '40px', height: '32px', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    title="Delete Row"
+                                  >
+                                    <Trash size={15} />
+                                  </button>
+                                </div>
                              )}
 
                           </div>
@@ -1091,10 +1232,29 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                   </div>
                 </div>
               </div>
-              <button className="co-btn-secondary w-full py-3" onClick={addRow} style={{ marginTop: '0.5rem' }}>
-                <Plus size={18} style={{ marginRight: '8px' }} />
-                Add Product Row
-              </button>
+
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem', gap: '1rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+                <button className="co-btn-secondary" onClick={addRow} style={{ flex: isMobile ? '1' : '0 0 auto', height: '42px', padding: '0 24px', whiteSpace: 'nowrap' }}>
+                  <Plus size={18} style={{ marginRight: '8px' }} />
+                  Add Product Row
+                </button>
+                
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '8px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginLeft: isMobile ? '0' : 'auto', width: isMobile ? '100%' : 'auto', flexWrap: 'wrap', justifyContent: 'center' }}>
+                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                     <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>Gross Total:</span>
+                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>Rs.{rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0), 0).toLocaleString()}</span>
+                   </div>
+                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                     <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>Total Disc:</span>
+                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#ef4444' }}>-Rs.{rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0)*(parseFloat(r.discount)||0)/100, 0).toLocaleString()}</span>
+                   </div>
+                   <div style={{ width: '1px', height: '20px', backgroundColor: '#cbd5e1', display: isMobile ? 'none' : 'block' }} />
+                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                     <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: 900 }}>Final Total:</span>
+                     <span style={{ fontSize: '18px', fontWeight: 900, color: '#059669' }}>Rs.{total.toLocaleString()}</span>
+                   </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1107,7 +1267,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                 <Calendar size={18} />
               </div>
               <div className="co-card-title-stack">
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Schedule Activity</h2>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Tasks</h2>
               </div>
             </div>
             <div className={`co-chevron ${showActivitySection ? 'open' : ''}`}>
@@ -1116,121 +1276,66 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           </div>
 
           {showActivitySection && (
-            <div className="co-card-body" style={{ padding: '1.25rem' }}>
-              {/* Activity Type Selection */}
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '10px', display: 'block' }}>Choose Activity Type</label>
-                <div className="activity-type-tabs" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {(!masterData.activity_types || masterData.activity_types.length === 0) ? (
-                    <div style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', padding: '10px', backgroundColor: '#f8fafc', borderRadius: '8px', width: '100%' }}>
-                      No activity types found in Odoo. Please check your permissions or backend configuration.
-                    </div>
-                  ) : (
-                    masterData.activity_types.map(type => (
-                      <button 
-                        key={type.id}
-                        type="button"
-                        onClick={() => setNewActivity(prev => ({ ...prev, activity_type_id: type.id, summary: type.summary || type.name }))}
-                        style={{ 
-                          padding: '8px 16px', 
-                          borderRadius: '999px', 
-                          border: '1px solid',
-                          borderColor: newActivity.activity_type_id === type.id ? '#3b82f6' : '#e2e8f0',
-                          backgroundColor: newActivity.activity_type_id === type.id ? '#eff6ff' : '#fff',
-                          color: newActivity.activity_type_id === type.id ? '#3b82f6' : '#64748b',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {newActivity.activity_type_id === type.id && <CheckSquare size={14} />}
-                        {type.name}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Form Grid */}
-              <div className="activity-form-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.25rem' }}>
-                <div className="form-group">
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '6px', display: 'block' }}>Summary</label>
-                  <input 
-                    type="text" 
-                    className="co-input-border"
-                    value={newActivity.summary} 
-                    onChange={e => setNewActivity(prev => ({ ...prev, summary: e.target.value }))}
-                    placeholder="e.g. Discuss Quotation"
-                    style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                  />
-                </div>
-                <div className="form-group">
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '6px', display: 'block' }}>Due Date</label>
+            <div className="co-card-body" style={{ padding: '0.75rem 1.25rem 1.25rem' }}>
+              {/* Form Grid: Due Date and Assigned To side-by-side */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Due Date</label>
                   <input 
                     type="date" 
                     className="co-input-border"
                     value={newActivity.date_deadline} 
                     onChange={e => setNewActivity(prev => ({ ...prev, date_deadline: e.target.value }))}
-                    style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                    style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
                   />
                 </div>
-                <div className="form-group">
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '6px', display: 'block' }}>Assigned To</label>
-                  <select 
-                    className="co-input-border"
-                    value={newActivity.user_id} 
-                    onChange={e => setNewActivity(prev => ({ ...prev, user_id: e.target.value }))}
-                    style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#fff' }}
-                  >
-                    <option value="">Select User</option>
-                    {masterData.users?.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group" style={{ gridColumn: isMobile ? 'auto' : 'span 2' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '6px', display: 'block' }}>Note</label>
-                  <textarea 
-                    className="co-textarea"
-                    value={newActivity.note} 
-                    onChange={e => setNewActivity(prev => ({ ...prev, note: e.target.value }))}
-                    placeholder="Internal notes..."
-                    style={{ width: '100%', minHeight: '80px', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Assigned To</label>
+                  <SearchableSelect
+                    placeholder="Select User"
+                    value={newActivity.user_id}
+                    onChange={(val) => setNewActivity(prev => ({ ...prev, user_id: val }))}
+                    options={masterData.users?.map(u => ({ value: u.id, label: u.name }))}
                   />
                 </div>
               </div>
 
-              <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
+              {/* Note Section */}
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Activity Note</label>
+                <textarea 
+                  className="co-textarea"
+                  value={newActivity.note} 
+                  onChange={e => setNewActivity(prev => ({ ...prev, note: e.target.value }))}
+                  placeholder="Type details here... (Press Enter for new line)"
+                  style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontSize: '14px', lineHeight: '1.5' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button 
                   onClick={() => {
-                    if (!newActivity.activity_type_id) return alert("Select activity type");
-                    setScheduledActivities(prev => [...prev, { ...newActivity, id: Date.now() }]);
+                    // Auto-pick To Do type if not set
+                    let typeId = newActivity.activity_type_id;
+                    if (!typeId && masterData.activity_types) {
+                       const todoType = masterData.activity_types.find(t => t.name.toLowerCase().includes('todo') || t.name.toLowerCase().includes('to do')) || masterData.activity_types[0];
+                       typeId = todoType?.id;
+                    }
+                    if (!typeId) return alert("Select activity type");
+                    
+                    setScheduledActivities(prev => [...prev, { ...newActivity, activity_type_id: typeId, id: Date.now() }]);
                     setNewActivity({
                       activity_type_id: '',
-                      summary: '',
+                      summary: 'To Do',
                       note: '',
                       user_id: '',
                       date_deadline: new Date().toISOString().split('T')[0]
                     });
                   }}
-                  style={{ 
-                    padding: '10px 20px', 
-                    background: '#3b82f6', 
-                    color: '#fff', 
-                    borderRadius: '10px', 
-                    border: 'none', 
-                    fontWeight: 700, 
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
+                  className="co-btn-primary"
+                  style={{ padding: '0 24px', height: '42px', borderRadius: '10px' }}
                 >
-                  <Plus size={18} />
+                  <Plus size={18} style={{ marginRight: '8px' }} />
                   Add Activity
                 </button>
               </div>
@@ -1335,9 +1440,43 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                   </div>
                 ))}
               </div>
-              <div className="gn-input-wrapper" style={{ marginTop: '1rem' }}>
-                <input type="text" placeholder="Add Note" className="gn-input" value={generalNoteInput} onChange={e => setGeneralNoteInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleAddGeneralNote()} style={{ border: '1px solid #e2e8f0', padding: '8px 40px 8px 12px', borderRadius: '8px', width: '100%' }} />
-                <Send size={18} className="gn-send-icon" onClick={handleAddGeneralNote} />
+              <div className="gn-input-wrapper" style={{ marginTop: '0.75rem', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                <textarea 
+                  placeholder="Add Note (Use Shift+Enter for new lines)" 
+                  className="gn-input" 
+                  value={generalNoteInput} 
+                  onChange={e => setGeneralNoteInput(e.target.value)}
+                  style={{ 
+                    border: '1px solid #e2e8f0', 
+                    padding: '12px 14px', 
+                    borderRadius: '12px', 
+                    flex: 1,
+                    minHeight: '60px',
+                    fontSize: '14px',
+                    lineHeight: '1.5',
+                    resize: 'vertical',
+                    backgroundColor: '#f8fafc'
+                  }} 
+                />
+                <button 
+                  onClick={handleAddGeneralNote}
+                  style={{ 
+                    flex: '0 0 44px', 
+                    height: '44px', 
+                    backgroundColor: '#3b82f6', 
+                    color: '#fff', 
+                    border: 'none', 
+                    borderRadius: '12px', 
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2)'
+                  }}
+                  title="Send Note"
+                >
+                  <Send size={18} />
+                </button>
               </div>
             </div>
           )}
@@ -1503,13 +1642,122 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
         <div className="co-page-footer">
           <button className="co-btn co-btn-primary co-btn-lg" onClick={handleProcess}>
-            {loading ? "Processing..." : (editId ? (isSelection ? "Update Selection" : "Update Target") : (isSelection ? "Create Selection" : isOrder ? "Create Order" : "Submit Quotation"))}
+            {loading ? "Processing..." : (
+              editId 
+                ? (isSelection ? "Update Selection" : (isOrder ? "Update Order" : "Update Quotation"))
+                : (isSelection ? "Create Selection" : (isOrder ? "Create Order" : "Submit Quotation"))
+            )}
           </button>
           <button className="co-btn co-btn-secondary co-btn-lg" onClick={() => safeNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations')}>
             Cancel
           </button>
         </div>
-      </div>
+      </div> 
+      {modalState.show && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div className="modal-content" style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '440px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>Add Professional</h3>
+              <button onClick={() => setModalState({ ...modalState, show: false })} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Name *</label>
+                <input 
+                  className="clean-input w-full" 
+                  value={modalState.newName} 
+                  onChange={(e) => setModalState({ ...modalState, newName: e.target.value })} 
+                  placeholder="Enter Name" 
+                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600 }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Phone</label>
+                <input 
+                  className="clean-input w-full" 
+                  value={modalState.newPhone} 
+                  onChange={(e) => setModalState({ ...modalState, newPhone: e.target.value })} 
+                  placeholder="Enter Number" 
+                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600 }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '12px', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backgroundColor: modalState.isElectrician ? '#f0f9ff' : 'transparent',
+                borderColor: modalState.isElectrician ? '#3b82f6' : '#e2e8f0'
+              }}>
+                <input 
+                  type="checkbox" 
+                  checked={modalState.isElectrician} 
+                  onChange={(e) => setModalState({ ...modalState, isElectrician: e.target.checked })}
+                />
+                <span style={{ fontSize: '14px', fontWeight: 700, color: modalState.isElectrician ? '#1d4ed8' : '#64748b' }}>Electrician</span>
+              </label>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '12px', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backgroundColor: modalState.isArchitect ? '#f0f9ff' : 'transparent',
+                borderColor: modalState.isArchitect ? '#3b82f6' : '#e2e8f0'
+              }}>
+                <input 
+                  type="checkbox" 
+                  checked={modalState.isArchitect} 
+                  onChange={(e) => setModalState({ ...modalState, isArchitect: e.target.checked })}
+                />
+                <span style={{ fontSize: '14px', fontWeight: 700, color: modalState.isArchitect ? '#1d4ed8' : '#64748b' }}>Architect</span>
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                className="co-btn-primary" 
+                style={{ flex: 1, height: '48px', borderRadius: '12px' }}
+                onClick={handleUpdateFlags}
+                disabled={!modalState.newName || savingFlags}
+              >
+                {savingFlags ? 'Saving...' : 'Add Professional'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

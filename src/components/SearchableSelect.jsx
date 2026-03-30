@@ -6,7 +6,7 @@ import './SearchableSelect.css';
  * SearchableSelect component.
  * Reusable dropdown with search input and scrollable list.
  */
-const SearchableSelect = ({ placeholder, options, value, onChange }) => {
+const SearchableSelect = ({ placeholder, options, value, onChange, small }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [menuStyle, setMenuStyle] = useState({});
@@ -81,7 +81,7 @@ const SearchableSelect = ({ placeholder, options, value, onChange }) => {
     <div className="ss-container" ref={containerRef}>
       <button
         type="button"
-        className="ss-control"
+        className={`ss-control ${small ? 'ss-small' : ''}`}
         onClick={() => setOpen((prev) => !prev)}
       >
         <span className={selectedLabel ? 'ss-value' : 'ss-placeholder'}>
