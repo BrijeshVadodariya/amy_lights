@@ -15,6 +15,11 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   ));
   const [lightboxImage, setLightboxImage] = useState(null);
 
+  // Column-visibility toggles — initialised from backend flags, user can override locally
+  const [showDesc, setShowDesc]   = useState(false);
+  const [showImg,  setShowImg]    = useState(false);
+  const [showBeam, setShowBeam]   = useState(false);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 1024);
     window.addEventListener('resize', handleResize);
@@ -42,6 +47,10 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
         const res = await odooService.getOrderDetail(orderId);
         if (res) {
           setOrder(res);
+          // Seed column toggles from backend flags
+          setShowDesc(!!res.is_desc);
+          setShowImg(!!res.is_image);
+          setShowBeam(!!res.is_beam);
         }
       } catch (err) {
         console.error('Error fetching order details', err);
@@ -180,10 +189,26 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             <span className="detail-eyebrow">Order Details</span>
           </div>
 
-          <div className="detail-hero-status">
+          <div className="detail-hero-status" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span className={`status-pill status-${order.state}`}>
               {formatValue(order.state, 'draft')}
             </span>
+            {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
+              <button 
+                onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  backgroundColor: '#f8fafc', color: '#334155', border: '1px solid #e2e8f0',
+                  padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+              >
+                <Edit size={14} />
+                <span>{order.state === 'selection' ? 'Edit Selection' : 'Edit Quotation'}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -233,122 +258,166 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             </div>
           </div>
 
-          {orderLines.length > 0 ? (
-            <div className="table-wrapper-fixed-outer" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '12px', marginTop: '1rem' }}>
-              <div className="table-wrapper-scrollable-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block', width: '100%' }}>
-                <table className="products-datatable" style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse' }}>
-                  <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
-                    <tr>
-                      <th className="py-3 px-4 text-left border-none" style={{ minWidth: '250px' }}>Product Name</th>
-                      <th className="py-3 px-4 text-left w-16 border-none">Img</th>
-                      <th className="py-3 px-4 text-center w-24 border-none">Qty</th>
-                      <th className="py-3 px-4 text-right w-32 border-none">Unit Price</th>
-                      <th className="py-3 px-4 text-center w-20 border-none">Disc (%)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {orderLines.map((line, idx) => {
-                      // Robust section identification: Odoo display_type OR special case for empty product_id
-                      const isSection = line.display_type === 'line_section' || (!line.product_id && line.product_name && line.qty === 0);
-                      const isNote = line.display_type === 'line_note';
-                      
-                      if (isSection || isNote) {
+          {/* Column-visibility toggles — same style as CreateOrder */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'center', margin: '0.75rem 0', paddingBottom: '0.75rem', borderBottom: '1px solid #f1f5f9' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+              <input type="checkbox" checked={showDesc} onChange={e => setShowDesc(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+              Description
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+              <input type="checkbox" checked={showImg} onChange={e => setShowImg(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+              Image
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+              <input type="checkbox" checked={showBeam} onChange={e => setShowBeam(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+              Beam
+            </label>
+          </div>
+
+          {orderLines.length > 0 ? (() => {
+            // colCount drives colSpan on section/note rows
+            const colCount = 4 + (showImg ? 1 : 0) + (showBeam ? 1 : 0);
+
+            return (
+              <div className="table-wrapper-fixed-outer" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '12px', marginTop: '1rem' }}>
+                <div className="table-wrapper-scrollable-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block', width: '100%' }}>
+                  <table className="products-datatable" style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse' }}>
+                    <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
+                      <tr>
+                        <th className="py-3 px-4 text-left border-none" style={{ minWidth: '240px' }}>Product Name</th>
+                        {showImg  && <th className="py-3 px-4 text-center border-none" style={{ width: '72px' }}>Img</th>}
+                        {showBeam && <th className="py-3 px-4 text-center border-none" style={{ width: '100px' }}>Beam</th>}
+                        <th className="py-3 px-4 text-center border-none" style={{ width: '72px' }}>Qty</th>
+                        <th className="py-3 px-4 text-right border-none"  style={{ width: '110px' }}>Unit Price</th>
+                        <th className="py-3 px-4 text-center border-none" style={{ width: '80px' }}>Disc (%)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {orderLines.map((line, idx) => {
+                        const isSection = line.display_type === 'line_section' || (!line.product_id && line.product_name && line.qty === 0);
+                        const isNote    = line.display_type === 'line_note';
+
+                        if (isSection || isNote) {
+                          return (
+                            <tr key={line.id || idx} className={isSection ? 'bg-slate-100/60' : 'bg-slate-50/20'}>
+                              <td colSpan={colCount} className="py-5 px-6">
+                                <span style={{ fontWeight: 700, color: 'black', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '-0.03em', display: 'block' }}>
+                                  {line.product_name}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        // Resolve image URL
+                        const token   = localStorage.getItem('odoo_session_id') || '';
+                        const db      = import.meta.env.VITE_ODOO_DB || 'stage';
+                        let imgPath   = line.image_url;
+                        if (!imgPath && line.product_id) {
+                          const pId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
+                          if (pId) imgPath = `/web/image/product.template/${pId}/image_128`;
+                        }
+                        const imgSrc = imgPath ? `${imgPath}${imgPath.includes('?') ? '&' : '?'}token=${token}&db=${db}` : '';
+
+                        // Description: Odoo stores it in line.description (or line.name which carries the product desc with \n)
+                        // The remark field (line.remark) is the user-typed note; description is the product spec block
+                        const descText = line.description || '';
+
                         return (
-                          <tr key={line.id || idx} className={`${isSection ? 'bg-slate-100/60' : 'bg-slate-50/20'}`}>
-                            <td colSpan={5} className="py-5 px-6">
-                              <span style={{ 
-                                fontWeight: 700, 
-                                color: 'black', 
-                                fontSize: '15px', 
-                                textTransform: 'uppercase', 
-                                letterSpacing: '-0.03em',
-                                display: 'block'
-                              }}>
-                                {line.product_name}
-                              </span>
+                          <tr key={line.id || idx} className="row-hover">
+                            {/* Product name + optional description block */}
+                            <td className="py-3 px-4" style={{ verticalAlign: 'top' }}>
+                              <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px', lineHeight: 1.4 }}>
+                                {formatValue(line.product_name, 'Unnamed product')}
+                              </div>
+                              {showDesc && descText && (
+                                <div style={{
+                                  marginTop: '4px',
+                                  fontSize: '12px',
+                                  color: '#475569',
+                                  lineHeight: 1.6,
+                                  whiteSpace: 'pre-wrap',   /* preserve \n line breaks from Odoo */
+                                  fontStyle: 'italic'
+                                }}>
+                                  {descText}
+                                </div>
+                              )}
+                              {/* Remark (user note) always shown as a subtle tag */}
+                              {line.remark && line.remark !== descText && (
+                                <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8', fontStyle: 'normal' }}>
+                                  {line.remark}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Image thumbnail */}
+                            {showImg && (
+                              <td className="py-3 px-4" style={{ verticalAlign: 'top' }}>
+                                <div style={{ width: '52px', height: '52px', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {imgSrc && (
+                                    <img
+                                      src={imgSrc}
+                                      alt=""
+                                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                      onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                  )}
+                                </div>
+                              </td>
+                            )}
+
+                            {/* Beam */}
+                            {showBeam && (
+                              <td className="py-3 px-4 text-center" style={{ verticalAlign: 'top', fontSize: '12px', color: '#475569', fontWeight: 500 }}>
+                                {line.beam || '-'}
+                              </td>
+                            )}
+
+                            <td className="py-3 px-4 text-center font-medium text-slate-700" style={{ verticalAlign: 'top' }}>{formatValue(line.qty, '0')}</td>
+                            <td className="py-3 px-4 text-right text-slate-700" style={{ verticalAlign: 'top' }}>{formatCurrency(line.price_unit)}</td>
+                            <td className="py-3 px-4 text-center text-slate-500 font-medium" style={{ verticalAlign: 'top' }}>
+                              {line.discount ? `${line.discount}%` : '-'}
                             </td>
                           </tr>
                         );
-                      }
-
-                      const lineTotal = Number(line.qty || 0) * Number(line.price_unit || 0);
-                      const discountAmount = lineTotal * (Number(line.discount || 0) / 100);
-                      const netTotal = lineTotal - discountAmount;
-
-                      return (
-                        <tr key={line.id || idx} className="row-hover">
-                          <td className="py-4 px-4">
-                            <div className="font-bold text-slate-800">{formatValue(line.product_name, 'Unnamed product')}</div>
-                            <div className="text-[11px] text-slate-500 mt-0.5">{formatValue(line.remark, '')}</div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="w-12 h-12 rounded border border-slate-100 overflow-hidden bg-white flex items-center justify-center relative">
-                                {(line.image_url || line.product_id) && (
-                                  <img 
-                                    src={(() => {
-                                      const token = localStorage.getItem('odoo_session_id') || '';
-                                      const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                      let path = line.image_url;
-                                      
-                                      if (!path && line.product_id) {
-                                         const pId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
-                                         if (pId) path = `/web/image/product.template/${pId}/image_128`;
-                                      }
-                                      
-                                      if (!path) return '';
-                                      return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
-                                    })()} 
-                                    alt="" 
-                                    className="w-full h-full object-contain relative z-10" 
-                                    onError={(e) => { e.target.style.display = 'none'; }}
-                                  />
-                                )}
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 text-center font-medium text-slate-700">{formatValue(line.qty, '0')}</td>
-                          <td className="py-4 px-4 text-right text-slate-700">{formatCurrency(line.price_unit)}</td>
-                          <td className="py-4 px-4 text-center text-slate-500 font-medium">
-                            {line.discount ? `${line.discount}%` : '-'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Summary Block outside table */}
-              <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', padding: '0 1rem 1rem' }}>
-                <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Untaxed Amount:</span>
-                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
-                    {formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0)), 0))}
-                  </span>
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-                
-                {orderLines.some(l => l.discount) && (
+
+                {/* Summary Block outside table */}
+                <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', padding: '0 1rem 1rem' }}>
                   <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 600 }}>Discount:</span>
-                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
-                      -{formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (Number(l.discount || 0) / 100)), 0))}
+                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Untaxed Amount:</span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
+                      {formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0)), 0))}
                     </span>
                   </div>
-                )}
 
-                <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Taxes:</span>
-                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
-                    {formatCurrency((order?.amount_total || 0) - orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (1 - (Number(l.discount || 0) / 100))), 0))}
-                  </span>
-                </div>
+                  {orderLines.some(l => l.discount) && (
+                    <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 600 }}>Discount:</span>
+                      <span style={{ fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
+                        -{formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (Number(l.discount || 0) / 100)), 0))}
+                      </span>
+                    </div>
+                  )}
 
-                <div style={{ borderTop: '2px solid #f1f5f9', width: '320px', margin: '8px 0', padding: '12px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: 900 }}>Total:</span>
-                  <span style={{ fontSize: '24px', fontWeight: 950, color: '#059669' }}>{formatCurrency(order?.amount_total || 0)}</span>
+                  <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Taxes:</span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
+                      {formatCurrency((order?.amount_total || 0) - orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (1 - (Number(l.discount || 0) / 100))), 0))}
+                    </span>
+                  </div>
+
+                  <div style={{ borderTop: '2px solid #f1f5f9', width: '320px', margin: '8px 0', padding: '12px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: 900 }}>Total:</span>
+                    <span style={{ fontSize: '24px', fontWeight: 950, color: '#059669' }}>{formatCurrency(order?.amount_total || 0)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="detail-empty-state">
               <Package2 size={20} />
               <span>No product lines were added to this order.</span>
@@ -356,25 +425,128 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           )}
         </section>
 
+        {order.activities && order.activities.length > 0 && (
+          <section className="detail-section">
+            <div className="detail-section-header" style={{ marginBottom: '1rem' }}>
+              <div>
+                <span className="detail-section-kicker">Tasks</span>
+                <h2>Planned Activities</h2>
+              </div>
+              {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
+                <button
+                  onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#f0f9ff', color: '#0ea5e9', border: '1px solid #bae6fd', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  <Edit size={13} />
+                  <span>Edit Tasks</span>
+                </button>
+              )}
+            </div>
+            <div className="activity-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {order.activities.map((act, idx) => (
+                <div key={idx} className="activity-card" style={{ padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                  <div style={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <CalendarDays size={18} className="text-slate-500" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>{act.summary || act.activity_type_name || 'Task'}</h4>
+                    {act.note && (
+                      <p style={{ margin: '0 0 8px', fontSize: '14px', color: '#475569', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                    )}
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#64748b', alignItems: 'center' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CalendarDays size={12} />
+                        {act.date_deadline || 'No Date'}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <UserRound size={12} />
+                        {act.user_name || 'Unassigned'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="detail-section">
-          <div className="detail-section-header">
+          <div className="detail-section-header" style={{ marginBottom: '1rem' }}>
             <div>
               <span className="detail-section-kicker">Notes</span>
-              <h2>Remark</h2>
+              <h2>Remarks</h2>
             </div>
-          </div>
-
-          <div className="remark-value-box">
-            <FileText size={18} />
-            {order.remark ? (
-              <div 
-                className="remark-html-content" 
-                dangerouslySetInnerHTML={{ __html: order.remark }} 
-              />
-            ) : (
-              <p>No remark added for this order.</p>
+            {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
+              <button
+                onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <Edit size={13} />
+                <span>Add/Edit Note</span>
+              </button>
             )}
           </div>
+
+          {order.remark ? (() => {
+            // Split by the separator we use when joining in CreateOrder ('---')
+            const noteLines = order.remark
+              .replace(/<[^>]*>/g, '')       // strip any HTML tags
+              .split(/\n?---\n?|\n/)           // split by '---' separator or plain newlines
+              .map(t => t.trim())
+              .filter(t => t.length > 0);
+
+            if (noteLines.length === 0) {
+              return (
+                <div className="remark-value-box">
+                  <FileText size={18} />
+                  <p>No remark added for this order.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {noteLines.map((line, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.85rem',
+                      background: 'linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%)',
+                      border: '1px solid #dbeafe',
+                      borderRadius: '14px',
+                      padding: '1rem 1.25rem',
+                    }}
+                  >
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <FileText size={14} style={{ color: '#2563eb' }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: '0.93rem', color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {line}
+                      </p>
+                      <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Note #{idx + 1}</span>
+                    </div>
+                    {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
+                      <button
+                        onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}
+                        title="Edit this note"
+                        style={{ flexShrink: 0, border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
+                      >
+                        <Edit size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })() : (
+            <div className="remark-value-box">
+              <FileText size={18} />
+              <p>No remark added for this order.</p>
+            </div>
+          )}
         </section>
 
         {order.amy_notes && order.amy_notes.length > 0 && (
@@ -452,13 +624,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
         )}
 
         <div className="detail-footer-actions">
-          {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
-            <button className="detail-action-btn detail-action-primary" onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}>
-              <Edit size={16} />
-              <span>{order.state === 'selection' ? 'Edit Selection' : 'Edit Quotation'}</span>
-            </button>
-          )}
-
           {(order.state === 'draft' || order.state === 'sent') && (
               <button 
                 className="btn-action-soft btn-confirm-soft w-auto"

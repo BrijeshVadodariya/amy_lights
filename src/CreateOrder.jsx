@@ -33,7 +33,8 @@ import {
   CheckCircle,
   MoreVertical,
   Edit2,
-  AlertCircle
+  AlertCircle,
+  Zap
 } from 'lucide-react';
 import './CreateOrder.css';
 
@@ -65,15 +66,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     architects: [],
     electricians: []
   });
-
-  const [modalState, setModalState] = useState({ 
-    show: false, 
-    newName: '', 
-    newPhone: '',
-    isArchitect: false, 
-    isElectrician: false 
-  });
-  const [savingFlags, setSavingFlags] = useState(false);
 
   const [orderHeader, setOrderHeader] = useState({
     partnerId: '',
@@ -131,205 +123,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     visit: [],
     email: []
   });
-  useEffect(() => {
-    if (extraData) {
-      if (extraData.preFilledPartnerId) {
-        setOrderHeader(prev => ({ ...prev, partnerId: extraData.preFilledPartnerId }));
-      }
-      if (extraData.preFilledProducts && extraData.preFilledProducts.length > 0) {
-        setRows(extraData.preFilledProducts.map(p => ({
-          id: Date.now() + Math.random(),
-          productId: p.productId,
-          qty: p.qty || 1,
-          price: p.price || 0,
-          remark: '',
-          uom: 'Units',
-        })));
-      }
-    }
-  }, [extraData]);
-  
-  // The beforeunload handler is moved here for cleaner organization
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
-
-  const [debugRawData, setDebugRawData] = useState(null);
-  const [dragActiveId, setDragActiveId] = useState(null);
-
-  const [scheduledActivities, setScheduledActivities] = useState([]);
-  const [newActivity, setNewActivity] = useState({
-    activity_type_id: '',
-    summary: 'To Do',
-    note: '',
-    user_id: '',
-    date_deadline: new Date().toISOString().split('T')[0]
-  });
-  const [showActivitySection, setShowActivitySection] = useState(true);
-
-  const handleAddGeneralNote = () => {
-    if (!generalNoteInput.trim()) return;
-    const newNote = {
-      id: `new-${Date.now()}`,
-      text: generalNoteInput,
-      by: localStorage.getItem('user_name') || 'You',
-      date: 'Just now',
-      is_new: true,
-      images: []
-    };
-    setGeneralNotes(prev => [...prev, newNote]);
-    setGeneralNoteInput("");
-  };
-
-  const handleEditNote = (id, currentText) => {
-    setEditingNoteId(id);
-    setNoteEditText(currentText);
-  };
-
-  const saveEditNote = (id) => {
-    setGeneralNotes(prev => prev.map(n => n.id === id ? { ...n, text: noteEditText } : n));
-    setEditingNoteId(null);
-    setNoteEditText("");
-  };
-
-  const handleDeleteNote = (id) => {
-    setGeneralNotes(prev => prev.filter(n => n.id !== id));
-  };
-
-  const handleImageUpload = async (id, files) => {
-    const fileArray = Array.from(files);
-    const base64Promises = fileArray.map(file => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (e) => {
-        const img = new Image();
-        img.src = e.target.result;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          
-          // Max dimension to compress payload (prevents 413 Payload Too Large)
-          const MAX_SIZE = 800;
-          if (width > height && width > MAX_SIZE) {
-            height *= MAX_SIZE / width;
-            width = MAX_SIZE;
-          } else if (height > MAX_SIZE) {
-            width *= MAX_SIZE / height;
-            height = MAX_SIZE;
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // Downsample beautifully to JPEG 60% quality
-          resolve(canvas.toDataURL('image/jpeg', 0.6));
-        };
-        img.onerror = () => reject('Image load error');
-      };
-      reader.onerror = reject;
-    }));
-
-    try {
-      const base64Images = await Promise.all(base64Promises);
-      setActivityInputs(prev => {
-        const current = prev[id] || { text: '', images: [] };
-        return {
-          ...prev,
-          [id]: { ...current, images: [...current.images, ...base64Images] }
-        };
-      });
-    } catch (err) {
-      console.error("Image upload failed", err);
-    }
-  };
-
-  const handleRemoveImageInput = (actId, imgIdx) => {
-    setActivityInputs(prev => {
-      const current = prev[actId];
-      if (!current) return prev;
-      return {
-        ...prev,
-        [actId]: { ...current, images: current.images.filter((_, i) => i !== imgIdx) }
-      };
-    });
-  };
-
-  const handleAddActivityNote = (id) => {
-    const input = activityInputs[id] || { text: '', images: [] };
-    if (!input.text && input.images.length === 0) return;
-    
-    const newNote = {
-      id: Date.now(),
-      text: input.text,
-      images: input.images,
-      by: 'CurrentUser',
-      date: new Date().toLocaleString()
-    };
-    
-    setActivityHistory(prev => ({
-      ...prev,
-      [id]: [...(prev[id] || []), newNote]
-    }));
-    setActivityInputs(prev => ({ ...prev, [id]: { text: '', images: [] } }));
-  };
-  
-  const handleEditActivityNote = (catId, noteId, text) => {
-    setEditingActivityNoteId(noteId);
-    setActivityNoteNoteEditText(text);
-  };
-
-  const handleSaveActivityNote = (catId, noteId) => {
-    setActivityHistory(prev => ({
-      ...prev,
-      [catId]: prev[catId].map(n => n.id === noteId ? { ...n, text: activityNoteEditText } : n)
-    }));
-    setEditingActivityNoteId(null);
-  };
-
-  const handleDeleteActivityNote = (catId, noteId) => {
-    // Collect ID only if it was already saved in Odoo (numeric ID)
-    if (typeof noteId === 'number') {
-      setDeletedActivityIds(prev => [...prev, noteId]);
-    }
-    setActivityHistory(prev => ({
-      ...prev,
-      [catId]: prev[catId].filter(n => n.id !== noteId)
-    }));
-  };
-
-  const handleUpdateFlags = async () => {
-    if (!modalState.newName || savingFlags) return;
-    setSavingFlags(true);
-    try {
-      const res = await odooService.createPartner({
-        name: modalState.newName,
-        phone: modalState.newPhone,
-        is_architect: modalState.isArchitect,
-        is_electrician: modalState.isElectrician
-      });
-      if (res && res.id) {
-        setModalState({ ...modalState, show: false, newName: '', newPhone: '' });
-        fetchMasterData(); // Refresh dropdowns
-      } else {
-        alert("Failed to add professional");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error updating professional status");
-    } finally {
-      setSavingFlags(false);
-    }
-  };
-
-  // fetchMasterData and fetchEditOrder are managed below.
+  // --- HELPER FUNCTIONS (Moved up to avoid "before initialization" errors) ---
 
   const fetchMasterData = React.useCallback(async () => {
     // If cache exists, use it immediately for responsiveness
@@ -468,7 +262,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           is_desc: data.is_desc ?? true,
           is_image: data.is_image ?? true,
           is_beam: data.is_beam ?? true,
-          is_automate: data.is_automate ?? false
+          is_automate: data.is_automate ?? false,
+          amount_total: data.amount_total || 0,
+          currency_symbol: data.currency_symbol || '$'
         });
         
         // Populate existing notes if they are returned by Odoo
@@ -510,18 +306,27 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           });
           
           setGeneralNotes(prev => {
-            const combined = [...allTypeNotes];
-            if (combined.length === 0 && data.remark) {
-              // Strip HTML from fallback remark field too
-              const cleanRemark = data.remark.replace(/<\/?[^>]+(>|$)/g, "").trim();
+            let combined = [...allTypeNotes];
+            if (data.remark) {
+              const cleanRemark = data.remark.replace(/<\/?[^>]+(>|$)/g, "\n").trim();
               if (cleanRemark) {
-                combined.push({
-                  id: 'existing-remark',
-                  text: cleanRemark,
-                  by: 'System',
-                  date: 'Imported',
-                  is_from_backend: true,
-                  is_new: false
+                // Split by common separators if they were joined
+                const individualNotes = cleanRemark.split(/\n|<br\s*\/?>|\|/i)
+                  .map(t => t.trim())
+                  .filter(t => t.length > 0);
+
+                individualNotes.forEach((text, idx) => {
+                  // Only add if not already present in allTypeNotes (deduplicate)
+                  if (!combined.some(existing => existing.text === text)) {
+                    combined.push({
+                      id: `imported-remark-${idx}`,
+                      text: text,
+                      by: 'System',
+                      date: 'Imported',
+                      is_from_backend: true,
+                      is_new: false
+                    });
+                  }
                 });
               }
             }
@@ -534,11 +339,13 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           }
         }
         
+        if (data.activities && Array.isArray(data.activities)) {
+          setScheduledActivities(data.activities);
+        }
+        
         const lineItems = data.lines || data.order_line || [];
-        // Filtering out notes/sections to only show products
-        const productLines = lineItems.filter(l => !l.display_type && (!!l.product_id || !!l.product_name));
-
-        const mappedRows = productLines.map((l, i) => {
+        // Support all line types (products, sections, notes)
+        const mappedRows = lineItems.map((l, i) => {
           let prodId = extractId(l.product_id) || extractId(l.product);
           const searchName = l.product_name || l.name || extractName(l.product_id);
           
@@ -586,13 +393,254 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         // Set rows AFTER masterData update (ideally) but React batches these anyway
         setRows(mappedRows.length ? mappedRows : [createProductRow()]);
         setShowProducts(mappedRows.length > 0);
+
+        // --- NEW: Sync Notes and Activities from Backend ---
+        // 1. Sync General Notes (Remark field)
+        const remark = data.remark || data.note || '';
+        if (remark) {
+           // Try splitting by common separators used in the backend
+           const parts = remark.split(/\n---\n|<br\s*\/?>/).filter(Boolean);
+           setGeneralNotes(parts.map(t => ({
+             id: `hist-${Math.random()}`,
+             text: t.replace(/<b>.*?<\/b>:\s*/, '').trim(), // Cleanup author name if present
+             date: data.date_order || '',
+             by: t.match(/<b>(.*?)<\/b>/)?.[1] || 'Odoo',
+             is_new: false
+           })));
+        }
+
+        // 2. Sync Activity History (Category-specific Amy Notes)
+        if (data.amy_notes && Array.isArray(data.amy_notes)) {
+           const history = { call: [], whatsapp: [], visit: [], email: [] };
+           data.amy_notes.forEach(note => {
+             const type = note.note_type || 'call';
+             if (!history[type]) history[type] = [];
+             history[type].push({
+               id: note.id,
+               text: note.text,
+               images: note.images || [],
+               date: data.date_order || '',
+               by: 'Odoo'
+             });
+           });
+           setActivityHistory(prev => ({ ...prev, ...history }));
+        }
+
+        // 3. Sync Scheduled Activities (Tasks)
+        if (data.activities && Array.isArray(data.activities)) {
+           setScheduledActivities(data.activities.map(act => ({
+             id: act.id,
+             activity_type_id: act.activity_type_id,
+             summary: act.summary || act.activity_type_name || 'Activity',
+             note: act.note || '',
+             user_id: act.user_id,
+             date_deadline: act.date_deadline || ''
+           })));
+        }
       }
     } catch (err) {
       console.error('Edit fetch failed', err);
     }
     finally { setLoading(false); }
-  }, [editId]);
+  }, [editId, masterData.partners, masterData.products]);
 
+  useEffect(() => {
+    if (extraData) {
+      const { preFilledPartnerId, preFilledProducts } = extraData;
+      
+      if (preFilledPartnerId) {
+        // We MUST re-fetch master data immediately so that the newly created partner 
+        // exists in our selection list and we can read their full details (Phone, Address, Professionals)
+        fetchMasterData().then(() => {
+           // We don't want to rely solely on the state update (which is asynchronous),
+           // so we fetch the list again internally or just know that the dropdown will find it now.
+           // However, to auto-select Architect/Electrician, we need to find that partner in the latest data.
+           odooService.getPartners().then(partners => {
+             const partner = partners?.find(p => String(p.id) === String(preFilledPartnerId));
+             if (partner) {
+               console.log("Auto-populating partner details:", partner);
+               setOrderHeader(prev => ({ 
+                 ...prev, 
+                 partnerId: preFilledPartnerId,
+                 architectId: partner.architect_id || '',
+                 electricianId: partner.electrician_id || ''
+               }));
+             } else {
+               setOrderHeader(prev => ({ ...prev, partnerId: preFilledPartnerId }));
+             }
+           });
+        });
+      }
+      
+      if (preFilledProducts && preFilledProducts.length > 0) {
+        setRows(preFilledProducts.map(p => ({
+          id: Date.now() + Math.random(),
+          productId: p.productId,
+          qty: p.qty || 1,
+          price: p.price || 0,
+          remark: '',
+          uom: 'Units',
+        })));
+      }
+    }
+  }, [extraData, fetchMasterData]);
+  
+  // The beforeunload handler is moved here for cleaner organization
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  const [debugRawData, setDebugRawData] = useState(null);
+  const [dragActiveId, setDragActiveId] = useState(null);
+
+  const [scheduledActivities, setScheduledActivities] = useState([]);
+  const [newActivity, setNewActivity] = useState({
+    activity_type_id: '',
+    summary: 'To Do',
+    note: '',
+    user_id: '',
+    date_deadline: new Date().toISOString().split('T')[0]
+  });
+  const [showActivitySection, setShowActivitySection] = useState(false);
+
+  const handleAddGeneralNote = () => {
+    if (!generalNoteInput.trim()) return;
+    const newNote = {
+      id: `new-${Date.now()}`,
+      text: generalNoteInput,
+      by: localStorage.getItem('user_name') || 'You',
+      date: 'Just now',
+      is_new: true,
+      images: []
+    };
+    setGeneralNotes(prev => [...prev, newNote]);
+    setGeneralNoteInput("");
+  };
+
+  const handleEditNote = (id, currentText) => {
+    setEditingNoteId(id);
+    setNoteEditText(currentText);
+  };
+
+  const saveEditNote = (id) => {
+    setGeneralNotes(prev => prev.map(n => n.id === id ? { ...n, text: noteEditText } : n));
+    setEditingNoteId(null);
+    setNoteEditText("");
+  };
+
+  const handleDeleteNote = (id) => {
+    setGeneralNotes(prev => prev.filter(n => n.id !== id));
+  };
+
+  const handleImageUpload = async (id, files) => {
+    const fileArray = Array.from(files);
+    const base64Promises = fileArray.map(file => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Max dimension to compress payload (prevents 413 Payload Too Large)
+          const MAX_SIZE = 800;
+          if (width > height && width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Downsample beautifully to JPEG 60% quality
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = () => reject('Image load error');
+      };
+      reader.onerror = reject;
+    }));
+
+    try {
+      const base64Images = await Promise.all(base64Promises);
+      setActivityInputs(prev => {
+        const current = prev[id] || { text: '', images: [] };
+        return {
+          ...prev,
+          [id]: { ...current, images: [...current.images, ...base64Images] }
+        };
+      });
+    } catch (err) {
+      console.error("Image upload failed", err);
+    }
+  };
+
+  const handleRemoveImageInput = (actId, imgIdx) => {
+    setActivityInputs(prev => {
+      const current = prev[actId];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [actId]: { ...current, images: current.images.filter((_, i) => i !== imgIdx) }
+      };
+    });
+  };
+
+  const handleAddActivityNote = (id) => {
+    const input = activityInputs[id] || { text: '', images: [] };
+    if (!input.text && input.images.length === 0) return;
+    
+    const newNote = {
+      id: `local-${Date.now()}`,  // String prefix so it's never confused with a real Odoo numeric ID
+      text: input.text,
+      images: input.images,
+      by: localStorage.getItem('user_name') || 'You',
+      date: new Date().toLocaleString(),
+      is_new: true  // Flag: this note was created in this session, needs CREATE command
+    };
+    
+    setActivityHistory(prev => ({
+      ...prev,
+      [id]: [...(prev[id] || []), newNote]
+    }));
+    setActivityInputs(prev => ({ ...prev, [id]: { text: '', images: [] } }));
+  };
+  
+  const handleEditActivityNote = (catId, noteId, text) => {
+    setEditingActivityNoteId(noteId);
+    setActivityNoteNoteEditText(text);
+  };
+
+  const handleSaveActivityNote = (catId, noteId) => {
+    setActivityHistory(prev => ({
+      ...prev,
+      [catId]: prev[catId].map(n => n.id === noteId ? { ...n, text: activityNoteEditText } : n)
+    }));
+    setEditingActivityNoteId(null);
+  };
+
+  const handleDeleteActivityNote = (catId, noteId) => {
+    // Collect ID only if it was already saved in Odoo (numeric ID)
+    if (typeof noteId === 'number') {
+      setDeletedActivityIds(prev => [...prev, noteId]);
+    }
+    setActivityHistory(prev => ({
+      ...prev,
+      [catId]: prev[catId].filter(n => n.id !== noteId)
+    }));
+  };
   const [isMobile, setIsMobile] = React.useState(() => (
     typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
   ));
@@ -799,33 +847,36 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       // Helper to generate a unique filename
       const genName = (type, i) => `${type}_note_${Date.now()}_${i}.png`;
 
-      // 1. Process Activity Notes (Selective commands for update/create/delete)
-      // Historical or Edited notes
+      // ── CLEAR-ALL + RE-INSERT STRATEGY ──────────────────────────────────────
+      // Step 1: Unlink ALL existing amy_note_lines on the backend first.
+      //         This guarantees zero duplicates regardless of prior state.
+      amyNoteLines.push([5, 0, 0]);   // (5, 0, 0) = Odoo "unlink all" Many2many/One2many command
+
+      // Step 2: Re-insert every note currently in state (from backend history + newly added).
       Object.keys(activityHistory).forEach(type => {
         (activityHistory[type] || []).forEach(hNote => {
-           if (typeof hNote.id === 'number') {
-             // UPDATE Command (1, id, vals)
-             amyNoteLines.push([1, hNote.id, {
-               note_type: type,
-               text: hNote.text || ''
-             }]);
-           } else {
-             // fallback for safety (is_new handled below)
-           }
+          // Extract base64 only for local images (data URLs); skip backend URLs
+          const images = (hNote.images || []).map(img => {
+            if (typeof img !== 'string') return null;
+            if (img.includes(',')) return img.split(',')[1]; // base64 data URL
+            return null; // backend URL — skip (image already gone after unlink; re-attach not needed here)
+          }).filter(Boolean);
+
+          amyNoteLines.push([0, 0, {
+            note_type: type,
+            text: hNote.text || '',
+            image: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
+          }]);
         });
       });
 
-      // Deletions 
-      deletedActivityIds.forEach(delId => {
-        amyNoteLines.push([2, delId, 0]); // DELETE Command
-      });
-
-      // New inputs being added
+      // Step 3: Also flush any text still sitting in the input boxes (not yet "added").
       Object.keys(activityInputs).forEach(type => {
         const input = activityInputs[type];
         if (input && (input.text || (input.images && input.images.length > 0))) {
-          const images = (input.images || []).map(img => img.includes(',') ? img.split(',')[1] : null).filter(Boolean);
-          // CREATE Command (0, 0, vals)
+          const images = (input.images || []).map(img =>
+            (typeof img === 'string' && img.includes(',')) ? img.split(',')[1] : null
+          ).filter(Boolean);
           amyNoteLines.push([0, 0, {
             note_type: type,
             text: input.text || '',
@@ -833,17 +884,17 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           }]);
         }
       });
+      // ────────────────────────────────────────────────────────────────────────
 
-      // 2. Consolidate ONLY current session's NEW general notes for the 'Remark' box
-      // (Technical activity like 'Decorative' is now strictly saved to amy_note_ids only)
-      const newGeneralNotes = generalNotes.filter(n => n.is_new).map(n => n.text).filter(Boolean).join('\n');
-      
-      chatterText = newGeneralNotes;
-      
-      // chatterNotes for message log
+      // 2. Build the remark text from ALL current general notes (replaces previous value on backend).
+      //    Each note is stored as its own line — backend receives the full joined text.
+      //    Only truly NEW notes (added in this session) are sent as chatter messages.
+      const currentGeneralNotesText = generalNotes.map(n => n.text).filter(Boolean).join('\n---\n');
+      chatterText = currentGeneralNotesText;
+
       const chatterNotes = generalNotes.filter(n => n.is_new).map(n => n.text).filter(Boolean);
-      console.log("[Save Order] Focused chatter text length:", chatterText.length);
-      console.log("[Save Order] Consolidated chatter text length:", chatterText.length);
+
+      console.log("[Save Order] Remark length:", chatterText.length, "| New chatter notes:", chatterNotes.length, "| Amy note commands:", amyNoteLines.length);
 
       const ensureIsoDate = (dateVal) => {
         if (!dateVal) return null;
@@ -854,23 +905,23 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         return dateVal;
       };
 
+      // 3. Activities — same clear-all + re-insert approach.
+      //    Send all current activities as fresh records; backend clears old ones first.
       const finalExtraData = {
         architect_id: parseInt(orderHeader.architectId) || false,
         electrician_id: parseInt(orderHeader.electricianId) || false,
-        remark: chatterText.trim() || orderHeader.remark || '', // Prioritize general notes for Remark box
+        remark: chatterText.trim() || orderHeader.remark || '',
         amy_note_lines: amyNoteLines,
         chatter_notes: chatterNotes,
-        note: chatterText.trim() || '', 
-        log_note: chatterText.trim() || '', 
         is_desc: !!orderHeader.is_desc,
         is_image: !!orderHeader.is_image,
         is_beam: !!orderHeader.is_beam,
         is_automate: !!orderHeader.is_automate,
-        architect_id: parseInt(orderHeader.architectId) || false,
-        electrician_id: parseInt(orderHeader.electricianId) || false,
         state: isSelection ? 'selection' : isOrder ? 'sale' : 'draft',
         date_order: ensureIsoDate(orderHeader.date),
-        activities: scheduledActivities
+        // All scheduled activities (existing + new) — backend will clear old ones and recreate
+        activities: scheduledActivities,
+        clear_activities: true   // Signal backend to unlink all existing activities before creating
       };
 
 
@@ -931,7 +982,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         <div className="co-card lead-card">
           <div className="co-card-header">
             <h3>Customer Selection</h3>
-            <button className="co-btn-icon" onClick={() => safeNavigate('create-customer')}>
+            <button className="co-btn-icon" onClick={() => {
+              const returnRoute = isSelection ? 'create-selection' : isOrder ? 'create-direct-order' : 'create-order';
+              // Bypass the safeNavigate "unsaved changes" guard — we're coming back to the same form
+              setHasChanges(false);
+              onNavigate('create-customer', null, { returnRoute });
+            }}>
               <Plus size={18} />
             </button>
           </div>
@@ -941,10 +997,18 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label>Select Customer *</label>
                 <SearchableSelect
-                  placeholder="Choose a customer..."
+                  placeholder="Select Customer"
                   value={orderHeader.partnerId}
                   defaultValue={orderHeader.partnerName}
-                  onChange={(val) => setOrderHeader({ ...orderHeader, partnerId: val })}
+                  onChange={(val) => {
+                    const selected = masterData.partners.find(p => p.id === val);
+                    setOrderHeader({ 
+                      ...orderHeader, 
+                      partnerId: val,
+                      architectId: selected?.architect_id || orderHeader.architectId,
+                      electricianId: selected?.electrician_id || orderHeader.electricianId
+                    });
+                  }}
                   options={masterData.partners.map((p) => ({ value: p.id, label: p.name }))}
                 />
               </div>
@@ -978,51 +1042,17 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             {/* Row 3: Professionals */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.25rem', marginTop: '1.25rem' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>Architect</label>
-                  <button 
-                    onClick={() => setModalState({ show: true, newName: '', newPhone: '', isArchitect: true, isElectrician: false })}
-                    style={{ border: 'none', background: 'none', color: '#3b82f6', fontSize: '11px', fontWeight: 700, cursor: 'pointer', padding: 0 }}
-                  >
-                    + Add New
-                  </button>
+                <label style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>Architect</label>
+                <div style={{ height: '42px', marginTop: '6px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                  {selectedPartner?.architect_name ? `${selectedPartner.architect_name} ${selectedPartner.architect_phone ? `(${selectedPartner.architect_phone})` : ''}` : 'No Architect assigned'}
                 </div>
-                <SearchableSelect
-                  placeholder="Select Architect"
-                  value={orderHeader.architectId}
-                  onChange={(val) => setOrderHeader({ ...orderHeader, architectId: val })}
-                  options={masterData.architects.map((a) => ({ value: a.id, label: a.name }))}
-                  small
-                />
-                {selectedArchitect?.phone && (
-                   <div style={{ marginTop: '6px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontWeight: 600 }}>
-                     <Phone size={12} className="text-blue-400" /> {selectedArchitect.phone}
-                   </div>
-                )}
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>Electrician</label>
-                  <button 
-                    onClick={() => setModalState({ show: true, newName: '', newPhone: '', isArchitect: false, isElectrician: true })}
-                    style={{ border: 'none', background: 'none', color: '#3b82f6', fontSize: '11px', fontWeight: 700, cursor: 'pointer', padding: 0 }}
-                  >
-                    + Add New
-                  </button>
+                <label style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>Electrician</label>
+                <div style={{ height: '42px', marginTop: '6px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                  {selectedPartner?.electrician_name ? `${selectedPartner.electrician_name} ${selectedPartner.electrician_phone ? `(${selectedPartner.electrician_phone})` : ''}` : 'No Electrician assigned'}
                 </div>
-                <SearchableSelect
-                  placeholder="Select Electrician"
-                  value={orderHeader.electricianId}
-                  onChange={(val) => setOrderHeader({ ...orderHeader, electricianId: val })}
-                  options={masterData.electricians.map((e) => ({ value: e.id, label: e.name }))}
-                  small
-                />
-                {selectedElectrician?.phone && (
-                   <div style={{ marginTop: '6px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', color: '#64748b', fontWeight: 600 }}>
-                     <Phone size={12} className="text-blue-400" /> {selectedElectrician.phone}
-                   </div>
-                )}
               </div>
             </div>
           </div>
@@ -1357,19 +1387,35 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                 </button>
               </div>
                 
-                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', marginLeft: isMobile ? '0' : 'auto', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'center' : 'flex-end', padding: '4px 8px' }}>
-                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                     <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 800, letterSpacing: '0.02em' }}>GROSS:</span>
-                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>Rs.{rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0), 0).toLocaleString()}</span>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: isMobile ? 'column' : 'row',
+                  gap: isMobile ? '0.5rem' : '1.25rem', 
+                  alignItems: isMobile ? 'flex-end' : 'center', 
+                  marginLeft: isMobile ? '0' : 'auto', 
+                  width: isMobile ? '100%' : 'auto', 
+                  justifyContent: isMobile ? 'flex-end' : 'flex-end', 
+                  padding: '8px 12px',
+                  background: isMobile ? '#f8fafc' : 'transparent',
+                  borderRadius: '12px',
+                  marginTop: isMobile ? '0.5rem' : '0',
+                  border: isMobile ? '1px solid #e2e8f0' : 'none'
+                }}>
+                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center', width: isMobile ? '100%' : 'auto', justifyContent: 'flex-end' }}>
+                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                       <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.02em' }}>GROSS:</span>
+                       <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>Rs.{rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0), 0).toLocaleString()}</span>
+                     </div>
+                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                       <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.02em' }}>DISC:</span>
+                       <span style={{ fontSize: '13px', fontWeight: 700, color: '#ef4444' }}>-Rs.{rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0)*(parseFloat(r.discount)||0)/100, 0).toLocaleString()}</span>
+                     </div>
                    </div>
-                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                     <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 800, letterSpacing: '0.02em' }}>DISC:</span>
-                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#ef4444' }}>-Rs.{rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0)*(parseFloat(r.discount)||0)/100, 0).toLocaleString()}</span>
-                   </div>
-                   <div style={{ width: '1px', height: '16px', backgroundColor: '#e2e8f0' }} />
-                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                   {!isMobile && <div style={{ width: '1px', height: '16px', backgroundColor: '#e2e8f0' }} />}
+                   {isMobile && <div style={{ width: '100%', height: '1px', backgroundColor: '#e2e8f0' }} />}
+                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', width: isMobile ? '100%' : 'auto', justifyContent: 'flex-end' }}>
                      <span style={{ fontSize: '12px', color: '#1e293b', fontWeight: 900, letterSpacing: '0.02em' }}>FINAL:</span>
-                     <span style={{ fontSize: '18px', fontWeight: 900, color: '#059669' }}>Rs.{total.toLocaleString()}</span>
+                     <span style={{ fontSize: isMobile ? '24px' : '18px', fontWeight: 900, color: '#059669' }}>Rs.{total.toLocaleString()}</span>
                    </div>
                 </div>
               </div>
@@ -1468,24 +1514,33 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                       const userName = masterData.users?.find(u => u.id === parseInt(act.user_id))?.name || 'Self';
                       return (
                         <div key={act.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0' }}>
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0', marginTop: '2px' }}>
                               <Clock size={16} className="text-blue-500" />
                             </div>
                             <div>
                               <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{act.summary || typeName}</div>
+                              {act.note && (
+                                <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                              )}
                               <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
                                 <span>📅 {act.date_deadline}</span>
                                 <span>👤 {userName}</span>
                               </div>
                             </div>
                           </div>
-                          <button 
-                            onClick={() => setScheduledActivities(prev => prev.filter(a => a.id !== act.id))}
-                            style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
-                          >
-                            <Trash size={16} />
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setScheduledActivities(prev => prev.filter(a => a.id !== act.id));
+                              }}
+                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                              title="Delete Activity"
+                            >
+                              <Trash size={16} className="hover:text-red-500" />
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -1545,14 +1600,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                           <span className="gn-by">By {note.by}</span>
                           <span className="gn-date">{note.date}</span>
                         </div>
-                        <div className="gn-item-actions" style={{ display: 'flex', gap: '8px' }}>
-                          <button onClick={() => handleEditNote(note.id, note.text)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }} title="Edit Note">
-                            <Pencil size={14} className="text-slate-400 hover:text-blue-500" />
-                          </button>
                           <button onClick={() => handleDeleteNote(note.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }} title="Delete Note">
                             <Trash size={14} className="text-slate-400 hover:text-red-500" />
                           </button>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -1652,7 +1702,18 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                     <span className="activity-label">{act.title}</span>
                   </div>
                   <div className="activity-actions">
-                    <Plus size={16} />
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddActivityNote(act.id);
+                        if(showMore !== act.id) setShowMore(act.id);
+                      }} 
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                      title="Add note to this section"
+                      className="text-slate-400 hover:text-blue-600"
+                    >
+                      <Plus size={16} />
+                    </button>
                     <ChevronDown size={18} className={showMore === act.id ? 'rotate-180' : ''} />
                   </div>
                 </div>
@@ -1700,14 +1761,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                 <span className="note-by">By {note.by}</span>
                                 <span className="note-date">{note.date}</span>
                               </div>
-                              <div className="note-actions" style={{ display: 'flex', gap: '10px' }}>
-                                <button onClick={() => handleEditActivityNote(act.id, note.id, note.text)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '2px' }}>
-                                  <Pencil size={14} className="text-slate-300 hover:text-blue-500" />
-                                </button>
                                 <button onClick={() => handleDeleteActivityNote(act.id, note.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '2px' }}>
                                   <Trash size={14} className="text-slate-300 hover:text-red-500" />
                                 </button>
-                              </div>
                             </div>
                           </div>
                         </div>
@@ -1771,111 +1827,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           </button>
         </div>
       </div> 
-      {modalState.show && (
-        <div className="modal-overlay" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '1rem',
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div className="modal-content" style={{
-            backgroundColor: '#fff',
-            padding: '24px',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '440px',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>Add Professional</h3>
-              <button onClick={() => setModalState({ ...modalState, show: false })} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Name *</label>
-                <input 
-                  className="clean-input w-full" 
-                  value={modalState.newName} 
-                  onChange={(e) => setModalState({ ...modalState, newName: e.target.value })} 
-                  placeholder="Enter Name" 
-                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600 }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Phone</label>
-                <input 
-                  className="clean-input w-full" 
-                  value={modalState.newPhone} 
-                  onChange={(e) => setModalState({ ...modalState, newPhone: e.target.value })} 
-                  placeholder="Enter Number" 
-                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600 }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                padding: '12px', 
-                border: '1px solid #e2e8f0', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                backgroundColor: modalState.isElectrician ? '#f0f9ff' : 'transparent',
-                borderColor: modalState.isElectrician ? '#3b82f6' : '#e2e8f0'
-              }}>
-                <input 
-                  type="checkbox" 
-                  checked={modalState.isElectrician} 
-                  onChange={(e) => setModalState({ ...modalState, isElectrician: e.target.checked })}
-                />
-                <span style={{ fontSize: '14px', fontWeight: 700, color: modalState.isElectrician ? '#1d4ed8' : '#64748b' }}>Electrician</span>
-              </label>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                padding: '12px', 
-                border: '1px solid #e2e8f0', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                backgroundColor: modalState.isArchitect ? '#f0f9ff' : 'transparent',
-                borderColor: modalState.isArchitect ? '#3b82f6' : '#e2e8f0'
-              }}>
-                <input 
-                  type="checkbox" 
-                  checked={modalState.isArchitect} 
-                  onChange={(e) => setModalState({ ...modalState, isArchitect: e.target.checked })}
-                />
-                <span style={{ fontSize: '14px', fontWeight: 700, color: modalState.isArchitect ? '#1d4ed8' : '#64748b' }}>Architect</span>
-              </label>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                className="co-btn-primary" 
-                style={{ flex: 1, height: '48px', borderRadius: '12px' }}
-                onClick={handleUpdateFlags}
-                disabled={!modalState.newName || savingFlags}
-              >
-                {savingFlags ? 'Saving...' : 'Add Professional'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

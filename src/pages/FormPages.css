@@ -115,7 +115,7 @@
   display: flex;
   gap: 1.5rem;
   overflow-x: auto; /* Allow horizontal scroll if they exceed width */
-  padding-bottom: 0.5rem;
+  padding: 0 1rem 0.5rem 1rem; /* Added left/right padding so it doesn't touch edges */
   scrollbar-width: thin;
 }
 
@@ -144,9 +144,10 @@
 .selection-item-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  height: 32px; /* Fixed height for consistent vertical alignment */
-  margin-bottom: 0.5rem;
+  align-items: flex-end; /* Align label and button to bottom */
+  height: 32px;
+  margin-bottom: 1rem; /* More space between label and card box */
+  padding: 0 4px;
 }
 
 .selection-item label {
@@ -163,7 +164,8 @@
   border-radius: 20px;
   display: flex;
   flex-direction: column;
-  padding: 1.25rem;
+  justify-content: space-between; /* Spread content top/bottom */
+  padding: 1.5rem 1.25rem 1.25rem 1.25rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   height: 135px; /* Fixed height for uniformity */
   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
@@ -293,7 +295,8 @@
 
 /* Small adjustments to group for 4 items */
 .selection-item {
-  flex: 0 0 250px; /* Consistent width for all cards to stay in row */
+  flex: 1 1 22%; /* Adjust to fit 4 in a row */
+  min-width: 200px;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

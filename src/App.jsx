@@ -146,7 +146,7 @@ function App() {
       case 'create-selection':
         return <CreateOrder editId={selectedId} isSelection={true} onNavigate={handleNavigate} extraData={extraData} />;
       case 'create-customer':
-        return <CreateCustomer onNavigate={handleNavigate} />;
+        return <CreateCustomer onNavigate={handleNavigate} extraData={extraData} />;
       case 'create-product':
         return <CreateProductPage onNavigate={handleNavigate} />;
       case 'catalog':

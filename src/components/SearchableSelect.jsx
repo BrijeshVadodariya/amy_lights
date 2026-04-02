@@ -6,7 +6,7 @@ import './SearchableSelect.css';
  * SearchableSelect component.
  * Reusable dropdown with search input and scrollable list.
  */
-const SearchableSelect = ({ placeholder, options, value, onChange, onSelect, small }) => {
+const SearchableSelect = ({ placeholder, options, value, onChange, onSelect, small, defaultValue }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [menuStyle, setMenuStyle] = useState({});
@@ -15,8 +15,9 @@ const SearchableSelect = ({ placeholder, options, value, onChange, onSelect, sma
 
   const selectedLabel = useMemo(() => {
     const found = options.find((opt) => String(opt.value) === String(value));
-    return found ? found.label : '';
-  }, [options, value]);
+    if (found) return found.label;
+    return defaultValue || '';
+  }, [options, value, defaultValue]);
 
   const filtered = useMemo(() => {
     const lower = query.toLowerCase();

@@ -4,9 +4,12 @@ import { odooService } from '../services/odoo';
 import SearchableSelect from '../components/SearchableSelect';
 import './FormPages.css';
 
-const CreateCustomer = ({ onNavigate }) => {
+const CreateCustomer = ({ onNavigate, extraData }) => {
+  // Where to go back after creating — set by the calling form (create-order / create-selection / create-direct-order)
+  const returnRoute = extraData?.returnRoute || 'create-order';
   const [saving, setSaving] = useState(false);
   const [masterData, setMasterData] = useState({ partners: [], architects: [], electricians: [] });
+  const [modalState, setModalState] = useState({ show: false, newName: '', newPhone: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
   const [customer, setCustomer] = useState({
     name: '',
     mobile: '',
@@ -25,6 +28,8 @@ const CreateCustomer = ({ onNavigate }) => {
     competitor: '',
     budget: '',
     gstNo: '',
+    architectId: '',
+    electricianId: ''
   });
 
   const [hasChanges, setHasChanges] = useState(false);
@@ -34,16 +39,28 @@ const CreateCustomer = ({ onNavigate }) => {
     setHasChanges(isDirty);
   }, [customer]);
 
-  const safeNavigate = (to) => {
+  const safeNavigate = (to, id = null, data = null) => {
     if (hasChanges) {
       if (window.confirm("You have unsaved changes. Are you sure?")) {
         setHasChanges(false);
-        onNavigate(to);
+        onNavigate(to, id, data);
       }
     } else {
-      onNavigate(to);
+      onNavigate(to, id, data);
     }
   };
+
+  useEffect(() => {
+    odooService.getMasterData().then(res => {
+      if (res) {
+        setMasterData(prev => ({
+          ...prev,
+          architects: res.architects || [],
+          electricians: res.electricians || []
+        }));
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -86,12 +103,46 @@ const CreateCustomer = ({ onNavigate }) => {
 
       if (!res) {
         alert('Customer creation failed');
+        return;
       }
-      onNavigate('create-order');
+      // Navigate back to the originating form with the new partner pre-selected
+      setHasChanges(false);
+      onNavigate(returnRoute, null, { preFilledPartnerId: res.id || res.data?.id });
     } catch {
       alert('Customer creation failed');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveProfessional = async () => {
+    if (!modalState.newName) return alert("Professional Name is required");
+    try {
+      const res = await odooService.createPartner({
+        name: modalState.newName,
+        phone: modalState.newPhone,
+        street: modalState.newAddress,
+        comment: modalState.newNote,
+        is_architect: modalState.isArchitect,
+        is_electrician: modalState.isElectrician
+      });
+      if (res) {
+        setMasterData(prev => {
+          const newData = { ...prev };
+          if (modalState.isArchitect) newData.architects = [...newData.architects, res];
+          if (modalState.isElectrician) newData.electricians = [...newData.electricians, res];
+          return newData;
+        });
+        setCustomer(prev => {
+          const newCust = { ...prev };
+          if (modalState.isArchitect) newCust.architectId = res.id;
+          if (modalState.isElectrician) newCust.electricianId = res.id;
+          return newCust;
+        });
+        setModalState({ show: false, newName: '', newPhone: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
+      }
+    } catch {
+      alert("Creation failed");
     }
   };
 
@@ -103,7 +154,7 @@ const CreateCustomer = ({ onNavigate }) => {
             <h2>Create Customer</h2>
             <p className="form-subtitle">Add customer details and return to quotation.</p>
           </div>
-          <button className="btn-ui secondary" onClick={() => safeNavigate('create-order')} aria-label="Back to quotation">
+          <button className="btn-ui secondary" onClick={() => safeNavigate(returnRoute)} aria-label="Back to quotation">
             <X size={16} /> Close
           </button>
         </div>
@@ -111,7 +162,7 @@ const CreateCustomer = ({ onNavigate }) => {
         <div className="form-selection-layout">
           <div className="selection-group">
             {/* Client (New Customer Details) */}
-            <div className="selection-item" style={{ marginLeft: '12px' }}>
+            <div className="selection-item">
               <div className="selection-item-header">
                 <label>Client</label>
               </div>
@@ -134,6 +185,74 @@ const CreateCustomer = ({ onNavigate }) => {
                       onChange={(e) => setCustomer({ ...customer, mobile: e.target.value })} 
                       placeholder="Enter Mobile Number" 
                     />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Electrician Selection */}
+            <div className="selection-item">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', marginTop: '12px' }}>
+                <label style={{ margin: 0 }}>Electrician</label>
+                <button 
+                  className="btn-ui secondary mini" 
+                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
+                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: true })}
+                >
+                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
+                </button>
+              </div>
+              <div className="selection-card-box">
+                <div className="selection-card-content">
+                  <div className="selection-card-top p-input-field">
+                    <SearchableSelect
+                      placeholder="Select Electrician"
+                      value={customer.electricianId}
+                      onChange={(val) => setCustomer({ ...customer, electricianId: val })}
+                      options={masterData.electricians?.map((e) => ({ value: e.id, label: e.name || 'Unknown' })) || []}
+                      className="clean-select"
+                    />
+                  </div>
+                  <div className="selection-divider"></div>
+                  <div className="selection-card-bottom">
+                    <Phone size={14} className="text-slate-400" />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
+                      {(masterData.electricians?.find(e => e.id === parseInt(customer.electricianId)))?.phone || '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Architect Selection */}
+            <div className="selection-item">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', marginTop: '12px' }}>
+                <label style={{ margin: 0 }}>Architect</label>
+                <button 
+                  className="btn-ui secondary mini" 
+                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
+                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', newAddress: '', newNote: '', isArchitect: true, isElectrician: false })}
+                >
+                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
+                </button>
+              </div>
+              <div className="selection-card-box">
+                <div className="selection-card-content">
+                  <div className="selection-card-top p-input-field">
+                    <SearchableSelect
+                      placeholder="Select Architect"
+                      value={customer.architectId}
+                      onChange={(val) => setCustomer({ ...customer, architectId: val })}
+                      options={masterData.architects?.map((a) => ({ value: a.id, label: a.name || 'Unknown' })) || []}
+                      className="clean-select"
+                    />
+                  </div>
+                  <div className="selection-divider"></div>
+                  <div className="selection-card-bottom">
+                    <Phone size={14} className="text-slate-400" />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
+                      {(masterData.architects?.find(a => a.id === parseInt(customer.architectId)))?.phone || '-'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -247,17 +366,9 @@ const CreateCustomer = ({ onNavigate }) => {
                   placeholder="Name" 
                 />
               </div>
-              <div className="od-row">
-                <span className="od-label">Channel Partner</span>
-                <input 
-                  className="od-input" 
-                  value={customer.channelPartner}
-                  onChange={(e) => setCustomer({ ...customer, channelPartner: e.target.value })} 
-                  placeholder="Channel Partner" 
-                />
-              </div>
-              <div className="od-row">
-                <span className="od-label">Source Type</span>
+            
+            <div className="od-row">
+              <span className="od-label">Source Type</span>
                 <input 
                   className="od-input" 
                   value={customer.sourceType} 
@@ -301,11 +412,137 @@ const CreateCustomer = ({ onNavigate }) => {
           <button className="btn-ui primary lg" onClick={handleSubmit} disabled={!canSubmit || saving}>
             {saving ? 'Submitting...' : 'Submit'}
           </button>
-          <button className="btn-ui secondary lg" onClick={() => safeNavigate('create-order')}>
+          <button className="btn-ui secondary lg" onClick={() => safeNavigate(returnRoute)}>
             Back
           </button>
         </div>
       </div>
+
+      {modalState.show && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div className="modal-content" style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '440px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>Add Professional</h3>
+              <button onClick={() => setModalState({ ...modalState, show: false })} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Name *</label>
+                <input 
+                  className="clean-input w-full" 
+                  value={modalState.newName} 
+                  onChange={(e) => setModalState({ ...modalState, newName: e.target.value })} 
+                  placeholder="Enter Name" 
+                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600 }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Phone</label>
+                <input 
+                  className="clean-input w-full" 
+                  value={modalState.newPhone} 
+                  onChange={(e) => setModalState({ ...modalState, newPhone: e.target.value })} 
+                  placeholder="Enter Number" 
+                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600 }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Address</label>
+                <input 
+                  className="clean-input w-full" 
+                  value={modalState.newAddress} 
+                  onChange={(e) => setModalState({ ...modalState, newAddress: e.target.value })} 
+                  placeholder="Enter Address" 
+                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600 }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Note</label>
+                <textarea 
+                  className="clean-input w-full" 
+                  value={modalState.newNote} 
+                  onChange={(e) => setModalState({ ...modalState, newNote: e.target.value })} 
+                  placeholder="Add a remark..." 
+                  style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600, minHeight: '80px', resize: 'vertical' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '12px', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backgroundColor: modalState.isElectrician ? '#f0f9ff' : 'transparent',
+                borderColor: modalState.isElectrician ? '#3b82f6' : '#e2e8f0'
+              }}>
+                <input 
+                  type="checkbox" 
+                  checked={modalState.isElectrician} 
+                  onChange={(e) => setModalState({ ...modalState, isElectrician: e.target.checked })}
+                />
+                <span style={{ fontSize: '14px', fontWeight: 700, color: modalState.isElectrician ? '#1d4ed8' : '#64748b' }}>Electrician</span>
+              </label>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '12px', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backgroundColor: modalState.isArchitect ? '#f0f9ff' : 'transparent',
+                borderColor: modalState.isArchitect ? '#3b82f6' : '#e2e8f0'
+              }}>
+                <input 
+                  type="checkbox" 
+                  checked={modalState.isArchitect} 
+                  onChange={(e) => setModalState({ ...modalState, isArchitect: e.target.checked })}
+                />
+                <span style={{ fontSize: '14px', fontWeight: 700, color: modalState.isArchitect ? '#1d4ed8' : '#64748b' }}>Architect</span>
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                className="btn-ui primary w-full" 
+                style={{ flex: 1, height: '48px', borderRadius: '12px' }}
+                onClick={handleSaveProfessional}
+                disabled={!modalState.newName}
+              >
+                Add Professional
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
