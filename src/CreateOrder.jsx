@@ -84,6 +84,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const [showMore, setShowMore] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [taskEditText, setTaskEditText] = useState({});
   const [noteEditText, setNoteEditText] = useState("");
   const [editingActivityNoteId, setEditingActivityNoteId] = useState(null);
   const [activityNoteEditText, setActivityNoteNoteEditText] = useState("");
@@ -442,7 +444,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       console.error('Edit fetch failed', err);
     }
     finally { setLoading(false); }
-  }, [editId, masterData.partners, masterData.products]);
+  }, [editId]); // Removed masterData dependencies to prevent infinite reload loop
 
   useEffect(() => {
     if (extraData) {
@@ -654,7 +656,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   React.useEffect(() => {
     fetchMasterData();
     if (editId) fetchEditOrder();
-  }, [editId, fetchMasterData, fetchEditOrder]);
+    // Only triggering on editId mount/change to prevent recursive reloads
+  }, [editId]); 
 
   const handleRowChange = (id, field, value) => {
     setRows(prev => prev.map(r => {
@@ -1519,17 +1522,83 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                               <Clock size={16} className="text-blue-500" />
                             </div>
                             <div>
-                              <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{act.summary || typeName}</div>
-                              {act.note && (
-                                <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                              {editingTaskId === act.id ? (
+                                <div style={{ background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #3b82f6', marginTop: '4px' }}>
+                                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                                      <select 
+                                        className="co-select-v2" 
+                                        value={taskEditText.activity_type_id}
+                                        onChange={e => setTaskEditText({...taskEditText, activity_type_id: parseInt(e.target.value)})}
+                                        style={{ height: '32px', fontSize: '12px', padding: '0 4px' }}
+                                      >
+                                        {(masterData.activity_types || []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                      </select>
+                                      <input 
+                                        type="date" 
+                                        className="co-input-v2" 
+                                        value={taskEditText.date_deadline} 
+                                        onChange={e => setTaskEditText({...taskEditText, date_deadline: e.target.value})}
+                                        style={{ height: '32px', fontSize: '12px', padding: '0 4px' }}
+                                      />
+                                   </div>
+                                   <input 
+                                      className="co-input-v2" 
+                                      value={taskEditText.summary} 
+                                      onChange={e => setTaskEditText({...taskEditText, summary: e.target.value})}
+                                      placeholder="Summary"
+                                      style={{ height: '32px', fontSize: '12px', padding: '0 4px', width: '100%', marginBottom: '8px' }}
+                                   />
+                                   <textarea 
+                                      className="co-textarea" 
+                                      value={taskEditText.note} 
+                                      onChange={e => setTaskEditText({...taskEditText, note: e.target.value})}
+                                      placeholder="Add Notes..."
+                                      style={{ minHeight: '60px', fontSize: '12px', padding: '8px', width: '100%', marginBottom: '8px' }}
+                                   />
+                                   <div style={{ display: 'flex', gap: '12px' }}>
+                                      <button 
+                                        onClick={() => {
+                                          setScheduledActivities(prev => prev.map(a => a.id === act.id ? { ...taskEditText } : a));
+                                          setEditingTaskId(null);
+                                        }}
+                                        style={{ color: '#3b82f6', fontWeight: 800, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}
+                                      >
+                                        Save
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingTaskId(null)}
+                                        style={{ color: '#64748b', fontWeight: 600, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}
+                                      >
+                                        Cancel
+                                      </button>
+                                   </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{act.summary || typeName}</div>
+                                  {act.note && (
+                                    <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                                  )}
+                                  <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
+                                    <span>📅 {act.date_deadline}</span>
+                                    <span>👤 {userName}</span>
+                                  </div>
+                                </>
                               )}
-                              <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
-                                <span>📅 {act.date_deadline}</span>
-                                <span>👤 {userName}</span>
-                              </div>
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: '8px' }}>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingTaskId(act.id);
+                                setTaskEditText({ ...act });
+                              }}
+                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                              title="Edit Activity"
+                            >
+                              <Edit2 size={15} className="hover:text-blue-500" />
+                            </button>
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1568,78 +1637,148 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           
           {showNotes && (
             <div className="co-card-body">
-              <div className="general-notes-list">
+              <div className="gn-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {generalNotes.map(note => (
-                  <div key={note.id} className="general-note-item">
-                    <div className="gn-avatar-wrapper">
-                      <div className="gn-avatar">{note.by.substring(0,2).toUpperCase()}</div>
+                  <div key={note.id} className="gn-note-card" style={{ 
+                    background: '#fff', 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: '12px', 
+                    padding: '1rem',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          borderRadius: '50%', 
+                          background: '#f1f5f9', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          {note.by.substring(0,2).toUpperCase()}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{note.by}</span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>{note.date}</span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button 
+                          onClick={() => {
+                            setEditingNoteId(note.id);
+                            setNoteEditText(note.text);
+                          }} 
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} 
+                          title="Edit Note"
+                          className="hover:text-blue-500 transition-colors"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteNote(note.id)} 
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} 
+                          title="Delete Note"
+                          className="hover:text-red-500 transition-colors"
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="gn-content">
+
+                    <div className="gn-card-content">
                       {editingNoteId === note.id ? (
-                        <div className="gn-edit-mode">
-                          <textarea className="co-textarea" value={noteEditText} onChange={e => setNoteEditText(e.target.value)} />
-                          <div className="gn-edit-actions" style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                            <button className="co-btn-text text-blue-600" onClick={() => saveEditNote(note.id)}>Save</button>
-                            <button className="co-btn-text text-slate-500" onClick={() => setEditingNoteId(null)}>Cancel</button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <textarea 
+                            className="co-textarea" 
+                            value={noteEditText} 
+                            onChange={e => setNoteEditText(e.target.value)} 
+                            style={{ 
+                              width: '100%', 
+                              minHeight: '80px', 
+                              padding: '10px', 
+                              borderRadius: '8px', 
+                              border: '1px solid #3b82f6',
+                              fontSize: '14px'
+                            }}
+                          />
+                          <div style={{ display: 'flex', gap: '12px' }}>
+                            <button style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => saveEditNote(note.id)}>Save Changes</button>
+                            <button style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setEditingNoteId(null)}>Cancel</button>
                           </div>
                         </div>
                       ) : (
-                        <p className="gn-text">{note.text}</p>
+                        <p style={{ 
+                          fontSize: '14px', 
+                          lineHeight: '1.5', 
+                          color: '#334155', 
+                          margin: 0,
+                          whiteSpace: 'pre-wrap'
+                        }}>{note.text}</p>
                       )}
+
                       {note.images && note.images.length > 0 && (
-                        <div className="gn-images-preview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
                           {note.images.map((img, i) => (
-                            <div key={i} className="gn-img-item" style={{ width: '80px', height: '80px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                              <img src={img} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'contain', cursor: 'pointer' }} />
+                            <div key={i} style={{ width: '60px', height: '60px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                              <img src={img} alt="attachment" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} />
                             </div>
                           ))}
                         </div>
                       )}
-                      <div className="gn-meta">
-                        <div className="gn-bottom">
-                          <span className="gn-by">By {note.by}</span>
-                          <span className="gn-date">{note.date}</span>
-                        </div>
-                          <button onClick={() => handleDeleteNote(note.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }} title="Delete Note">
-                            <Trash size={14} className="text-slate-400 hover:text-red-500" />
-                          </button>
-                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="gn-input-wrapper" style={{ marginTop: '0.75rem', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+
+              <div className="gn-input-card" style={{ 
+                marginTop: '1.25rem', 
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '16px',
+                padding: '1rem',
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-end'
+              }}>
                 <textarea 
                   placeholder="Add Note (Use Shift+Enter for new lines)" 
-                  className="gn-input" 
                   value={generalNoteInput} 
                   onChange={e => setGeneralNoteInput(e.target.value)}
                   style={{ 
                     border: '1px solid #e2e8f0', 
-                    padding: '12px 14px', 
-                    borderRadius: '12px', 
+                    padding: '12px', 
+                    borderRadius: '10px', 
                     flex: 1,
-                    minHeight: '60px',
+                    minHeight: '48px',
+                    maxHeight: '150px',
                     fontSize: '14px',
                     lineHeight: '1.5',
-                    resize: 'vertical',
-                    backgroundColor: '#f8fafc'
+                    resize: 'none',
+                    backgroundColor: '#fff',
+                    outline: 'none'
                   }} 
                 />
                 <button 
                   onClick={handleAddGeneralNote}
                   style={{ 
-                    flex: '0 0 44px', 
-                    height: '44px', 
+                    width: '42px', 
+                    height: '42px', 
                     backgroundColor: '#3b82f6', 
                     color: '#fff', 
                     border: 'none', 
-                    borderRadius: '12px', 
+                    borderRadius: '10px', 
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2)'
+                    boxShadow: '0 2px 4px rgba(59, 130, 246, 0.2)',
+                    flexShrink: 0
                   }}
                   title="Send Note"
                 >
