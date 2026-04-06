@@ -204,12 +204,12 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
               <table className="products-datatable" style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse' }}>
                 <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
                   <tr>
-                    <th className="py-3 px-4 text-left border-none">Number</th>
+                    <th className="py-3 px-4 text-left border-none">Salesperson</th>
                     <th className="py-3 px-4 text-left border-none">Customer</th>
+                    <th className="py-3 px-4 text-left border-none">Note</th>
+                    <th className="py-3 px-4 text-left border-none">Professional</th>
                     <th className="py-3 px-4 text-center border-none">Date</th>
-                    <th className="py-3 px-4 text-left border-none">Architect</th>
-                    <th className="py-3 px-4 text-left border-none">Electrician</th>
-                    <th className="py-3 px-4 text-center border-none">Status</th>
+                    <th className="py-3 px-4 text-right border-none">Amount</th>
                     <th className="py-3 px-4 text-center w-36 border-none">Action</th>
                   </tr>
                 </thead>
@@ -220,18 +220,52 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                       className="row-hover"
                       onClick={() => onNavigate('order-detail', order.id)}
                     >
-                      <td className="py-3 px-4 font-bold text-slate-800 text-[12px]" data-label="Number">{order.name}</td>
-                      <td className="py-3 px-4" data-label="Customer">
-                        <div className="font-semibold text-slate-700">{order.customer || '-'}</div>
-                        {order.phone && <div className="text-[11px] text-slate-400 mt-0.5">{order.phone}</div>}
+                      <td className="py-3 px-4" data-label="Salesperson">
+                        <div style={{ fontWeight: '600', color: '#4f46e5' }}>{order.salesperson || '-'}</div>
                       </td>
-                      <td className="py-3 px-4 text-center" data-label="Date">{order.order_date || '-'}</td>
-                      <td className="py-3 px-4" data-label="Architect">{order.architect || '-'}</td>
-                      <td className="py-3 px-4" data-label="Electrician">{order.electrician || '-'}</td>
-                      <td className="py-3 px-4 text-center" data-label="Status">
-                        <span className={`status-pill status-${order.status} px-2 py-1 rounded text-[10px] font-bold uppercase`}>
-                          {order.status}
-                        </span>
+                      <td className="py-3 px-4" data-label="Customer">
+                        <div style={{ fontWeight: '700', color: '#1e293b' }}>{order.customer || '-'}</div>
+                        {order.phone && <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{order.phone}</div>}
+                      </td>
+                      <td className="py-3 px-4" data-label="Note">
+                        <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={order.last_note}>
+                          {order.last_note || '-'}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4" data-label="Professional">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {order.architect && (
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ fontSize: '9px', color: 'white', backgroundColor: '#3b82f6', padding: '2px 4px', borderRadius: '4px', fontWeight: 'bold' }}>ARCH</span>
+                                <span style={{ fontWeight: '500', color: '#334155' }}>{order.architect}</span>
+                              </div>
+                              {order.architect_phone && (
+                                <div style={{ fontSize: '11px', color: '#64748b', marginLeft: '34px', marginTop: '2px' }}>
+                                  {order.architect_phone}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {order.electrician && (
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ fontSize: '9px', color: 'white', backgroundColor: '#22c55e', padding: '2px 4px', borderRadius: '4px', fontWeight: 'bold' }}>ELEC</span>
+                                <span style={{ fontWeight: '500', color: '#334155' }}>{order.electrician}</span>
+                              </div>
+                              {order.electrician_phone && (
+                                <div style={{ fontSize: '11px', color: '#64748b', marginLeft: '34px', marginTop: '2px' }}>
+                                  {order.electrician_phone}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {!order.architect && !order.electrician && <span style={{ color: '#cbd5e1' }}>-</span>}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-center text-slate-600" data-label="Date">{order.order_date || '-'}</td>
+                      <td className="py-3 px-4 text-right" data-label="Amount" style={{ fontWeight: '700', color: '#0f172a' }}>
+                        {order.currency_symbol} {parseFloat(order.amount_total || 0).toLocaleString()}
                       </td>
                       <td 
                         className="py-4 px-4 border-none" 

@@ -31,7 +31,6 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
       ]
     },
     { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'purchase_orders', label: 'Purchase Orders', icon: ShoppingBag },
   ];
 
   const handleTabClick = (itemOrId) => {

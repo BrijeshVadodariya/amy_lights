@@ -12,14 +12,12 @@ const Dashboard = ({ user, onNavigate }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statsRes, salesRes, purchaseRes] = await Promise.all([
+      const [statsRes, salesRes] = await Promise.all([
         odooService.getStats(),
-        odooService.getOrders(5),
-        odooService.getPurchaseOrders(5)
+        odooService.getOrders(5)
       ]);
       setStats(statsRes);
       setRecentSales(salesRes.orders || []);
-      setRecentPurchases(purchaseRes.orders || []);
     } catch (err) {
       console.error("Failed to load dashboard data", err);
     } finally {

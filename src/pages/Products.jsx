@@ -10,7 +10,7 @@ const Products = ({ onNavigate }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [entriesPerPage, setEntriesPerPage] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingRest, setLoadingRest] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -150,7 +150,8 @@ const Products = ({ onNavigate }) => {
                 value={entriesPerPage}
                 onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
               >
-                <option value={10}>10</option>
+                <option value={8}>8</option>
+                <option value={20}>20</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
               </select>

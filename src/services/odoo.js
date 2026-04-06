@@ -101,13 +101,6 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },
-  getPurchaseOrders: async (limit = 100, offset = 0) => {
-    const res = await api.post('/api/purchase_orders', {
-      params: { limit, offset }
-    });
-    const result = res.data.result || { success: false, error: res.data.error };
-    return result.data || result;
-  },
   getStats: async () => {
     const res = await api.post('/api/dashboard/stats', { params: {} });
     const result = res.data.result || { success: false, error: res.data.error };

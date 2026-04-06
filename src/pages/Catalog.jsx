@@ -23,7 +23,7 @@ const Catalog = ({ onNavigate, partnerId, extraData }) => {
   const [cart, setCart] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingRest, setLoadingRest] = useState(false);
-  const itemsPerPage = 40;
+  const itemsPerPage = 20;
 
   useEffect(() => {
     setCurrentPage(1);

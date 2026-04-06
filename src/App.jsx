@@ -5,7 +5,6 @@ import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
 import Products from './pages/Products';
-import PurchaseOrders from './pages/PurchaseOrders';
 import OrderDetail from './pages/OrderDetail';
 import ProductDetail from './pages/ProductDetail';
 import { getOdooErrorMessage, odooService } from './services/odoo';
@@ -134,8 +133,6 @@ function App() {
         return <Orders stateType="order" onNavigate={handleNavigate} />;
       case 'selection':
         return <Orders stateType="selection" onNavigate={handleNavigate} />;
-      case 'purchase_orders':
-        return <PurchaseOrders onNavigate={handleNavigate} />;
       case 'customers':
         return <Customers onNavigate={handleNavigate} />;
       case 'order-detail':

@@ -403,7 +403,9 @@
   .dt-flex span, 
   .dt-flex label, 
   .dt-controls label, 
-  .dt-controls .text-sm {
+  .dt-controls .text-sm,
+  .dt-control-label,
+  .entries-per-page span {
     display: none !important;
   }
 
@@ -703,5 +705,4 @@
   color: #4f46e5;
   display: flex;
   align-items: center;
-  justify-content: center;
 }

@@ -169,10 +169,28 @@
 @media (max-width: 1200px) { /* No specific override needed, auto-fill handles it */ }
 @media (max-width: 992px) { /* No specific override needed, auto-fill handles it */ }
 @media (max-width: 640px) {
+  .catalog-page {
+    padding: 0.4rem;
+  }
+  
+  .dt-card {
+    border-radius: 16px;
+    margin-bottom: 0.5rem;
+    padding: 0;
+  }
+
+  .catalog-header-main {
+    padding: 0.75rem 1rem;
+  }
+
   .catalog-grid {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-    padding: 1.25rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
+    padding: 0.4rem;
+  }
+
+  .catalog-filters-row {
+    gap: 0.5rem;
   }
 }
 
