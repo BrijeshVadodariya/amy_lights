@@ -390,11 +390,19 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         });
 
         if (missingPartners.length > 0 || missingProducts.length > 0) {
-          setMasterData(prev => ({
-            ...prev,
-            partners: [...prev.partners, ...missingPartners],
-            products: [...prev.products, ...missingProducts]
-          }));
+          setMasterData(prev => {
+            const partnerMap = new Map();
+            [...prev.partners, ...missingPartners].forEach(p => partnerMap.set(p.id, p));
+            
+            const productMap = new Map();
+            [...prev.products, ...missingProducts].forEach(p => productMap.set(p.id, p));
+
+            return {
+              ...prev,
+              partners: Array.from(partnerMap.values()),
+              products: Array.from(productMap.values())
+            };
+          });
         }
 
         // Set rows AFTER masterData update (ideally) but React batches these anyway
@@ -1033,7 +1041,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                         electricianId: selected?.electrician_id || orderHeader.electricianId
                       });
                     }}
-                    options={Array.from(new Map(masterData.partners.filter(p => p && p.id).map(p => [String(p.id), p])).values()).map((p) => ({ value: p.id, label: p.name }))}
+                    options={Array.from(new Map(masterData.partners.filter(p => p && p.id).map(p => [String(p.name).toLowerCase().trim(), p])).values()).map((p) => ({ value: p.id, label: p.name }))}
                   />
                 </div>
 
