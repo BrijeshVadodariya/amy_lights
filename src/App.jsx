@@ -133,6 +133,8 @@ function App() {
         return <Orders stateType="order" onNavigate={handleNavigate} />;
       case 'selection':
         return <Orders stateType="selection" onNavigate={handleNavigate} />;
+      case 'cancelled':
+        return <Orders stateType="cancel" onNavigate={handleNavigate} />;
       case 'customers':
         return <Customers onNavigate={handleNavigate} />;
       case 'order-detail':

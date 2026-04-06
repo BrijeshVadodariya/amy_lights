@@ -9,7 +9,8 @@ import {
   ChevronUp,
   FileText,
   Clock,
-  Users
+  Users,
+  XCircle
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -27,7 +28,8 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
       children: [
         { id: 'selection', label: 'Selection', icon: Box },
         { id: 'quotations', label: 'Quotation', icon: Clock },
-        { id: 'orders', label: 'Orders', icon: FileText }
+        { id: 'orders', label: 'Orders', icon: FileText },
+        { id: 'cancelled', label: 'Cancelled', icon: XCircle }
       ]
     },
     { id: 'customers', label: 'Customers', icon: Users },

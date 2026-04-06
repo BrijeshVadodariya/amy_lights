@@ -134,7 +134,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   const titleMap = {
     'quotation': 'Quotations',
     'order': 'Sale Orders',
-    'selection': 'Selections'
+    'selection': 'Selections',
+    'cancel': 'Cancelled Orders'
   };
   const title = titleMap[stateType] || 'All Orders';
 
