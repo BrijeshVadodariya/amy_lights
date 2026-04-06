@@ -1,0 +1,307 @@
+/* Customers.css - Odoo-Style Kanban View */
+
+.kanban-page {
+  padding: 1rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+}
+
+.kanban-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+}
+
+.kanban-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kanban-header-left h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0;
+}
+
+.kanban-count {
+  background-color: #e2e8f0;
+  color: #64748b;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.kanban-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.search-container {
+  position: relative;
+  width: 260px;
+}
+
+.search-container svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.kanban-search-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem 0.55rem 2.25rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background-color: #fff;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.kanban-search-input:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.btn-new {
+  background-color: #3498db;
+  color: white;
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(52, 152, 219, 0.15);
+  transition: all 0.2s;
+}
+
+.btn-new:hover {
+  background-color: #2980b9;
+  transform: translateY(-1px);
+}
+
+/* Kanban Grid */
+.kanban-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.kanban-card {
+  display: flex;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  height: 115px; /* Exact high density height */
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.kanban-card:hover {
+  border-color: #3498db;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  z-index: 5;
+}
+
+/* Avatar Side */
+.kanban-avatar-side {
+  width: 90px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 2.25rem;
+  font-weight: 400;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.kanban-avatar-side .type-overlay {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* Content Side */
+.kanban-content-side {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.kanban-card-title {
+  font-size: 0.93rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.4rem 0;
+  padding-right: 1.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+}
+
+.kanban-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.81rem;
+  margin-bottom: 0.25rem;
+  min-width: 0;
+}
+
+.kanban-row svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.kanban-row span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Footer Icons */
+.kanban-footer {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+
+.kanban-card:hover .kanban-footer {
+  opacity: 1;
+}
+
+/* Quick Actions Overlay */
+.kanban-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 0.25rem;
+  visibility: hidden;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.kanban-card:hover .kanban-actions {
+  visibility: visible;
+  opacity: 1;
+}
+
+.action-dot-btn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 4px;
+  border-radius: 4px;
+  color: #64748b;
+}
+
+.action-dot-btn:hover {
+  background: #eff6ff;
+  color: #3498db;
+  border-color: #3498db;
+}
+
+/* Pagination */
+.canban-pagination-footer {
+  margin-top: 2rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
+}
+
+.canban-pagination-info {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.canban-pagination-btns {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.canban-page-btn {
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.81rem;
+  transition: all 0.2s;
+}
+
+.canban-page-btn:first-child { border-radius: 6px 0 0 6px; }
+.canban-page-btn:last-child { border-radius: 0 6px 6px 0; }
+
+.canban-page-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #3498db;
+  border-color: #3498db;
+  z-index: 2;
+}
+
+.canban-page-btn.active {
+  background: #3498db;
+  color: #fff;
+  border-color: #3498db;
+  z-index: 3;
+}
+
+.canban-page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 640px) {
+  .kanban-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .search-container {
+    width: 100%;
+  }
+
+  .kanban-container {
+    grid-template-columns: 1fr;
+  }
+}

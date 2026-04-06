@@ -6,7 +6,7 @@ import '../components/Loader.css';
 import './Products.css';
 import './Catalog.css'; // Reuse table/grid styles
 
-const Catalog = ({ onNavigate, partnerId }) => {
+const Catalog = ({ onNavigate, partnerId, extraData }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -138,6 +138,8 @@ const Catalog = ({ onNavigate, partnerId }) => {
     return `${p.image_url}?token=${token}&db=${db}`;
   };
 
+  const fromTab = extraData?.fromTab || (partnerId ? 'customers' : 'quotations');
+
   return (
     <div className="catalog-page" style={{ paddingBottom: cart.length > 0 ? '120px' : '40px' }}>
       <div className="dt-card">
@@ -147,7 +149,7 @@ const Catalog = ({ onNavigate, partnerId }) => {
             <div className="catalog-title-group">
               <button 
                 className="catalog-back-btn" 
-                onClick={() => window.history.back()}
+                onClick={() => onNavigate(fromTab)}
                 aria-label="Go Back"
               >
                 <ArrowLeft size={20} />

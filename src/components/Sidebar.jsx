@@ -8,7 +8,8 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
-  Clock
+  Clock,
+  Users
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -29,6 +30,7 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
         { id: 'orders', label: 'Orders', icon: FileText }
       ]
     },
+    { id: 'customers', label: 'Customers', icon: Users },
     { id: 'purchase_orders', label: 'Purchase Orders', icon: ShoppingBag },
   ];
 

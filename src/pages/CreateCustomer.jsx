@@ -9,7 +9,7 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
   const returnRoute = extraData?.returnRoute || 'create-order';
   const [saving, setSaving] = useState(false);
   const [masterData, setMasterData] = useState({ partners: [], architects: [], electricians: [] });
-  const [modalState, setModalState] = useState({ show: false, newName: '', newPhone: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
+  const [modalState, setModalState] = useState({ show: false, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
   const [customer, setCustomer] = useState({
     name: '',
     mobile: '',
@@ -28,6 +28,8 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
     competitor: '',
     budget: '',
     gstNo: '',
+    registeredAddress: '',
+    operationPerson: '',
     architectId: '',
     electricianId: ''
   });
@@ -98,6 +100,8 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
         source_type: customer.sourceType,
         source_name: customer.source,
         emp_assigned: customer.empAssigned,
+        operation_person: customer.operationPerson,
+        registered_address: customer.registeredAddress,
         vat: customer.gstNo
       });
 
@@ -121,6 +125,7 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
       const res = await odooService.createPartner({
         name: modalState.newName,
         phone: modalState.newPhone,
+        email: modalState.isArchitect ? modalState.newEmail : '',
         street: modalState.newAddress,
         comment: modalState.newNote,
         is_architect: modalState.isArchitect,
@@ -139,7 +144,7 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
           if (modalState.isElectrician) newCust.electricianId = res.id;
           return newCust;
         });
-        setModalState({ show: false, newName: '', newPhone: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
+        setModalState({ show: false, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
       }
     } catch {
       alert("Creation failed");
@@ -190,40 +195,6 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
               </div>
             </div>
 
-            {/* Electrician Selection */}
-            <div className="selection-item">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', marginTop: '12px' }}>
-                <label style={{ margin: 0 }}>Electrician</label>
-                <button 
-                  className="btn-ui secondary mini" 
-                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
-                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: true })}
-                >
-                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
-                </button>
-              </div>
-              <div className="selection-card-box">
-                <div className="selection-card-content">
-                  <div className="selection-card-top p-input-field">
-                    <SearchableSelect
-                      placeholder="Select Electrician"
-                      value={customer.electricianId}
-                      onChange={(val) => setCustomer({ ...customer, electricianId: val })}
-                      options={masterData.electricians?.map((e) => ({ value: e.id, label: e.name || 'Unknown' })) || []}
-                      className="clean-select"
-                    />
-                  </div>
-                  <div className="selection-divider"></div>
-                  <div className="selection-card-bottom">
-                    <Phone size={14} className="text-slate-400" />
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                      {(masterData.electricians?.find(e => e.id === parseInt(customer.electricianId)))?.phone || '-'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Architect Selection */}
             <div className="selection-item">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', marginTop: '12px' }}>
@@ -231,7 +202,7 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
                 <button 
                   className="btn-ui secondary mini" 
                   style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
-                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', newAddress: '', newNote: '', isArchitect: true, isElectrician: false })}
+                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: true, isElectrician: false })}
                 >
                   <Plus size={10} style={{ marginRight: '4px' }} /> Add New
                 </button>
@@ -252,6 +223,40 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
                     <Phone size={14} className="text-slate-400" />
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
                       {(masterData.architects?.find(a => a.id === parseInt(customer.architectId)))?.phone || '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Electrician Selection */}
+            <div className="selection-item">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', marginTop: '12px' }}>
+                <label style={{ margin: 0 }}>Electrician</label>
+                <button 
+                  className="btn-ui secondary mini" 
+                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
+                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: true })}
+                >
+                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
+                </button>
+              </div>
+              <div className="selection-card-box">
+                <div className="selection-card-content">
+                  <div className="selection-card-top p-input-field">
+                    <SearchableSelect
+                      placeholder="Select Electrician"
+                      value={customer.electricianId}
+                      onChange={(val) => setCustomer({ ...customer, electricianId: val })}
+                      options={masterData.electricians?.map((e) => ({ value: e.id, label: e.name || 'Unknown' })) || []}
+                      className="clean-select"
+                    />
+                  </div>
+                  <div className="selection-divider"></div>
+                  <div className="selection-card-bottom">
+                    <Phone size={14} className="text-slate-400" />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
+                      {(masterData.electricians?.find(e => e.id === parseInt(customer.electricianId)))?.phone || '-'}
                     </span>
                   </div>
                 </div>
@@ -358,41 +363,30 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
             </div>
             <div className="od-content">
               <div className="od-row">
-                <span className="od-label">Emp assigned</span>
+                <span className="od-label">Sales Person</span>
                 <input 
                   className="od-input" 
                   value={customer.empAssigned} 
                   onChange={(e) => setCustomer({ ...customer, empAssigned: e.target.value })} 
-                  placeholder="Name" 
-                />
-              </div>
-            
-            <div className="od-row">
-              <span className="od-label">Source Type</span>
-                <input 
-                  className="od-input" 
-                  value={customer.sourceType} 
-                  onChange={(e) => setCustomer({ ...customer, sourceType: e.target.value })} 
-                  placeholder="Source Type" 
+                  placeholder="Sales Person Name" 
                 />
               </div>
               <div className="od-row">
-                <span className="od-label">Source</span>
+                <span className="od-label">Operation Person</span>
                 <input 
                   className="od-input" 
-                  value={customer.source} 
-                  onChange={(e) => setCustomer({ ...customer, source: e.target.value })} 
-                  placeholder="Source" 
+                  value={customer.operationPerson} 
+                  onChange={(e) => setCustomer({ ...customer, operationPerson: e.target.value })} 
+                  placeholder="Operation Person Name" 
                 />
               </div>
               <div className="od-row">
-                <span className="od-label">Budget</span>
+                <span className="od-label">Registered Address</span>
                 <input 
                   className="od-input" 
-                  type="number"
-                  value={customer.budget} 
-                  onChange={(e) => setCustomer({ ...customer, budget: e.target.value })} 
-                  placeholder="0" 
+                  value={customer.registeredAddress} 
+                  onChange={(e) => setCustomer({ ...customer, registeredAddress: e.target.value })} 
+                  placeholder="Enter Address" 
                 />
               </div>
               <div className="od-row">
@@ -442,7 +436,9 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
             boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>Add Professional</h3>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
+                Add {modalState.isArchitect ? 'Architect' : 'Electrician'}
+              </h3>
               <button onClick={() => setModalState({ ...modalState, show: false })} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
@@ -469,6 +465,18 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
                   style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600 }}
                 />
               </div>
+              {modalState.isArchitect && (
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Email</label>
+                  <input 
+                    className="clean-input w-full" 
+                    value={modalState.newEmail} 
+                    onChange={(e) => setModalState({ ...modalState, newEmail: e.target.value })} 
+                    placeholder="Enter Email" 
+                    style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px', fontWeight: 600 }}
+                  />
+                </div>
+              )}
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#64748b' }}>Address</label>
                 <input 
@@ -491,44 +499,6 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                padding: '12px', 
-                border: '1px solid #e2e8f0', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                backgroundColor: modalState.isElectrician ? '#f0f9ff' : 'transparent',
-                borderColor: modalState.isElectrician ? '#3b82f6' : '#e2e8f0'
-              }}>
-                <input 
-                  type="checkbox" 
-                  checked={modalState.isElectrician} 
-                  onChange={(e) => setModalState({ ...modalState, isElectrician: e.target.checked })}
-                />
-                <span style={{ fontSize: '14px', fontWeight: 700, color: modalState.isElectrician ? '#1d4ed8' : '#64748b' }}>Electrician</span>
-              </label>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px', 
-                padding: '12px', 
-                border: '1px solid #e2e8f0', 
-                borderRadius: '8px',
-                cursor: 'pointer',
-                backgroundColor: modalState.isArchitect ? '#f0f9ff' : 'transparent',
-                borderColor: modalState.isArchitect ? '#3b82f6' : '#e2e8f0'
-              }}>
-                <input 
-                  type="checkbox" 
-                  checked={modalState.isArchitect} 
-                  onChange={(e) => setModalState({ ...modalState, isArchitect: e.target.checked })}
-                />
-                <span style={{ fontSize: '14px', fontWeight: 700, color: modalState.isArchitect ? '#1d4ed8' : '#64748b' }}>Architect</span>
-              </label>
-            </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
               <button 
@@ -537,7 +507,7 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
                 onClick={handleSaveProfessional}
                 disabled={!modalState.newName}
               >
-                Add Professional
+                Add {modalState.isArchitect ? 'Architect' : 'Electrician'}
               </button>
             </div>
           </div>

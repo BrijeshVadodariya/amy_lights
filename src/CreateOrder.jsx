@@ -97,25 +97,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const [generalNotes, setGeneralNotes] = useState([]);
   const [generalNoteInput, setGeneralNoteInput] = useState('');
   const [deletedActivityIds, setDeletedActivityIds] = useState([]);
-  const [hasChanges, setHasChanges] = useState(false);
-  
-  // Track changes to prompt user on exit
-  useEffect(() => {
-    const isDirty = rows.some(r => r.productId !== '' && r.productId !== null) || 
-                   (orderHeader.partnerId !== '' && orderHeader.partnerId !== null) || 
-                   generalNotes.length > 0;
-    setHasChanges(isDirty);
-  }, [rows, orderHeader, generalNotes]);
-
   const safeNavigate = (to) => {
-    if (hasChanges) {
-      if (window.confirm("You have unsaved changes. Navigating away will lose your data. Are you sure?")) {
-        setHasChanges(false);
-        onNavigate(to);
-      }
-    } else {
-      onNavigate(to);
-    }
+    onNavigate(to);
   };
 
   const [activityInputs, setActivityInputs] = useState({});
@@ -240,16 +223,38 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         }
         
         if (pId) {
+          const detail = { 
+            id: pId, 
+            name: pName,
+            street: data.street || '',
+            street2: data.street2 || '',
+            city: data.city || '',
+            zip: data.zip || '',
+            state_id: data.state_id || false,
+            phone: data.partner_phone || data.phone || data.mobile || '',
+            vat: data.partner_vat || data.vat || '',
+            architect_name: extractName(data.architect_id),
+            architect_phone: data.architect_phone || '',
+            electrician_name: extractName(data.electrician_id),
+            electrician_phone: data.electrician_phone || ''
+          };
+
           const exists = masterData.partners.find(p => String(p.id) === String(pId));
           if (!exists) {
-             missingPartners.push({ 
-               id: pId, 
-               name: pName,
-               street: data.street || '',
-               street2: data.street2 || '',
-               city: data.city || '',
-               zip: data.zip || '',
-               state_id: data.state_id || false
+             missingPartners.push(detail);
+          } else {
+             // Enrich existing data with order-level fields if missing
+             Object.assign(exists, {
+                phone: exists.phone || detail.phone,
+                vat: exists.vat || detail.vat,
+                street: exists.street || detail.street,
+                street2: exists.street2 || detail.street2,
+                city: exists.city || detail.city,
+                zip: exists.zip || detail.zip,
+                architect_name: exists.architect_name || detail.architect_name,
+                architect_phone: exists.architect_phone || detail.architect_phone,
+                electrician_name: exists.electrician_name || detail.electrician_name,
+                electrician_phone: exists.electrician_phone || detail.electrician_phone
              });
           }
         }
@@ -404,28 +409,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
            const parts = remark.split(/\n---\n|<br\s*\/?>/).filter(Boolean);
            setGeneralNotes(parts.map(t => ({
              id: `hist-${Math.random()}`,
-             text: t.replace(/<b>.*?<\/b>:\s*/, '').trim(), // Cleanup author name if present
+             text: t.replace(/<[^>]*>?/gm, '').trim(), // Global tag cleanup
              date: data.date_order || '',
              by: t.match(/<b>(.*?)<\/b>/)?.[1] || 'Odoo',
              is_new: false
            })));
-        }
-
-        // 2. Sync Activity History (Category-specific Amy Notes)
-        if (data.amy_notes && Array.isArray(data.amy_notes)) {
-           const history = { call: [], whatsapp: [], visit: [], email: [] };
-           data.amy_notes.forEach(note => {
-             const type = note.note_type || 'call';
-             if (!history[type]) history[type] = [];
-             history[type].push({
-               id: note.id,
-               text: note.text,
-               images: note.images || [],
-               date: data.date_order || '',
-               by: 'Odoo'
-             });
-           });
-           setActivityHistory(prev => ({ ...prev, ...history }));
         }
 
         // 3. Sync Scheduled Activities (Tasks)
@@ -434,7 +422,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
              id: act.id,
              activity_type_id: act.activity_type_id,
              summary: act.summary || act.activity_type_name || 'Activity',
-             note: act.note || '',
+             note: (act.note || '').replace(/<[^>]*>?/gm, '').trim(),
              user_id: act.user_id,
              date_deadline: act.date_deadline || ''
            })));
@@ -448,29 +436,24 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
   useEffect(() => {
     if (extraData) {
-      const { preFilledPartnerId, preFilledProducts } = extraData;
+      const { preFilledPartnerId, preFilledProducts, partner_id } = extraData;
+      const targetPartnerId = preFilledPartnerId || partner_id;
       
-      if (preFilledPartnerId) {
-        // We MUST re-fetch master data immediately so that the newly created partner 
-        // exists in our selection list and we can read their full details (Phone, Address, Professionals)
+      if (targetPartnerId) {
         fetchMasterData().then(() => {
-           // We don't want to rely solely on the state update (which is asynchronous),
-           // so we fetch the list again internally or just know that the dropdown will find it now.
-           // However, to auto-select Architect/Electrician, we need to find that partner in the latest data.
-           odooService.getPartners().then(partners => {
-             const partner = partners?.find(p => String(p.id) === String(preFilledPartnerId));
-             if (partner) {
-               console.log("Auto-populating partner details:", partner);
-               setOrderHeader(prev => ({ 
-                 ...prev, 
-                 partnerId: preFilledPartnerId,
-                 architectId: partner.architect_id || '',
-                 electricianId: partner.electrician_id || ''
-               }));
-             } else {
-               setOrderHeader(prev => ({ ...prev, partnerId: preFilledPartnerId }));
-             }
-           });
+          odooService.getPartners().then(partners => {
+            const partner = partners?.find(p => String(p.id) === String(targetPartnerId));
+            if (partner) {
+              setOrderHeader(prev => ({ 
+                ...prev, 
+                partnerId: targetPartnerId,
+                architectId: partner.architect_id || '',
+                electricianId: partner.electrician_id || ''
+              }));
+            } else {
+              setOrderHeader(prev => ({ ...prev, partnerId: targetPartnerId }));
+            }
+          });
         });
       }
       
@@ -483,19 +466,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           remark: '',
           uom: 'Units',
         })));
+        setShowProducts(true);
       }
     }
   }, [extraData, fetchMasterData]);
   
-  // The beforeunload handler is moved here for cleaner organization
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  // Unsaved changes prompt has been removed
 
   const [debugRawData, setDebugRawData] = useState(null);
   const [dragActiveId, setDragActiveId] = useState(null);
@@ -503,7 +479,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const [scheduledActivities, setScheduledActivities] = useState([]);
   const [newActivity, setNewActivity] = useState({
     activity_type_id: '',
-    summary: 'To Do',
+    summary: 'Task',
     note: '',
     user_id: '',
     date_deadline: new Date().toISOString().split('T')[0]
@@ -665,7 +641,18 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         if (field === 'productId') {
           const parsedId = /^\d+$/.test(value) ? parseInt(value) : value;
           const prod = masterData.products.find(p => String(p.id) === String(parsedId));
-          return { ...r, productId: value, price: prod ? prod.price : 0 };
+          return { 
+            ...r, 
+            productId: value, 
+            price: prod ? prod.price : 0,
+            beam: prod ? (prod.beam || '-') : '-',
+            description: prod ? (prod.description || '') : ''
+          };
+        }
+        if (field === 'beam') {
+          // Update beam and also sync description
+          const newDesc = updateDescriptionWithBeam(r.description, value);
+          return { ...r, beam: value, description: newDesc };
         }
         return { ...r, [field]: value };
       }
@@ -673,8 +660,29 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     }));
   };
 
-  const selectedArchitect = useMemo(() => masterData.architects.find(a => a.id === parseInt(orderHeader.architectId)), [masterData.architects, orderHeader.architectId]);
-  const selectedElectrician = useMemo(() => masterData.electricians.find(e => e.id === parseInt(orderHeader.electricianId)), [masterData.electricians, orderHeader.electricianId]);
+  const updateDescriptionWithBeam = (desc, newBeam) => {
+    if (!desc) return `Beam: ${newBeam}`;
+    const regex = /(Beam(\s*Angle)?\s*:\s*)([^|\n]+)/i;
+    if (regex.test(desc)) {
+      return desc.replace(regex, `$1${newBeam}`);
+    }
+    // Only append if it's not a generic dash and there's actually a value
+    if (newBeam && newBeam !== '-') {
+      return `${desc}\nBeam: ${newBeam}`;
+    }
+    return desc;
+  };
+
+  const selectedPartner = useMemo(() => masterData.partners.find(p => String(p.id) === String(orderHeader.partnerId)), [masterData.partners, orderHeader.partnerId]);
+  const selectedArchitect = useMemo(() => {
+    const id = String(orderHeader.architectId);
+    return (masterData.architects || []).find(a => String(a.id) === id) || (masterData.partners || []).find(p => String(p.id) === id);
+  }, [masterData.architects, masterData.partners, orderHeader.architectId]);
+
+  const selectedElectrician = useMemo(() => {
+    const id = String(orderHeader.electricianId);
+    return (masterData.electricians || []).find(e => String(e.id) === id) || (masterData.partners || []).find(p => String(p.id) === id);
+  }, [masterData.electricians, masterData.partners, orderHeader.electricianId]);
 
   const total = useMemo(() => {
     return rows.reduce((sum, row) => sum + ((parseFloat(row.price) || 0) * (parseFloat(row.qty) || 0) * (1 - (parseFloat(row.discount) || 0) / 100)), 0);
@@ -690,6 +698,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       price: 0, 
       discount: 0,
       remark: '', 
+      beam: '-',
+      description: '',
       image_url: '',
       uom: 'Units'
     }]);
@@ -850,40 +860,52 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       // Helper to generate a unique filename
       const genName = (type, i) => `${type}_note_${Date.now()}_${i}.png`;
 
-      // ── CLEAR-ALL + RE-INSERT STRATEGY ──────────────────────────────────────
-      // Step 1: Unlink ALL existing amy_note_lines on the backend first.
-      //         This guarantees zero duplicates regardless of prior state.
-      amyNoteLines.push([5, 0, 0]);   // (5, 0, 0) = Odoo "unlink all" Many2many/One2many command
+      // ── GRANULAR UPDATE STRATEGY ──────────────────────────────────────────
+      // Step 1: Handled deleted records
+      deletedActivityIds.forEach(id => {
+        amyNoteLines.push([2, id, 0]); // (2, id, 0) = Unlink and delete
+      });
 
-      // Step 2: Re-insert every note currently in state (from backend history + newly added).
+      // Step 2: Update existing or create new notes
       Object.keys(activityHistory).forEach(type => {
         (activityHistory[type] || []).forEach(hNote => {
-          // Extract base64 only for local images (data URLs); skip backend URLs
-          const images = (hNote.images || []).map(img => {
-            if (typeof img !== 'string') return null;
-            if (img.includes(',')) return img.split(',')[1]; // base64 data URL
-            return null; // backend URL — skip (image already gone after unlink; re-attach not needed here)
+          // Extract base64 only for local images (data URLs)
+          const base64Images = (hNote.images || []).map(img => {
+            if (typeof img !== 'string' || !img.includes(',')) return null;
+            return img.split(',')[1];
           }).filter(Boolean);
 
-          amyNoteLines.push([0, 0, {
+          const payload = {
             note_type: type,
             text: hNote.text || '',
-            image: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
-          }]);
+            image: base64Images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
+          };
+
+          if (hNote.is_from_backend && hNote.id && typeof hNote.id === 'number') {
+            // Existing note: Update text. Odoo keeps existing images in Many2many unless we tell it to clear them.
+            amyNoteLines.push([1, hNote.id, { text: payload.text }]); 
+            // If there are NEW images added to this existing note line, we can add them here too
+            if (payload.image.length > 0) {
+              amyNoteLines.push([1, hNote.id, { image: payload.image }]);
+            }
+          } else {
+            // New note: Create fresh
+            amyNoteLines.push([0, 0, payload]);
+          }
         });
       });
 
-      // Step 3: Also flush any text still sitting in the input boxes (not yet "added").
+      // Step 3: Flush any text still in input boxes
       Object.keys(activityInputs).forEach(type => {
         const input = activityInputs[type];
         if (input && (input.text || (input.images && input.images.length > 0))) {
-          const images = (input.images || []).map(img =>
+          const base64Images = (input.images || []).map(img =>
             (typeof img === 'string' && img.includes(',')) ? img.split(',')[1] : null
           ).filter(Boolean);
           amyNoteLines.push([0, 0, {
             note_type: type,
             text: input.text || '',
-            image: images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
+            image: base64Images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
           }]);
         }
       });
@@ -955,7 +977,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         
       if (res.success) {
         setActivityHistory({});
-        setHasChanges(false);
         onNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations');
       } else {
         alert(res.error?.message || "Error processing order");
@@ -967,7 +988,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     }
   };
 
-  const selectedPartner = masterData.partners.find(p => p.id === parseInt(orderHeader.partnerId));
+  // Professionals selected above via useMemo
 
   if (loading) return <div className="p-20 text-center text-slate-500">Processing...</div>;
 
@@ -987,8 +1008,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             <h3>Customer Selection</h3>
             <button className="co-btn-icon" onClick={() => {
               const returnRoute = isSelection ? 'create-selection' : isOrder ? 'create-direct-order' : 'create-order';
-              // Bypass the safeNavigate "unsaved changes" guard — we're coming back to the same form
-              setHasChanges(false);
               onNavigate('create-customer', null, { returnRoute });
             }}>
               <Plus size={18} />
@@ -996,46 +1015,66 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           </div>
           <div className="co-card-body">
             {/* Row 1: Select Customer, Phone and GST */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1rem', alignItems: 'flex-end', marginBottom: '1rem' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Select Customer *</label>
-                <SearchableSelect
-                  placeholder="Select Customer"
-                  value={orderHeader.partnerId}
-                  defaultValue={orderHeader.partnerName}
-                  onChange={(val) => {
-                    const selected = masterData.partners.find(p => p.id === val);
-                    setOrderHeader({ 
-                      ...orderHeader, 
-                      partnerId: val,
-                      architectId: selected?.architect_id || orderHeader.architectId,
-                      electricianId: selected?.electrician_id || orderHeader.electricianId
-                    });
-                  }}
-                  options={masterData.partners.map((p) => ({ value: p.id, label: p.name }))}
-                />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Phone Number</label>
-                <div style={{ height: '42px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                  {selectedPartner?.phone || 'No phone number'}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '1.25rem', marginBottom: isMobile ? '0.75rem' : '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1.2fr 1fr' : 'repeat(3, 1fr)', gap: isMobile ? '0.5rem' : '1.25rem', alignItems: isMobile ? 'start' : 'flex-end' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: isMobile ? '10px' : '12px', fontWeight: 700, color: isMobile ? '#94a3b8' : 'inherit', textTransform: isMobile ? 'uppercase' : 'none' }}>Select Customer *</label>
+                  <SearchableSelect
+                    placeholder="Select Customer"
+                    value={orderHeader.partnerId}
+                    defaultValue={orderHeader.partnerName}
+                    small={isMobile}
+                    onChange={(val) => {
+                      const selected = masterData.partners.find(p => String(p.id) === String(val));
+                      setOrderHeader({ 
+                        ...orderHeader, 
+                        partnerId: val,
+                        architectId: selected?.architect_id || orderHeader.architectId,
+                        electricianId: selected?.electrician_id || orderHeader.electricianId
+                      });
+                    }}
+                    options={Array.from(new Map(masterData.partners.filter(p => p && p.id).map(p => [String(p.id), p])).values()).map((p) => ({ value: p.id, label: p.name }))}
+                  />
                 </div>
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>GSTIN</label>
-                <div style={{ height: '42px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                  {selectedPartner?.vat || 'No GST provided'}
-                </div>
+
+                {isMobile ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
+                      <span style={{ fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: '40px' }}>Phone:</span>
+                      <span style={{ fontWeight: 700, color: '#334155', whiteSpace: 'nowrap' }}>{selectedPartner?.phone || selectedPartner?.mobile || '-'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
+                      <span style={{ fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: '40px' }}>GSTIN:</span>
+                      <span style={{ fontWeight: 700, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedPartner?.vat || '-'}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '12px' }}>Phone Number</label>
+                      <div style={{ height: '42px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                        {selectedPartner?.phone || selectedPartner?.mobile || (isMobile ? '-' : 'No phone number')}
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '12px' }}>GSTIN</label>
+                      <div style={{ height: '42px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                        {selectedPartner?.vat || 'No GST provided'}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Row 2: Full Address */}
             {selectedPartner && (
-              <div className="form-group" style={{ marginTop: '1rem' }}>
-                 <label>Full Address</label>
-                 <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                   <MapPin size={16} className="text-blue-500" style={{ flexShrink: 0 }} />
-                   <span style={{ color: '#334155', fontWeight: 500 }}>
+              <div className="form-group" style={{ marginTop: isMobile ? '0.5rem' : '1rem' }}>
+                 <label style={{ fontSize: isMobile ? '11px' : '12px' }}>Full Address</label>
+                 <div style={isMobile ? { fontSize: '13px', fontStyle: 'italic', color: '#64748b', padding: '0 4px', lineHeight: 1.4 } : { background: '#f8fafc', padding: '10px 14px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   {!isMobile && <MapPin size={16} className="text-blue-500" style={{ flexShrink: 0 }} />}
+                   <span style={isMobile ? {} : { color: '#334155', fontWeight: 500 }}>
                      {[selectedPartner.street, selectedPartner.street2, selectedPartner.city, selectedPartner.state_name || (selectedPartner.state_id ? selectedPartner.state_id[1] : null), selectedPartner.zip].filter(Boolean).join(', ') || 'No address provided'}
                    </span>
                  </div>
@@ -1043,19 +1082,25 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             )}
 
             {/* Row 3: Professionals */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.25rem', marginTop: '1.25rem' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>Architect</label>
-                <div style={{ height: '42px', marginTop: '6px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                  {selectedPartner?.architect_name ? `${selectedPartner.architect_name} ${selectedPartner.architect_phone ? `(${selectedPartner.architect_phone})` : ''}` : 'No Architect assigned'}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr', gap: isMobile ? '0.75rem' : '1.25rem', marginTop: isMobile ? '0.65rem' : '1.25rem' }}>
+              <div className="form-group" style={isMobile ? { marginBottom: 0, padding: '8px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fcfcfd' } : { marginBottom: 0 }}>
+                <label style={{ margin: 0, fontSize: isMobile ? '10px' : '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Architect</label>
+                <div style={isMobile ? { fontSize: '13px', fontWeight: 700, color: '#334155', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : { height: '42px', marginTop: '6px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                  {selectedArchitect?.name || selectedPartner?.architect_name || (orderHeader.architectId ? 'Architect Selected' : (isMobile ? '-' : 'No Architect assigned'))}
                 </div>
+                {isMobile && (selectedArchitect?.phone || selectedPartner?.architect_phone) && (
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>{selectedArchitect?.phone || selectedPartner.architect_phone}</div>
+                )}
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>Electrician</label>
-                <div style={{ height: '42px', marginTop: '6px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                  {selectedPartner?.electrician_name ? `${selectedPartner.electrician_name} ${selectedPartner.electrician_phone ? `(${selectedPartner.electrician_phone})` : ''}` : 'No Electrician assigned'}
+              <div className="form-group" style={isMobile ? { marginBottom: 0, padding: '8px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fcfcfd' } : { marginBottom: 0 }}>
+                <label style={{ margin: 0, fontSize: isMobile ? '10px' : '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Electrician</label>
+                <div style={isMobile ? { fontSize: '13px', fontWeight: 700, color: '#334155', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : { height: '42px', marginTop: '6px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                  {selectedElectrician?.name || selectedPartner?.electrician_name || (orderHeader.electricianId ? 'Electrician Selected' : (isMobile ? '-' : 'No Electrician assigned'))}
                 </div>
+                {isMobile && (selectedElectrician?.phone || selectedPartner?.electrician_phone) && (
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>{selectedElectrician?.phone || selectedPartner.electrician_phone}</div>
+                )}
               </div>
             </div>
           </div>
@@ -1140,7 +1185,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                   )}
 
                   <div className="product-rows-container" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                    {rows.map((r) => {
+                    {rows.map((r, idx) => {
                       const selectedProduct = masterData.products.find(p => String(p.id) === String(r.productId)) || {
                         id: r.productId,
                         name: r.productName,
@@ -1152,8 +1197,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                       return (
                         <div key={r.id} className={`product-item-card product-row ${r.display_type === 'line_section' ? 'is-section-row' : ''}`} style={{ 
                           position: 'relative',
-                          padding: isMobile ? '1rem' : '0.25rem 0.5rem', 
+                          padding: isMobile ? '1.25rem 1rem' : '0.25rem 0.5rem', 
                           border: isMobile ? '1px solid #e2e8f0' : 'none', 
+                          borderLeft: isMobile ? 'none' : 'none',
+                          borderRight: isMobile ? 'none' : 'none',
                           borderBottom: isMobile ? '1px solid #e2e8f0' : '1px solid #f1f5f9', 
                           borderRadius: isMobile ? '12px' : 0,
                           marginBottom: isMobile ? '0.75rem' : 0,
@@ -1189,7 +1236,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                 ? `1fr 40px` 
                                 : isMobile ? 'none' : `minmax(300px, 1fr) 210px ${orderHeader.is_image ? '80px' : ''} ${orderHeader.is_beam ? '80px' : ''} 40px`.trim().replace(/\s+/g, ' '),
                               alignItems: 'flex-start', 
-                              gap: '8px', 
+                              gap: isMobile ? '4px' : '8px', 
                               flexWrap: isMobile ? 'wrap' : 'nowrap',
                               minHeight: '42px'
                             }}
@@ -1221,7 +1268,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                </div>
                              ) : (
                                <>
-                                 <div className="pi-main-info" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                 <div className="pi-main-info" style={{ width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                    <div className="pi-main-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                                      <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: 0 }}>
                                        {isMobile && <label className="pi-small-label">Product</label>}
@@ -1254,13 +1301,13 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                        </div>
                                      </div>
                                    </div>
-                                   {orderHeader.is_desc && selectedProduct?.id && selectedProduct.description && (
-                                     <div className="pi-desc-box" style={{ padding: '0 8px 4px', fontSize: '11px', color: '#64748b', whiteSpace: 'pre-wrap', fontStyle: 'italic', lineHeight: '1.4' }}>
-                                       {selectedProduct.description}
+                                   {orderHeader.is_desc && r.description && (
+                                     <div className="pi-desc-box" style={{ padding: '0 4px 4px', fontSize: '11px', color: '#64748b', whiteSpace: 'pre-wrap', fontStyle: 'italic', lineHeight: '1.4' }}>
+                                       {r.description}
                                      </div>
                                    )}
                                  </div>
-                                <div className="pi-sub-grid" style={{ width: isMobile ? '100%' : '100%', minWidth: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: isMobile ? '1rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
+                                <div className="pi-sub-grid" style={{ width: '100%', minWidth: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: isMobile ? '0.5rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
                                    <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
                                     {isMobile && <label className="pi-small-label">Qty</label>}
                                      <input 
@@ -1310,7 +1357,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                 </div>
     
                                  <div style={{ 
-                                   display: (isMobile && !orderHeader.is_image) ? 'none' : 'flex',
                                    display: orderHeader.is_image ? 'flex' : 'none', 
                                    justifyContent: 'center',
                                    minWidth: 0,
@@ -1333,19 +1379,27 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                    </div>
                                  </div>
     
-                                 <div style={{ 
-                                   display: (isMobile && !orderHeader.is_beam) ? 'none' : 'block',
-                                   display: orderHeader.is_beam ? 'block' : 'none', 
-                                   fontSize: '11px', 
-                                   color: '#475569', 
-                                   textAlign: 'center', 
-                                   whiteSpace: 'nowrap', 
-                                   overflow: 'hidden', 
-                                   textOverflow: 'ellipsis', 
-                                   paddingTop: '8px' 
-                                 }}>
-                                   {selectedProduct?.beam || '-'}
-                                 </div>
+                                  <div style={{ 
+                                    display: orderHeader.is_beam ? 'block' : 'none', 
+                                    paddingTop: isMobile ? '0' : '4px' 
+                                  }}>
+                                    <input 
+                                      type="text" 
+                                      className="co-input-border"
+                                      value={r.beam || '-'} 
+                                      onFocus={(e) => e.target.select()}
+                                      onChange={(e) => handleRowChange(r.id, 'beam', e.target.value)}
+                                      style={{ 
+                                        width: '100%', 
+                                        height: '32px', 
+                                        fontSize: '11px', 
+                                        textAlign: 'center', 
+                                        border: '1px solid #e2e8f0', 
+                                        borderRadius: '4px',
+                                        backgroundColor: '#fff' 
+                                      }}
+                                    />
+                                  </div>
                                </>
                              )}
     
@@ -1592,7 +1646,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setEditingTaskId(act.id);
-                                setTaskEditText({ ...act });
+                                setTaskEditText({ 
+                                  ...act,
+                                  note: (act.note || '').replace(/<[^>]*>?/gm, '').trim()
+                                });
                               }}
                               style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
                               title="Edit Activity"
@@ -1719,7 +1776,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                           color: '#334155', 
                           margin: 0,
                           whiteSpace: 'pre-wrap'
-                        }}>{note.text}</p>
+                        }}>{(note.text || '').replace(/<[^>]*>?/gm, '').trim()}</p>
                       )}
 
                       {note.images && note.images.length > 0 && (
@@ -1810,7 +1867,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                 case 'automation': return <Zap size={20} />;
                 case 'lights': return <Lightbulb size={20} />;
                 case 'profiles': return <Layers size={20} />;
-                case 'tasks': return <CheckSquare size={20} />;
                 default: return <MoreHorizontal size={20} />;
               }
             };
@@ -1826,9 +1882,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
             // Ensure Tasks is always available if not explicitly coming from backend 
             // (though it usually should be in the Odoo selection list)
-            if (!displayActs.find(a => a.id === 'tasks')) {
-                displayActs.push({ id: 'tasks', title: 'Tasks', icon: getIcon('tasks'), group: 'always' });
-            }
 
             return displayActs;
           })().map((act) => {

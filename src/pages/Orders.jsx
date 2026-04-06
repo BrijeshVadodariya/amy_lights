@@ -389,7 +389,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                  disabled={!selectedPartnerId}
                  onClick={() => {
                    setCatalogAnchor(null);
-                   onNavigate('catalog', selectedPartnerId);
+                   const backTab = stateType === 'quotation' ? 'quotations' : stateType === 'order' ? 'orders' : 'selection';
+                   onNavigate('catalog', selectedPartnerId, { fromTab: backTab });
                  }}
                >
                  Open Catalog

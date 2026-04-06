@@ -13,6 +13,7 @@ import CreateOrder from './CreateOrder';
 import CreateCustomer from './pages/CreateCustomer';
 import CreateProductPage from './pages/CreateProductPage';
 import Catalog from './pages/Catalog';
+import Customers from './pages/Customers';
 import './App.css';
 
 const LOGIN_SESSION_KEY = 'amyLightsLoginSession';
@@ -135,6 +136,8 @@ function App() {
         return <Orders stateType="selection" onNavigate={handleNavigate} />;
       case 'purchase_orders':
         return <PurchaseOrders onNavigate={handleNavigate} />;
+      case 'customers':
+        return <Customers onNavigate={handleNavigate} />;
       case 'order-detail':
         return <OrderDetail orderId={selectedId} onBack={() => handleNavigate('quotations')} onNavigate={handleNavigate} />;
       case 'product-detail':
@@ -150,7 +153,7 @@ function App() {
       case 'create-product':
         return <CreateProductPage onNavigate={handleNavigate} />;
       case 'catalog':
-        return <Catalog onNavigate={handleNavigate} partnerId={selectedId} />;
+        return <Catalog onNavigate={handleNavigate} partnerId={selectedId} extraData={extraData} />;
       default:
         return <Dashboard user={user} onNavigate={handleNavigate} />;
     }

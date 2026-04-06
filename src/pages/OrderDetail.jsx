@@ -233,14 +233,27 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           </div>
 
           {showCustomerDetails && (
-            <div className="animate-fade-in" style={{ padding: '0 1.5rem 1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                {infoItems.slice(0, 3).map((item) => (
-                  <div key={item.label} className="detail-info-card" style={{ border: 'none', background: 'none', padding: 0 }}>
-                    <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{item.label}</span>
-                    <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{item.value}</div>
-                  </div>
-                ))}
+            <div className="animate-fade-in" style={{ padding: isMobile ? '0 0 1rem 0' : '0 1.5rem 1.5rem' }}>
+              <div className="detail-info-grid" style={{ 
+                marginBottom: isMobile ? '0.75rem' : '1.5rem',
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)',
+                gap: isMobile ? '0.5rem' : '1.5rem'
+              }}>
+                <div className="detail-info-card" style={{ gridColumn: isMobile ? 'span 2' : 'auto' }}>
+                  <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{infoItems[0].label}</span>
+                  <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{infoItems[0].value}</div>
+                </div>
+                
+                <div className="detail-info-card">
+                  <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{infoItems[1].label}</span>
+                  <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{infoItems[1].value}</div>
+                </div>
+
+                <div className="detail-info-card">
+                  <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{infoItems[2].label}</span>
+                  <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{infoItems[2].value}</div>
+                </div>
               </div>
               <div className="detail-info-card" style={{ border: 'none', background: 'none', padding: 0 }}>
                 <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{infoItems[3].label}</span>
@@ -387,7 +400,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
 
                 {/* Summary Block outside table */}
                 <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', padding: '0 1rem 1rem' }}>
-                  <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', width: isMobile ? '100%' : '300px', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Untaxed Amount:</span>
                     <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
                       {formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0)), 0))}
@@ -395,7 +408,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                   </div>
 
                   {orderLines.some(l => l.discount) && (
-                    <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', width: isMobile ? '100%' : '300px', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 600 }}>Discount:</span>
                       <span style={{ fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
                         -{formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (Number(l.discount || 0) / 100)), 0))}
@@ -403,14 +416,14 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', width: '300px', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', width: isMobile ? '100%' : '300px', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Taxes:</span>
                     <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
                       {formatCurrency((order?.amount_total || 0) - orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (1 - (Number(l.discount || 0) / 100))), 0))}
                     </span>
                   </div>
 
-                  <div style={{ borderTop: '2px solid #f1f5f9', width: '320px', margin: '8px 0', padding: '12px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ borderTop: '2px solid #f1f5f9', width: isMobile ? '100%' : '320px', margin: '8px 0', padding: '12px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: 900 }}>Total:</span>
                     <span style={{ fontSize: '24px', fontWeight: 950, color: '#059669' }}>{formatCurrency(order?.amount_total || 0)}</span>
                   </div>
@@ -432,15 +445,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                 <span className="detail-section-kicker">Tasks</span>
                 <h2>Planned Activities</h2>
               </div>
-              {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
-                <button
-                  onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#f0f9ff', color: '#0ea5e9', border: '1px solid #bae6fd', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <Edit size={13} />
-                  <span>Edit Tasks</span>
-                </button>
-              )}
             </div>
             <div className="activity-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {order.activities.map((act, idx) => (
@@ -449,7 +453,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                     <CalendarDays size={18} className="text-slate-500" />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>{act.summary || act.activity_type_name || 'Task'}</h4>
+                    <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>{((act.summary || act.activity_type_name) === 'To Do') ? 'Task' : (act.summary || act.activity_type_name || 'Task')}</h4>
                     {act.note && (
                       <p style={{ margin: '0 0 8px', fontSize: '14px', color: '#475569', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
                     )}
@@ -476,15 +480,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               <span className="detail-section-kicker">Notes</span>
               <h2>Remarks</h2>
             </div>
-            {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
-              <button
-                onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-              >
-                <Edit size={13} />
-                <span>Add/Edit Note</span>
-              </button>
-            )}
           </div>
 
           {order.remark ? (() => {
@@ -523,20 +518,11 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                       <FileText size={14} style={{ color: '#2563eb' }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '0.93rem', color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      <p style={{ margin: 0, fontSize: '0.93rem', color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'normal' }}>
                         {line}
                       </p>
                       <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Note #{idx + 1}</span>
                     </div>
-                    {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
-                      <button
-                        onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}
-                        title="Edit this note"
-                        style={{ flexShrink: 0, border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
-                      >
-                        <Edit size={14} />
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>

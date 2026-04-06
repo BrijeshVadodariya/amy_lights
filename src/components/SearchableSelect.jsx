@@ -51,7 +51,13 @@ const SearchableSelect = ({ placeholder, options, value, onChange, onSelect, sma
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setFocusedIndex((prev) => (prev - 1 + visibleOptions.length) % visibleOptions.length);
-    } else if (e.key === 'Tab' || e.key === 'Enter') {
+    } else if (e.key === 'Tab') {
+      // By default, Tab should select the current highlighted item and move to the next field
+      if (visibleOptions[focusedIndex]) {
+        // We don't preventDefault() here to allow the focus to naturally move to the next input field in the page layout (v4)
+        handleSelect(visibleOptions[focusedIndex]);
+      }
+    } else if (e.key === 'Enter') {
       if (visibleOptions[focusedIndex]) {
         e.preventDefault();
         handleSelect(visibleOptions[focusedIndex]);

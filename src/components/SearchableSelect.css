@@ -105,3 +105,10 @@
   }
 }
 
+.ss-option.focused {
+  background: #f1f5f9;
+  color: #2563eb;
+  font-weight: 600;
+  border-left: 3px solid #2563eb;
+}
+
