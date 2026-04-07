@@ -179,5 +179,24 @@ export const odooService = {
     const res = await api.post('/api/company_info', { params: {} });
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
+  },
+  getCRMLeads: async (type = 'all', limit = 100, offset = 0, stageId = null, dateFrom = null, dateTo = null) => {
+    const res = await api.post('/api/crm/list', { 
+      params: { 
+        type, 
+        limit, 
+        offset,
+        stage_id: stageId,
+        date_from: dateFrom,
+        date_to: dateTo
+      } 
+    });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  getCRMStages: async () => {
+    const res = await api.post('/api/crm/stages', { params: {} });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
   }
 };

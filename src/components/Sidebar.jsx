@@ -10,7 +10,8 @@ import {
   FileText,
   Clock,
   Users,
-  XCircle
+  XCircle,
+  Target
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -32,6 +33,7 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
         { id: 'cancelled', label: 'Cancelled', icon: XCircle }
       ]
     },
+    { id: 'crm', label: 'CRM', icon: Target },
     { id: 'customers', label: 'Customers', icon: Users },
   ];
 

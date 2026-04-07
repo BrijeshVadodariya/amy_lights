@@ -14,6 +14,7 @@ const Header = ({ user, companyInfo, title, onLogout, onMenuToggle, isSidebarOpe
     'order-detail': 'Order Detail',
     'product-detail': 'Product Detail',
     'create-order': 'Create Quotation',
+    'crm': 'CRM',
   };
   const pageTitle = pageTitleMap[title] || 'Dashboard';
 

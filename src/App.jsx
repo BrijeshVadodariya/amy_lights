@@ -13,6 +13,7 @@ import CreateCustomer from './pages/CreateCustomer';
 import CreateProductPage from './pages/CreateProductPage';
 import Catalog from './pages/Catalog';
 import Customers from './pages/Customers';
+import CRM from './pages/CRM';
 import './App.css';
 
 const LOGIN_SESSION_KEY = 'amyLightsLoginSession';
@@ -137,6 +138,8 @@ function App() {
         return <Orders stateType="cancel" onNavigate={handleNavigate} />;
       case 'customers':
         return <Customers onNavigate={handleNavigate} />;
+      case 'crm':
+        return <CRM onNavigate={handleNavigate} />;
       case 'order-detail':
         return <OrderDetail orderId={selectedId} onBack={() => handleNavigate('quotations')} onNavigate={handleNavigate} />;
       case 'product-detail':
