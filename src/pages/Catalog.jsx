@@ -4,7 +4,73 @@ import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import '../components/Loader.css';
 import './Products.css';
-import './Catalog.css'; // Reuse table/grid styles
+import './Catalog.css';
+
+const SearchableSelect = ({ label, options, value, onChange, placeholder, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapperRef = React.useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter(opt => 
+    opt.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedName = options.find(opt => opt.name === value)?.name || value;
+
+  return (
+    <div className={`filter-dropdown-v2 ${disabled ? 'is-disabled' : ''}`} ref={wrapperRef}>
+      <label>{label}</label>
+      <div className="searchable-select-container" onClick={() => !disabled && setIsOpen(!isOpen)}>
+        <div className="selected-value">
+          {isOpen ? (
+            <input
+              autoFocus
+              className="select-search-input"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span>{selectedName === 'All' ? `All ${label}s` : selectedName}</span>
+          )}
+        </div>
+        <ChevronDown size={14} className={`dropdown-icon ${isOpen ? 'rotate-180' : ''}`} />
+      </div>
+      
+      {isOpen && !disabled && (
+        <div className="select-options-overlay">
+          <div 
+            className={`select-option ${value === 'All' ? 'is-selected' : ''}`}
+            onClick={() => { onChange('All'); setIsOpen(false); setSearch(''); }}
+          >
+            All {label}s
+          </div>
+          {filteredOptions.map(opt => (
+            <div 
+              key={opt.id} 
+              className={`select-option ${value === opt.name ? 'is-selected' : ''}`}
+              onClick={() => { onChange(opt.name); setIsOpen(false); setSearch(''); }}
+            >
+              {opt.name}
+            </div>
+          ))}
+          {filteredOptions.length === 0 && <div className="no-options">No matches</div>}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Catalog = ({ onNavigate, partnerId, extraData }) => {
   const [products, setProducts] = useState([]);
@@ -12,10 +78,12 @@ const Catalog = ({ onNavigate, partnerId, extraData }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categories, setCategories] = useState([]);
   const [seriesList, setSeriesList] = useState([]);
+  const [subSeriesList, setSubSeriesList] = useState([]);
   const [colours, setColours] = useState([]);
   const [wattages, setWattages] = useState([]);
   const [ccts, setCcts] = useState([]);
   const [selectedSeries, setSelectedSeries] = useState('All');
+  const [selectedSubSeries, setSelectedSubSeries] = useState('All');
   const [selectedColour, setSelectedColour] = useState('All');
   const [selectedWattage, setSelectedWattage] = useState('All');
   const [selectedCCT, setSelectedCCT] = useState('All');
@@ -27,7 +95,7 @@ const Catalog = ({ onNavigate, partnerId, extraData }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedSeries, selectedColour, selectedWattage, selectedCCT]);
+  }, [searchTerm, selectedSeries, selectedSubSeries, selectedColour, selectedWattage, selectedCCT]);
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -39,7 +107,13 @@ const Catalog = ({ onNavigate, partnerId, extraData }) => {
         ]);
         
         setProducts(prodData50 || []);
-        setSeriesList(masterData.series || masterData.categories || []);
+        const allCats = masterData.categories || masterData.series || [];
+        setCategories(allCats);
+        
+        // Filter top-level series (those with no parent or where parent is a list/False)
+        const parents = allCats.filter(c => !c.parent_id || (Array.isArray(c.parent_id) && c.parent_id.length === 0));
+        setSeriesList(parents);
+        
         setColours(masterData.colours || []);
         setWattages(masterData.wattages || []);
         setCcts(masterData.ccts || []);
@@ -78,12 +152,31 @@ const Catalog = ({ onNavigate, partnerId, extraData }) => {
     const codeStr = (p.default_code || p.code || '').toLowerCase();
     
     const matchesSearch = !searchTerm || nameStr.includes(searchVal) || codeStr.includes(searchVal);
-    const matchesSeries = selectedSeries === 'All' || (p.series || p.category) === selectedSeries;
+    const pSeries = p.series || p.category || '';
+    
+    // Logic for hierarchical match
+    let matchesSeries = true;
+    if (selectedSeries !== 'All') {
+      // Find the selected series category record
+      const seriesRec = seriesList.find(s => s.name === selectedSeries);
+      if (seriesRec) {
+        // Find all child categories of this parent
+        const childIds = categories.filter(c => 
+          c.id === seriesRec.id || 
+          (c.parent_id && Array.isArray(c.parent_id) && c.parent_id[0] === seriesRec.id) ||
+          (c.parent_id === seriesRec.id)
+        ).map(c => c.name);
+        
+        matchesSeries = childIds.includes(pSeries);
+      }
+    }
+
+    const matchesSubSeries = selectedSubSeries === 'All' || pSeries === selectedSubSeries;
     const matchesColour = selectedColour === 'All' || p.colour === selectedColour;
     const matchesWattage = selectedWattage === 'All' || p.wattage === selectedWattage;
     const matchesCCT = selectedCCT === 'All' || p.cct === selectedCCT;
 
-    return matchesSearch && matchesSeries && matchesColour && matchesWattage && matchesCCT;
+    return matchesSearch && matchesSeries && matchesSubSeries && matchesColour && matchesWattage && matchesCCT;
   });
 
   const toggleCart = (product, qty = 1) => {
@@ -173,39 +266,58 @@ const Catalog = ({ onNavigate, partnerId, extraData }) => {
               </div>
             </div>
 
-            {/* Row 2: Four Professional Filters */}
+            {/* Row 2: One-Row Professional Searchable Filters */}
             <div className="catalog-filters-row">
-              <div className="filter-dropdown-v2">
-                <label>Series</label>
-                <select value={selectedSeries} onChange={(e) => setSelectedSeries(e.target.value)}>
-                  <option value="All">All Series</option>
-                  {seriesList.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-              </div>
+              <SearchableSelect 
+                label="Series"
+                options={seriesList}
+                value={selectedSeries}
+                onChange={(val) => {
+                  setSelectedSeries(val);
+                  setSelectedSubSeries('All');
+                  if (val === 'All') {
+                    setSubSeriesList([]);
+                  } else {
+                    const parent = seriesList.find(c => c.name === val);
+                    if (parent) {
+                      const children = categories.filter(c => 
+                        (c.parent_id && Array.isArray(c.parent_id) && c.parent_id[0] === parent.id) ||
+                        (c.parent_id === parent.id)
+                      );
+                      setSubSeriesList(children);
+                    }
+                  }
+                }}
+              />
 
-              <div className="filter-dropdown-v2">
-                <label>Colour</label>
-                <select value={selectedColour} onChange={(e) => setSelectedColour(e.target.value)}>
-                  <option value="All">All Colours</option>
-                  {colours.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-              </div>
+              <SearchableSelect 
+                label="Sub Series"
+                options={subSeriesList}
+                value={selectedSubSeries}
+                disabled={selectedSeries === 'All'}
+                onChange={setSelectedSubSeries}
+              />
 
-              <div className="filter-dropdown-v2">
-                <label>Wattage</label>
-                <select value={selectedWattage} onChange={(e) => setSelectedWattage(e.target.value)}>
-                  <option value="All">All Wattages</option>
-                  {wattages.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
-                </select>
-              </div>
+              <SearchableSelect 
+                label="Colour"
+                options={colours}
+                value={selectedColour}
+                onChange={setSelectedColour}
+              />
 
-              <div className="filter-dropdown-v2">
-                <label>CCT</label>
-                <select value={selectedCCT} onChange={(e) => setSelectedCCT(e.target.value)}>
-                  <option value="All">All CCT</option>
-                  {ccts.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-              </div>
+              <SearchableSelect 
+                label="Watts"
+                options={wattages}
+                value={selectedWattage}
+                onChange={setSelectedWattage}
+              />
+
+              <SearchableSelect 
+                label="CCT"
+                options={ccts}
+                value={selectedCCT}
+                onChange={setSelectedCCT}
+              />
             </div>
           </div>
         </div>

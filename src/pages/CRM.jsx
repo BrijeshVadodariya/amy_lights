@@ -163,20 +163,19 @@ const CRM = ({ onNavigate }) => {
               <th>Architect FollowUp</th>
               <th>Electrician</th>
               <th>Notes</th>
-              <th width="50">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="7" className="text-center py-10">
+                <td colSpan="6" className="text-center py-10">
                   <div className="loading-spinner"></div>
                   <p>Loading CRM data...</p>
                 </td>
               </tr>
             ) : filteredLeads.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center py-10 text-gray-400">
+                <td colSpan="6" className="text-center py-10 text-gray-400">
                   No leads found for this filter.
                 </td>
               </tr>
@@ -205,9 +204,9 @@ const CRM = ({ onNavigate }) => {
                 <td>
                   <div className="crm-contact-cell">
                      <span className="font-medium text-slate-700">{lead.architect_name || '—'}</span>
-                     {lead.architect_phone && (
+                     {lead.architect_number && (
                        <div className="crm-text-muted">
-                         <Phone size={12} className="inline mr-1" /> {lead.architect_phone}
+                         <Phone size={12} className="inline mr-1" /> {lead.architect_number}
                        </div>
                      )}
                   </div>
@@ -225,25 +224,20 @@ const CRM = ({ onNavigate }) => {
                 <td>
                   <div className="crm-contact-cell">
                      <span className="font-medium text-slate-700">{lead.electrician_name || '—'}</span>
-                     {lead.electrician_phone && (
+                     {lead.electrician_number && (
                        <div className="crm-text-muted text-sm">
-                         {lead.electrician_phone}
+                         {lead.electrician_number}
                        </div>
                      )}
+                     <div className="crm-text-sm text-slate-500 italic">
+                        {lead.electrician_remark}
+                     </div>
                   </div>
                 </td>
                 <td>
                   <div className="crm-notes-cell">
                     {lead.notes}
                   </div>
-                </td>
-                <td>
-                  <button 
-                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
-                    onClick={() => alert(`Detailed view for ${lead.name} coming soon!`)}
-                  >
-                    <ChevronRight size={20} />
-                  </button>
                 </td>
               </tr>
             ))}
