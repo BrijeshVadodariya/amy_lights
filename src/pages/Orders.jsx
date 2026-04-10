@@ -283,10 +283,35 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                         {!order.architect && !order.electrician && '-'}
                       </td>
                     )}
-                    <td className="cell-highlight" data-label="Note">
-                      <div className="note-truncate" title={order.remark}>
-                        {order.remark || '-'}
-                      </div>
+                    <td className="cell-highlight" data-label="Note" style={{ padding: '10px 12px' }}>
+                      {(() => {
+                        if (!order.note) return '-';
+                        const parts = order.note.split(/\n---\n|<br\s*\/?>/).filter(Boolean);
+                        if (parts.length === 0) return '-';
+                        
+                        const latestRaw = parts[parts.length - 1];
+                        const authorMatch = latestRaw.match(/<b>(.*?)<\/b>/) || latestRaw.match(/^\[(.*?) - .*?\]/);
+                        const authorName = authorMatch ? authorMatch[1] : null;
+                        
+                        let cleanText = latestRaw.replace(/<[^>]*>/g, '').trim();
+                        if (authorName) {
+                          cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
+                          cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
+                        }
+                        
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div className="note-truncate" title={cleanText} style={{ fontWeight: 600, color: '#000', marginBottom: 0 }}>
+                              {cleanText}
+                            </div>
+                            {authorName && (
+                              <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.025em' }}>
+                                By {authorName}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="cell-highlight" data-label="Task">
                       <div className="note-truncate" title={order.last_activity}>
@@ -510,35 +535,59 @@ const QuickDetailModal = ({ orderId, onClose }) => {
           {loading ? <Loader message="Fetching internal data..." /> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <section>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                  <Calendar size={18} className="text-orange-500" />
-                  <h3 style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' }}>Active Tasks</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ background: '#fff7ed', padding: '8px', borderRadius: '8px' }}>
+                    <Calendar size={18} className="text-orange-500" />
+                  </div>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Recent Activities</h3>
                 </div>
                 {data?.activities?.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {data.activities.map((act, i) => (
-                      <div key={i} style={{ padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '13px' }}>{act.summary || 'Task'}</span>
-                          <span style={{ fontSize: '11px', color: '#64748b' }}>{act.date_deadline}</span>
+                      <div key={i} style={{ padding: '12px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                          <span style={{ fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>{act.summary || 'Task'}</span>
+                          <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>{act.date_deadline}</span>
                         </div>
-                        <div style={{ fontSize: '12px', color: '#334155' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                        <div style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: act.note }} />
                       </div>
                     ))}
                   </div>
-                ) : <div style={{ fontSize: '13px', color: '#94a3b8', padding: '4px' }}>No active tasks found.</div>}
+                ) : <div style={{ fontSize: '13px', color: '#94a3b8', padding: '10px', background: '#f8fafc', borderRadius: '8px', textAlign: 'center' }}>No active tasks found.</div>}
               </section>
 
               <section>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                  <MessageSquare size={18} className="text-emerald-500" />
-                  <h3 style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' }}>Remarks & Notes</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ background: '#ecfdf5', padding: '8px', borderRadius: '8px' }}>
+                    <MessageSquare size={18} className="text-emerald-500" />
+                  </div>
+                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Historical Remarks</h3>
                 </div>
                 {data?.remark ? (
-                   <div style={{ padding: '12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #dcfce7', fontSize: '13px', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                     {data.remark.replace(/<[^>]*>/g, '')}
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {data.remark.split(/\n?---\n?|<br\s*\/?>/).filter(Boolean).map((t, idx) => {
+                         const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
+                         const authorName = authorMatch ? authorMatch[1] : null;
+                         
+                         let cleanText = t.replace(/<[^>]*>/g, '').trim();
+                         if (authorName) {
+                            cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
+                            cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
+                         }
+                         
+                         return (
+                           <div key={idx} style={{ padding: '12px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                             <div style={{ fontSize: '14px', color: '#334155', lineHeight: 1.5, fontWeight: 500 }}>{cleanText}</div>
+                             {authorName && (
+                               <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginTop: '6px', borderTop: '1px solid #f1f5f9', paddingTop: '4px' }}>
+                                 By {authorName}
+                               </div>
+                             )}
+                           </div>
+                         );
+                      })}
                    </div>
-                ) : <div style={{ fontSize: '13px', color: '#94a3b8', padding: '4px' }}>No remarks found.</div>}
+                ) : <div style={{ fontSize: '13px', color: '#94a3b8', padding: '10px', background: '#f8fafc', borderRadius: '8px', textAlign: 'center' }}>No remarks found.</div>}
               </section>
             </div>
           )}
