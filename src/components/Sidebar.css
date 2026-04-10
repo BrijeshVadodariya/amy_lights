@@ -42,9 +42,26 @@
   margin-bottom: 2px;
 }
 
+.sidebar-logo {
+  flex-shrink: 0;
+}
+
+.company-name {
+  margin-left: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .user-info p {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-nav {
@@ -163,6 +180,40 @@
   border-color: rgba(239, 68, 68, 0.2);
 }
 
+
+.sidebar.collapsed {
+  width: 70px;
+}
+
+.sidebar.collapsed .sidebar-header {
+  padding: 1.5rem 0.5rem;
+}
+
+.sidebar.collapsed .sidebar-logo svg {
+  width: 32px;
+  height: 32px;
+}
+
+.sidebar.collapsed .user-profile {
+  justify-content: center;
+  padding: 1.5rem 0.5rem;
+}
+
+.sidebar.collapsed .sidebar-nav li {
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.sidebar.collapsed .group-header {
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.sidebar.collapsed .sidebar-logout-btn {
+  justify-content: center;
+  padding: 0.75rem 0;
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: min(82vw, 300px);
@@ -173,6 +224,10 @@
 
   .sidebar.open {
     transform: translateX(0);
+  }
+
+  .sidebar.collapsed {
+    width: min(82vw, 300px); /* Don't collapse on mobile */
   }
 
   .sidebar.closed {

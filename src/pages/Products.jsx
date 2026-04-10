@@ -133,42 +133,45 @@ const Products = ({ onNavigate }) => {
   }
 
   return (
-    <div className="dt-page">
+    <div className="dt-page products-page">
       <div className="dt-card">
-        <div className="dt-header">
-          <h2>Products</h2>
-          <button className="btn-ui primary" onClick={() => onNavigate('create-product')}>
-            Add New
-          </button>
-        </div>
-
-        <div className="dt-controls">
-           <div className="entries-per-page">
+        <div className="dt-toolbar-row">
+          <div className="dt-toolbar-left">
+            <div className="dt-flex">
               <span className="dt-control-label">Show</span>
               <select 
                 className="entries-select"
                 value={entriesPerPage}
                 onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
               >
-                <option value={8}>8</option>
+                <option value={10}>10</option>
                 <option value={20}>20</option>
-                <option value={25}>25</option>
                 <option value={50}>50</option>
               </select>
               <span className="dt-control-label">entries</span>
-           </div>
-           <div className="search-control">
-              <label className="search-label" htmlFor="products-search">Search</label>
+            </div>
+            
+            <div className="dt-flex dt-search-box">
+              <span className="dt-control-label">Search:</span>
               <input 
-                 id="products-search"
-                  type="text" 
-                  className="search-input"
-                  placeholder="Search by name or code"
-                  value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-               />
-           </div>
+                type="text" 
+                className="search-input"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              />
+            </div>
+          </div>
+
+          <div className="dt-toolbar-right">
+            <button className="btn-ui primary" onClick={() => onNavigate('create-product')}>
+              <Plus size={18} />
+              <span>Add Product</span>
+            </button>
+          </div>
         </div>
+
+
 
         {loadingRest && (
            <div className="h-1 w-full bg-indigo-50 relative overflow-hidden mb-4">

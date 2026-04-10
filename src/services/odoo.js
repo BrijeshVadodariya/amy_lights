@@ -128,6 +128,16 @@ export const odooService = {
     });
     return res.data.result || { success: false, error: res.data.error };
   },
+  updatePartner: async (partnerId, partnerData) => {
+    const res = await api.post('/api/partner/create', { params: { partner_id: partnerId, ...partnerData } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  getPartnerDetail: async (partnerId) => {
+    const res = await api.post('/api/partners/detail', { params: { partner_id: partnerId } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
   createPartner: async (partnerData) => {
     const res = await api.post('/api/partner/create', { params: partnerData });
     const result = res.data.result || { success: false, error: res.data.error };
@@ -198,5 +208,29 @@ export const odooService = {
     const res = await api.post('/api/crm/stages', { params: {} });
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
+  },
+  printQuotation: (orderId) => {
+    const token = localStorage.getItem('odoo_session_id') || '';
+    const db = import.meta.env.VITE_ODOO_DB || 'stage';
+    const baseUrl = odooService.getOdooUrl();
+    // Construct standard Odoo report URL with auth tokens
+    const url = `${baseUrl}/report/pdf/amy_lights.action_report_lighting_quotation/${orderId}?token=${token}&db=${db}`;
+    window.open(url, '_blank');
+  },
+  addQuickNote: async (orderId, text) => {
+    const res = await api.post('/api/order/add_note', { params: { order_id: orderId, text } });
+    return res.data.result || { success: false, error: res.data.error };
+  },
+  addQuickActivity: async (orderId, summary, note, deadline, userId) => {
+    const res = await api.post('/api/order/add_activity', { 
+      params: { 
+        order_id: orderId, 
+        summary, 
+        note, 
+        date_deadline: deadline,
+        user_id: userId
+      } 
+    });
+    return res.data.result || { success: false, error: res.data.error };
   }
 };

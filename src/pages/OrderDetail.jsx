@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal } from 'lucide-react';
+import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import '../components/Loader.css';
@@ -9,7 +9,7 @@ import './Products.css';
 const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showCustomerDetails, setShowCustomerDetails] = useState(true);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const [isMobile, setIsMobile] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
   ));
@@ -168,380 +168,316 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     <div className="order-detail-page detail-page-shell">
       <div className="detail-card detail-surface">
         <div className="detail-hero">
-          <button className="detail-back-btn" onClick={() => {
-            if (order.state === 'selection') {
-              onNavigate('selection');
-            } else if (order.state === 'sale' || order.state === 'done') {
-              onNavigate('orders');
-            } else {
-              onNavigate('quotations');
-            }
-          }}>
-            <ChevronLeft size={18} />
-            <span>
-              {order.state === 'selection' ? 'Back' : 
-               (order.state === 'sale' || order.state === 'done') ? 'Back' : 
-               'Back'}
-            </span>
+          <button className="btn-ui" onClick={() => {
+            if (order.state === 'selection') onNavigate('selection');
+            else if (order.state === 'sale' || order.state === 'done') onNavigate('orders');
+            else onNavigate('quotations');
+          }} style={{ height: '32px', borderRadius: '4px' }}>
+            <ChevronLeft size={16} />
+            <span>Back</span>
           </button>
-
-          <div className="detail-hero-copy">
-            <span className="detail-eyebrow">Order Details</span>
-          </div>
-
-          <div className="detail-hero-status" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span className={`status-pill status-${order.state}`}>
-              {formatValue(order.state, 'draft')}
-            </span>
-            {order.state !== 'sale' && order.state !== 'done' && order.state !== 'cancel' && (
+          
+          <div className="detail-hero-actions" style={{ display: 'flex', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
+            <button className="btn-ui" onClick={() => odooService.printQuotation(order.id)} style={{ height: '32px', borderRadius: '4px' }}>
+              <Printer size={14} />
+              <span>Print</span>
+            </button>
+            {(order.state === 'draft' || order.state === 'sent' || order.state === 'selection') && (
               <button 
+                className="btn-ui primary"
                 onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  backgroundColor: '#f8fafc', color: '#334155', border: '1px solid #e2e8f0',
-                  padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
-                  cursor: 'pointer', transition: 'all 0.2s'
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
-                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                style={{ height: '32px', borderRadius: '4px' }}
               >
                 <Edit size={14} />
                 <span>{order.state === 'selection' ? 'Edit Selection' : 'Edit Quotation'}</span>
               </button>
             )}
           </div>
-        </div>
-
-        <section className="detail-section">
+        </div>        <section className="detail-section">
           <div 
             className="detail-section-header collapsible-trigger" 
             onClick={() => setShowCustomerDetails(!showCustomerDetails)}
-            style={{ cursor: 'pointer', userSelect: 'none' }}
+            style={{ cursor: 'pointer', userSelect: 'none', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
           >
-            <div>
-              <span className="detail-section-kicker">Overview</span>
-              <h2 style={{ marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <span className="font-bold">{formatValue(order.name)}</span>
-                <span style={{ fontSize: '1.05rem', color: '#64748b', fontWeight: 700 }}>
-                  {formatValue(order.date_order ? order.date_order.split(' ')[0] : '')}
-                </span>
-              </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+              {!showCustomerDetails && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px', 
+                  fontSize: '15px', 
+                  color: '#000', 
+                  flex: 1,
+                  minWidth: 0
+                }}>
+                  <div style={{ fontSize: '16px', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? '135px' : '200px' }}>
+                    {order.partner_name}
+                  </div>
+                  <div style={{ 
+                    fontSize: '14px',
+                    whiteSpace: 'nowrap', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis', 
+                    color: '#666',
+                    fontWeight: 600,
+                    flex: 1
+                  }}>
+                    {fullAddress}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className={`section-toggle-icon ${showCustomerDetails ? 'rotate-180' : ''}`}>
-              <ChevronDown size={20} />
+            
+            <div className={`section-toggle-icon ${showCustomerDetails ? 'rotate-180' : ''}`} style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ChevronDown size={14} />
             </div>
           </div>
 
           {showCustomerDetails && (
-            <div className="animate-fade-in" style={{ padding: isMobile ? '0 0 1rem 0' : '0 1.5rem 1.5rem' }}>
+            <div className="animate-fade-in" style={{ padding: '0 14px 14px' }}>
               <div className="detail-info-grid" style={{ 
-                marginBottom: isMobile ? '0.75rem' : '1.5rem',
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)',
-                gap: isMobile ? '0.5rem' : '1.5rem'
+                gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+                gap: '8px'
               }}>
                 <div className="detail-info-card" style={{ gridColumn: isMobile ? 'span 2' : 'auto' }}>
-                  <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{infoItems[0].label}</span>
-                  <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{infoItems[0].value}</div>
+                  <span className="dt-control-label" style={{ marginBottom: '4px', display: 'block' }}>Customer</span>
+                  <div className="field-value-box" style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #eee' }}>{infoItems[0].value}</div>
                 </div>
                 
                 <div className="detail-info-card">
-                  <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{infoItems[1].label}</span>
-                  <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{infoItems[1].value}</div>
+                  <span className="dt-control-label" style={{ marginBottom: '4px', display: 'block' }}>Architect</span>
+                  <div className="field-value-box" style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #eee' }}>{infoItems[1].value}</div>
                 </div>
 
                 <div className="detail-info-card">
-                  <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{infoItems[2].label}</span>
-                  <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{infoItems[2].value}</div>
+                  <span className="dt-control-label" style={{ marginBottom: '4px', display: 'block' }}>Electrician</span>
+                  <div className="field-value-box" style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #eee' }}>{infoItems[2].value}</div>
                 </div>
-              </div>
-              <div className="detail-info-card" style={{ border: 'none', background: 'none', padding: 0 }}>
-                <span className="detail-info-label" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{infoItems[3].label}</span>
-                <div className="field-value-box" style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>{infoItems[3].value}</div>
+
+                <div className="detail-info-card" style={{ gridColumn: isMobile ? 'span 2' : 'auto' }}>
+                  <span className="dt-control-label" style={{ marginBottom: '4px', display: 'block' }}>Address</span>
+                  <div className="field-value-box" style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #eee', fontSize: '11px', lineHeight: 1.4 }}>{infoItems[3].value}</div>
+                </div>
               </div>
             </div>
           )}
-        </section>
-
-        <section className="detail-section">
-          <div className="detail-section-header">
-            <div>
-              <span className="detail-section-kicker">Items</span>
-              <h2>Products in This Order</h2>
-            </div>
+        </section>        <section className="detail-section">
+          <div className="detail-section-header" style={{ padding: '12px 14px' }}>
+            <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Items</h2>
           </div>
 
-          {/* Column-visibility toggles — same style as CreateOrder */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'center', margin: '0.75rem 0', paddingBottom: '0.75rem', borderBottom: '1px solid #f1f5f9' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
-              <input type="checkbox" checked={showDesc} onChange={e => setShowDesc(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-              Description
+          {/* Column-visibility toggles */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', margin: '4px 14px 12px', paddingBottom: '8px', borderBottom: '1px solid #f5f5f5' }}>
+            <label className="pro-toggle-wrap">
+              <input type="checkbox" checked={showDesc} onChange={e => setShowDesc(e.target.checked)} className="pro-checkbox" />
+              <span className="pro-toggle-label">Description</span>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
-              <input type="checkbox" checked={showImg} onChange={e => setShowImg(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-              Image
+            <label className="pro-toggle-wrap">
+              <input type="checkbox" checked={showImg} onChange={e => setShowImg(e.target.checked)} className="pro-checkbox" />
+              <span className="pro-toggle-label">Image</span>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
-              <input type="checkbox" checked={showBeam} onChange={e => setShowBeam(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-              Beam
+            <label className="pro-toggle-wrap">
+              <input type="checkbox" checked={showBeam} onChange={e => setShowBeam(e.target.checked)} className="pro-checkbox" />
+              <span className="pro-toggle-label">Beam</span>
             </label>
           </div>
 
-          {orderLines.length > 0 ? (() => {
-            // colCount drives colSpan on section/note rows
-            const colCount = 4 + (showImg ? 1 : 0) + (showBeam ? 1 : 0);
+          {orderLines.length > 0 ? (
+            <>
+              <div className="table-wrapper" style={{ border: '1px solid #eee', borderRadius: '4px', overflowX: 'auto', display: 'block', width: '100%' }}>
+                <table className="products-datatable" style={{ width: '100%', minWidth: '700px', tableLayout: 'auto' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', width: '120px' }}>Product</th>
+                      {showImg  && <th className="text-center" style={{ width: '60px' }}>Img</th>}
+                      {showBeam && <th className="text-center" style={{ width: '80px' }}>Beam</th>}
+                      <th className="text-center" style={{ width: '50px' }}>Qty</th>
+                      <th className="text-right"  style={{ width: '100px' }}>Price</th>
+                      <th className="text-center" style={{ width: '60px' }}>Disc%</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {orderLines.map((line, idx) => {
+                      const colCount = 4 + (showImg ? 1 : 0) + (showBeam ? 1 : 0);
+                      const isSection = line.display_type === 'line_section' || (!line.product_id && line.product_name && line.qty === 0);
+                      const isNote    = line.display_type === 'line_note';
 
-            return (
-              <div className="table-wrapper-fixed-outer" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '12px', marginTop: '1rem' }}>
-                <div className="table-wrapper-scrollable-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block', width: '100%' }}>
-                  <table className="products-datatable" style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse' }}>
-                    <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
-                      <tr>
-                        <th className="py-3 px-4 text-left border-none" style={{ minWidth: '240px' }}>Product Name</th>
-                        {showImg  && <th className="py-3 px-4 text-center border-none" style={{ width: '72px' }}>Img</th>}
-                        {showBeam && <th className="py-3 px-4 text-center border-none" style={{ width: '100px' }}>Beam</th>}
-                        <th className="py-3 px-4 text-center border-none" style={{ width: '72px' }}>Qty</th>
-                        <th className="py-3 px-4 text-right border-none"  style={{ width: '110px' }}>Unit Price</th>
-                        <th className="py-3 px-4 text-center border-none" style={{ width: '80px' }}>Disc (%)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {orderLines.map((line, idx) => {
-                        const isSection = line.display_type === 'line_section' || (!line.product_id && line.product_name && line.qty === 0);
-                        const isNote    = line.display_type === 'line_note';
-
-                        if (isSection || isNote) {
-                          return (
-                            <tr key={line.id || idx} className={isSection ? 'bg-slate-100/60' : 'bg-slate-50/20'}>
-                              <td colSpan={colCount} className="py-5 px-6">
-                                <span style={{ fontWeight: 700, color: 'black', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '-0.03em', display: 'block' }}>
-                                  {line.product_name}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        }
-
-                        // Resolve image URL
-                        const token   = localStorage.getItem('odoo_session_id') || '';
-                        const db      = import.meta.env.VITE_ODOO_DB || 'stage';
-                        let imgPath   = line.image_url;
-                        if (!imgPath && line.product_id) {
-                          const pId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
-                          if (pId) imgPath = `/web/image/product.template/${pId}/image_128`;
-                        }
-                        const imgSrc = imgPath ? `${imgPath}${imgPath.includes('?') ? '&' : '?'}token=${token}&db=${db}` : '';
-
-                        // Description: Odoo stores it in line.description (or line.name which carries the product desc with \n)
-                        // The remark field (line.remark) is the user-typed note; description is the product spec block
-                        const descText = line.description || '';
-
+                      if (isSection || isNote) {
                         return (
-                          <tr key={line.id || idx} className="row-hover">
-                            {/* Product name + optional description block */}
-                            <td className="py-3 px-4" style={{ verticalAlign: 'top' }}>
-                              <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px', lineHeight: 1.4 }}>
-                                {formatValue(line.product_name, 'Unnamed product')}
-                              </div>
-                              {showDesc && descText && (
-                                <div style={{
-                                  marginTop: '4px',
-                                  fontSize: '12px',
-                                  color: '#475569',
-                                  lineHeight: 1.6,
-                                  whiteSpace: 'pre-wrap',   /* preserve \n line breaks from Odoo */
-                                  fontStyle: 'italic'
-                                }}>
-                                  {descText}
-                                </div>
-                              )}
-                              {/* Remark (user note) always shown as a subtle tag */}
-                              {line.remark && line.remark !== descText && (
-                                <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8', fontStyle: 'normal' }}>
-                                  {line.remark}
-                                </div>
-                              )}
-                            </td>
-
-                            {/* Image thumbnail */}
-                            {showImg && (
-                              <td className="py-3 px-4" style={{ verticalAlign: 'top' }}>
-                                <div style={{ width: '52px', height: '52px', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {imgSrc && (
-                                    <img
-                                      src={imgSrc}
-                                      alt=""
-                                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                      onError={(e) => { e.target.style.display = 'none'; }}
-                                    />
-                                  )}
-                                </div>
-                              </td>
-                            )}
-
-                            {/* Beam */}
-                            {showBeam && (
-                              <td className="py-3 px-4 text-center" style={{ verticalAlign: 'top', fontSize: '12px', color: '#475569', fontWeight: 500 }}>
-                                {line.beam || '-'}
-                              </td>
-                            )}
-
-                            <td className="py-3 px-4 text-center font-medium text-slate-700" style={{ verticalAlign: 'top' }}>{formatValue(line.qty, '0')}</td>
-                            <td className="py-3 px-4 text-right text-slate-700" style={{ verticalAlign: 'top' }}>{formatCurrency(line.price_unit)}</td>
-                            <td className="py-3 px-4 text-center text-slate-500 font-medium" style={{ verticalAlign: 'top' }}>
-                              {line.discount ? `${line.discount}%` : '-'}
+                          <tr key={line.id || idx} className={isSection ? 'bg-slate-50' : 'bg-white'}>
+                            <td colSpan={colCount} className="py-2 px-4" style={{ textAlign: 'left' }}>
+                              <span style={{ fontWeight: 850, color: '#000', fontSize: '13px', textTransform: 'uppercase' }}>
+                                {line.product_name}
+                              </span>
                             </td>
                           </tr>
                         );
-                      })}
-                    </tbody>
-                  </table>
+                      }
+
+                      const token   = localStorage.getItem('odoo_session_id') || '';
+                      const db      = import.meta.env.VITE_ODOO_DB || 'stage';
+                      let imgPath   = line.image_url;
+                      if (!imgPath && line.product_id) {
+                        const pId = Array.isArray(line.product_id) ? line.product_id[0] : line.product_id;
+                        if (pId) imgPath = `/web/image/product.template/${pId}/image_128`;
+                      }
+                      const imgSrc = imgPath ? `${imgPath}${imgPath.includes('?') ? '&' : '?'}token=${token}&db=${db}` : '';
+                      const descText = line.description || '';
+
+                      return (
+                        <tr key={line.id || idx} className="row-hover">
+                          <td className="py-2 px-4" style={{ verticalAlign: 'top', textAlign: 'left' }}>
+                            <div style={{ fontWeight: 500, color: '#000', fontSize: '13px' }}>
+                              {line.product_name || 'Unnamed product'}
+                            </div>
+                            {showDesc && descText && (
+                              <div style={{ marginTop: '2px', fontSize: '11px', color: '#666', whiteSpace: 'pre-wrap' }}>
+                                {descText}
+                              </div>
+                            )}
+                            {line.remark && line.remark !== descText && (
+                              <div style={{ marginTop: '2px', fontSize: '10px', color: '#999' }}>
+                                {line.remark}
+                              </div>
+                            )}
+                          </td>
+                          {showImg && (
+                            <td className="py-2 px-4" style={{ verticalAlign: 'top' }}>
+                              <div style={{ width: '40px', height: '40px', borderRadius: '4px', border: '1px solid #eee', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {imgSrc && (
+                                  <img src={imgSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                                )}
+                              </div>
+                            </td>
+                          )}
+                          {showBeam && (
+                            <td className="py-2 px-4 text-center" style={{ verticalAlign: 'top', fontSize: '11px', color: '#000' }}>
+                              {line.beam || '-'}
+                            </td>
+                          )}
+                          <td className="py-2 px-4 text-center" style={{ verticalAlign: 'top', fontWeight: 600 }}>{line.qty || '0'}</td>
+                          <td className="py-2 px-4 text-right" style={{ verticalAlign: 'top' }}>{formatCurrency(line.price_unit)}</td>
+                          <td className="py-2 px-4 text-center" style={{ verticalAlign: 'top', color: '#666' }}>
+                            {line.discount ? `${line.discount}%` : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Summary Block */}
+              <div style={{ marginTop: '8px', padding: '0 14px 14px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                <div style={{ display: 'flex', width: isMobile ? '100%' : '260px', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
+                  <span>Untaxed Amount:</span>
+                  <span style={{ fontWeight: 600, color: '#000' }}>
+                    {formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0)), 0))}
+                  </span>
                 </div>
-
-                {/* Summary Block outside table */}
-                <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', padding: '0 1rem 1rem' }}>
-                  <div style={{ display: 'flex', width: isMobile ? '100%' : '300px', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Untaxed Amount:</span>
-                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
-                      {formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0)), 0))}
+                {orderLines.some(l => l.discount) && (
+                  <div style={{ display: 'flex', width: isMobile ? '100%' : '260px', justifyContent: 'space-between', fontSize: '12px', color: '#000' }}>
+                    <span>Discount:</span>
+                    <span style={{ fontWeight: 600 }}>
+                      -{formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (Number(l.discount || 0) / 100)), 0))}
                     </span>
                   </div>
-
-                  {orderLines.some(l => l.discount) && (
-                    <div style={{ display: 'flex', width: isMobile ? '100%' : '300px', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 600 }}>Discount:</span>
-                      <span style={{ fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
-                        -{formatCurrency(orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (Number(l.discount || 0) / 100)), 0))}
-                      </span>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', width: isMobile ? '100%' : '300px', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600 }}>Taxes:</span>
-                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
-                      {formatCurrency((order?.amount_total || 0) - orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (1 - (Number(l.discount || 0) / 100))), 0))}
-                    </span>
-                  </div>
-
-                  <div style={{ borderTop: '2px solid #f1f5f9', width: isMobile ? '100%' : '320px', margin: '8px 0', padding: '12px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: 900 }}>Total:</span>
-                    <span style={{ fontSize: '24px', fontWeight: 950, color: '#059669' }}>{formatCurrency(order?.amount_total || 0)}</span>
-                  </div>
+                )}
+                <div style={{ display: 'flex', width: isMobile ? '100%' : '260px', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
+                  <span>Taxes:</span>
+                  <span style={{ fontWeight: 600, color: '#000' }}>
+                    {formatCurrency((order?.amount_total || 0) - orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (1 - (Number(l.discount || 0) / 100))), 0))}
+                  </span>
+                </div>
+                <div style={{ borderTop: '1px solid #eee', width: isMobile ? '100%' : '260px', marginTop: '4px', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#000', textTransform: 'uppercase' }}>Total:</span>
+                  <span style={{ fontSize: '18px', fontWeight: 900, color: '#000' }}>{formatCurrency(order?.amount_total || 0)}</span>
                 </div>
               </div>
-            );
-          })() : (
-            <div className="detail-empty-state">
-              <Package2 size={20} />
-              <span>No product lines were added to this order.</span>
+            </>
+          ) : (
+            <div className="detail-empty-state" style={{ margin: '0 14px 14px' }}>
+              <Package2 size={16} />
+              <span>No items added.</span>
             </div>
           )}
         </section>
 
-        {order.activities && order.activities.length > 0 && (
-          <section className="detail-section">
-            <div className="detail-section-header" style={{ marginBottom: '1rem' }}>
-              <div>
-                <span className="detail-section-kicker">Tasks</span>
-                <h2>Planned Activities</h2>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+          borderTop: '1px solid #eee'
+        }}>
+          {order.activities && order.activities.length > 0 && (
+            <div style={{ borderRight: isMobile ? 'none' : '1px solid #eee', borderBottom: isMobile ? '1px solid #eee' : 'none' }}>
+              <div className="detail-section-header" style={{ padding: '12px 14px' }}>
+                <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Tasks</h2>
               </div>
-            </div>
-            <div className="activity-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {order.activities.map((act, idx) => (
-                <div key={idx} className="activity-card" style={{ padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                  <div style={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <CalendarDays size={18} className="text-slate-500" />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>{((act.summary || act.activity_type_name) === 'To Do') ? 'Task' : (act.summary || act.activity_type_name || 'Task')}</h4>
+              <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {order.activities.map((act, idx) => (
+                  <div key={idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '4px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontWeight: 800, fontSize: '13px', color: '#000' }}>
+                        {((act.summary || act.activity_type_name) === 'To Do') ? 'Task' : (act.summary || act.activity_type_name || 'Task')}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#666', fontWeight: 600 }}>{act.date_deadline || 'No Date'}</div>
+                    </div>
                     {act.note && (
-                      <p style={{ margin: '0 0 8px', fontSize: '14px', color: '#475569', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                      <div style={{ fontSize: '12px', color: '#000', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
                     )}
-                    <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#64748b', alignItems: 'center' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <CalendarDays size={12} />
-                        {act.date_deadline || 'No Date'}
-                      </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <UserRound size={12} />
-                        {act.user_name || 'Unassigned'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <section className="detail-section">
-          <div className="detail-section-header" style={{ marginBottom: '1rem' }}>
-            <div>
-              <span className="detail-section-kicker">Notes</span>
-              <h2>Remarks</h2>
-            </div>
-          </div>
-
-          {order.remark ? (() => {
-            // Split by the separator we use when joining in CreateOrder ('---')
-            const noteLines = order.remark
-              .replace(/<[^>]*>/g, '')       // strip any HTML tags
-              .split(/\n?---\n?|\n/)           // split by '---' separator or plain newlines
-              .map(t => t.trim())
-              .filter(t => t.length > 0);
-
-            if (noteLines.length === 0) {
-              return (
-                <div className="remark-value-box">
-                  <FileText size={18} />
-                  <p>No remark added for this order.</p>
-                </div>
-              );
-            }
-
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {noteLines.map((line, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '0.85rem',
-                      background: 'linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%)',
-                      border: '1px solid #dbeafe',
-                      borderRadius: '14px',
-                      padding: '1rem 1.25rem',
-                    }}
-                  >
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <FileText size={14} style={{ color: '#2563eb' }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '0.93rem', color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'normal' }}>
-                        {line}
-                      </p>
-                      <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Note #{idx + 1}</span>
-                    </div>
                   </div>
                 ))}
               </div>
-            );
-          })() : (
-            <div className="remark-value-box">
-              <FileText size={18} />
-              <p>No remark added for this order.</p>
             </div>
           )}
-        </section>
+
+          <div>
+            <div className="detail-section-header" style={{ padding: '12px 14px' }}>
+              <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Remarks</h2>
+            </div>            {order.remark ? (() => {
+              const noteLines = order.remark
+                .split(/\n?---\n?|\n|<br\s*\/?>/)
+                .map(t => {
+                  const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
+                  const authorName = authorMatch ? authorMatch[1] : null;
+                  let cleanText = t.replace(/<[^>]*>/g, '').trim();
+                  
+                  if (authorName) {
+                    // Strip "Name: " prefix
+                    cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
+                    // Strip "[Name - Date]\n" prefix
+                    cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
+                  }
+                  
+                  return { author: authorName, text: cleanText.trim() };
+                })
+                .filter(o => o.text.length > 0);
+
+              if (noteLines.length === 0) return (
+                <div style={{ padding: '0 14px 14px', fontSize: '12px', color: '#999' }}>No remarks.</div>
+              );
+
+              return (
+                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {noteLines.map((n, idx) => (
+                    <div key={idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '4px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{n.text}</p>
+                      <span style={{ fontSize: '10px', color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>{n.author ? `By ${n.author}` : `Note #${idx + 1}`}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })() : (
+              <div style={{ padding: '0 14px 14px', fontSize: '12px', color: '#999' }}>No remarks.</div>
+            )}
+          </div>
+        </div>
 
         {order.amy_notes && order.amy_notes.length > 0 && (
           <section className="detail-section">
-            <div className="detail-section-header">
-              <div>
-                <span className="detail-section-kicker">Activity</span>
-                <h2>Activity Notes & Attachments</h2>
-              </div>
+            <div className="detail-section-header" style={{ padding: '12px 14px' }}>
+              <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Activity History</h2>
             </div>
 
             <div className="activity-notes-stack">
@@ -611,56 +547,31 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
 
         <div className="detail-footer-actions">
           {(order.state === 'draft' || order.state === 'sent') && (
-              <button 
-                className="btn-action-soft btn-confirm-soft w-auto"
-                onClick={handleConfirm}
-              >
-                <CheckCircle size={18} />
+              <button className="btn-ui primary" onClick={handleConfirm} style={{ height: '36px' }}>
+                <CheckCircle size={16} />
                 <span>Confirm Quotation</span>
               </button>
           )}
 
           {(order.state === 'draft' || order.state === 'sent' || order.state === 'sale') && (
-              <button 
-                className="btn-action-soft btn-cancel-soft w-auto"
-                onClick={handleDecline}
-              >
-                <XCircle size={18} />
+              <button className="btn-ui" onClick={handleDecline} style={{ height: '36px' }}>
+                <XCircle size={16} />
                 <span>{order.state === 'sale' ? 'Cancel Order' : 'Cancel Quotation'}</span>
               </button>
           )}
 
           {order.state === 'selection' && (
-            <>
-              <button 
-                className="btn-action-soft btn-confirm-soft w-auto bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
-                onClick={() => handleConvertSelection('draft')}
-              >
-                <FileText size={18} />
-                <span>Convert to Quotation</span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn-ui primary" onClick={() => handleConvertSelection('draft')} style={{ height: '36px', flex: 1 }}>
+                <FileText size={16} />
+                <span>Draft Quotation</span>
               </button>
-              
-              <button 
-                className="btn-action-soft btn-confirm-soft w-auto bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                onClick={() => handleConvertSelection('sale')}
-              >
-                <CheckCircle size={18} />
-                <span>Convert to Order</span>
+              <button className="btn-ui primary" onClick={() => handleConvertSelection('sale')} style={{ height: '36px', flex: 1, background: '#000' }}>
+                <CheckCircle size={16} />
+                <span>Confirm Order</span>
               </button>
-            </>
+            </div>
           )}
-
-          <button className="detail-action-btn detail-action-secondary" onClick={() => {
-            if (order.state === 'selection') {
-              onNavigate('selection');
-            } else if (order.state === 'sale' || order.state === 'done') {
-              onNavigate('orders');
-            } else {
-              onNavigate('quotations');
-            }
-          }}>
-            <span>Back</span>
-          </button>
         </div>
       </div>
 

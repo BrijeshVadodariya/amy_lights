@@ -6,7 +6,7 @@ import './SearchableSelect.css';
  * SearchableSelect component.
  * Reusable dropdown with search input and scrollable list.
  */
-const SearchableSelect = ({ placeholder, options, value, onChange, onSelect, small, defaultValue }) => {
+const SearchableSelect = ({ placeholder, options = [], value, onChange, onSelect, small, defaultValue }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [menuStyle, setMenuStyle] = useState({});

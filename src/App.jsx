@@ -14,6 +14,7 @@ import CreateProductPage from './pages/CreateProductPage';
 import Catalog from './pages/Catalog';
 import Customers from './pages/Customers';
 import CRM from './pages/CRM';
+import { Menu } from 'lucide-react';
 import './App.css';
 
 const LOGIN_SESSION_KEY = 'amyLightsLoginSession';
@@ -27,9 +28,8 @@ function App() {
   const [selectedId, setSelectedId] = useState(() => localStorage.getItem('amy_selected_id') || null);
   const [extraData, setExtraData] = useState(null); // New state for extra data
   const [companyInfo, setCompanyInfo] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => (
-    typeof window !== 'undefined' ? window.innerWidth > 768 : true
-  ));
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const fetchCompanyInfo = async () => {
     try {
@@ -77,13 +77,28 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (event.state && event.state.tab) {
+        setActiveTab(event.state.tab);
+        setSelectedId(event.state.id);
+        setExtraData(event.state.data);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleNavigate = (tab, id = null, data = null) => {
     setActiveTab(tab);
     setSelectedId(id);
-    setExtraData(data); // Set extra data
+    setExtraData(data);
     localStorage.setItem('amy_active_tab', tab);
     if (id) localStorage.setItem('amy_selected_id', id);
     else localStorage.removeItem('amy_selected_id');
+
+    // Push to history
+    window.history.pushState({ tab, id, data }, '', '');
 
     if (window.innerWidth <= 768) {
       setIsSidebarOpen(false);
@@ -91,7 +106,11 @@ function App() {
   };
 
   const toggleSidebar = () => {
-    setIsSidebarOpen(prev => !prev);
+    if (window.innerWidth <= 768) {
+      setIsSidebarOpen(prev => !prev);
+    } else {
+      setIsSidebarCollapsed(prev => !prev);
+    }
   };
 
   const handleLogin = async (credentials) => {
@@ -151,7 +170,7 @@ function App() {
       case 'create-selection':
         return <CreateOrder editId={selectedId} isSelection={true} onNavigate={handleNavigate} extraData={extraData} />;
       case 'create-customer':
-        return <CreateCustomer onNavigate={handleNavigate} extraData={extraData} />;
+        return <CreateCustomer editId={selectedId} onNavigate={handleNavigate} extraData={extraData} />;
       case 'create-product':
         return <CreateProductPage onNavigate={handleNavigate} />;
       case 'catalog':
@@ -169,26 +188,57 @@ function App() {
   };
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <div className={`sidebar-backdrop ${isSidebarOpen ? 'show' : ''}`} onClick={() => setIsSidebarOpen(false)} />
       <Sidebar 
         user={user}
         companyInfo={companyInfo}
         isOpen={isSidebarOpen} 
+        isCollapsed={isSidebarCollapsed}
         activeTab={activeTab} 
         onTabChange={handleNavigate} 
         onLogout={handleLogout}
         onCloseSidebar={() => setIsSidebarOpen(false)} 
       />
+      
       <div className="main-content">
-        <Header 
-          user={user} 
-          companyInfo={companyInfo}
-          title={activeTab} 
-          onLogout={handleLogout} 
-          onMenuToggle={toggleSidebar} 
-          isSidebarOpen={isSidebarOpen} 
-        />
+        {/* Topbar with Hamburger */}
+        <header className="top-hamburger-bar">
+          <button 
+            className="hamburger-btn"
+            onClick={toggleSidebar}
+            aria-label="Toggle Menu"
+          >
+            <Menu size={22} />
+          </button>
+          <div className="topbar-context">
+            <span className="current-tab-name">
+              {(() => {
+                const isEdit = !!selectedId;
+                switch (activeTab) {
+                  case 'dashboard': return 'Dashboard';
+                  case 'products': return 'Products';
+                  case 'quotations': return 'Quotations';
+                  case 'orders': return 'Sales Orders';
+                  case 'selection': return 'Selections';
+                  case 'cancelled': return 'Cancelled Orders';
+                  case 'customers': return 'Customers';
+                  case 'crm': return 'Lead CRM';
+                  case 'order-detail': return 'Order Details';
+                  case 'product-detail': return 'Product Details';
+                  case 'create-order': return isEdit ? 'Edit Quotation' : 'Create Quotation';
+                  case 'create-direct-order': return isEdit ? 'Edit Order' : 'Create Order';
+                  case 'create-selection': return isEdit ? 'Edit Selection' : 'Create Selection';
+                  case 'create-customer': return isEdit ? 'Edit Customer' : 'Create Customer';
+                  case 'create-product': return 'Create Product';
+                  case 'catalog': return 'Product Catalog';
+                  default: return activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                }
+              })()}
+            </span>
+          </div>
+        </header>
+
         <div className="page-content">
           {renderContent()}
         </div>

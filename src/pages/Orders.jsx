@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Edit, Trash2, CheckCircle, XCircle, ChevronDown, MoreVertical, Eye, Filter, ShoppingCart, ArrowLeft, Grid, List as ListIcon, X, Clock, UserPlus } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, CheckCircle, XCircle, ChevronDown, MoreVertical, Eye, Filter, ShoppingCart, ArrowLeft, Grid, List as ListIcon, X, Clock, UserPlus, MessageSquare, Calendar, Link as LinkIcon, Send } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
@@ -22,6 +22,14 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
   const [catalogAnchor, setCatalogAnchor] = useState(null);
   const catalogBtnRef = React.useRef(null);
+  const [showProfessional, setShowProfessional] = useState(false);
+  
+  // Quick Actions State
+  const [quickDetailOrderId, setQuickDetailOrderId] = useState(null);
+  const [quickNoteOrderId, setQuickNoteOrderId] = useState(null);
+  const [quickTaskOrderId, setQuickTaskOrderId] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -52,18 +60,31 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
           console.error("Master data error:", data.error);
         } else {
           setPartners(data.partners || []);
+          setUsers(data.users || []);
         }
       } catch (err) {
-        console.error("Failed to fetch partners", err);
+        console.error("Failed to fetch master data", err);
       }
     };
     fetchPartners();
   }, [fetchOrders]);
 
-  const filtered = orders.filter(o => 
-    o.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    o.customer?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = orders.filter(o => {
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase();
+    return (
+      o.name?.toLowerCase().includes(q)           ||  // Sale Order Number (e.g. S00012)
+      o.customer?.toLowerCase().includes(q)        ||  // Customer Name
+      o.phone?.toLowerCase().includes(q)           ||  // Customer Phone / Mobile
+      o.salesperson?.toLowerCase().includes(q)     ||  // Salesperson Name
+      o.architect?.toLowerCase().includes(q)       ||  // Architect Name
+      o.architect_phone?.toLowerCase().includes(q) ||  // Architect Phone
+      o.electrician?.toLowerCase().includes(q)     ||  // Electrician Name
+      o.electrician_phone?.toLowerCase().includes(q)|| // Electrician Phone
+      o.remark?.toLowerCase().includes(q)          ||  // Last Remark / Note
+      o.last_activity?.toLowerCase().includes(q)       // Last Planned Activity / Task
+    );
+  });
 
   const totalEntries = filtered.length;
   const totalPages = Math.ceil(totalEntries / entriesPerPage);
@@ -142,36 +163,12 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   return (
     <div className="dt-page">
       <div className="dt-card">
-        <div className="dt-header">
-          <h2>{title}</h2>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <button 
-              ref={catalogBtnRef}
-              className={`btn-ui secondary ${catalogAnchor ? 'active-popover' : ''}`} 
-              onClick={() => setCatalogAnchor(catalogAnchor ? null : catalogBtnRef.current)}
-              title="Open Catalog Choice"
-            >
-              <ShoppingCart size={18} />
-              <span className="hide-text-mobile">Catalog</span>
-            </button>
-            <button 
-              className="btn-ui primary" 
-              onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : stateType === 'order' ? 'create-direct-order' : 'create-order')}
-              title={stateType === 'selection' ? 'Create Selection' : 'Create Quotation'}
-            >
-              <Plus size={18} />
-              <span className="hide-text-mobile">
-                {stateType === 'selection' ? 'Create Selection' : stateType === 'order' ? 'Create Order' : 'Create Quotation'}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div className="dt-controls">
-           <div className="dt-flex">
-              <span className="text-sm text-slate-600">Show</span>
+        <div className="dt-toolbar-row">
+          <div className="dt-toolbar-left">
+            <div className="dt-flex">
+              <span className="dt-control-label">Show</span>
               <select 
-                className="entries-select border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                className="entries-select"
                 value={entriesPerPage}
                 onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
               >
@@ -179,18 +176,54 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                 <option value={25}>25</option>
                 <option value={50}>50</option>
               </select>
-              <span className="text-sm text-slate-600">entries</span>
-           </div>
-           <div className="dt-flex">
-              <span className="text-sm text-slate-600">Search:</span>
+              <span className="dt-control-label">entries</span>
+            </div>
+            
+            <div className="dt-flex dt-search-box">
               <input 
                 type="text" 
-                className="search-input border border-slate-300 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full max-w-[200px] bg-white"
+                className="search-input"
                 value={searchTerm}
+                placeholder="Search customer, name..."
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               />
-           </div>
+            </div>
+          </div>
+
+          <div className="dt-toolbar-right">
+            <div className="pro-toggle-wrap">
+              <input 
+                type="checkbox" 
+                id="toggle-pro"
+                checked={showProfessional} 
+                onChange={(e) => setShowProfessional(e.target.checked)}
+                className="pro-checkbox"
+              />
+              <label htmlFor="toggle-pro" className="pro-toggle-label">Show Professional</label>
+            </div>
+            <div className="btn-group-wrap">
+              <button 
+                ref={catalogBtnRef}
+                className={`btn-ui secondary ${catalogAnchor ? 'active-popover' : ''}`} 
+                onClick={() => setCatalogAnchor(catalogAnchor ? null : catalogBtnRef.current)}
+              >
+                <ShoppingCart size={14} />
+                <span>Catalog</span>
+              </button>
+              <button 
+                className="btn-ui primary" 
+                onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : stateType === 'order' ? 'create-direct-order' : 'create-order')}
+              >
+                <Plus size={14} />
+                <span>
+                  {stateType === 'selection' ? 'Selection' : stateType === 'order' ? 'Order' : 'Quotation'}
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
+
+
 
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center">
@@ -200,148 +233,130 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
              </div>
           </div>
         ) : (
-          <div className="table-wrapper-fixed-outer" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-            <div className="table-wrapper-scrollable-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'block', width: '100%' }}>
-              <table className="products-datatable" style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse' }}>
-                <thead className="bg-[#fcfcfc] border-b text-slate-700 uppercase tracking-tight text-[11px] font-bold">
-                  <tr>
-                    <th className="py-3 px-4 text-left border-none">Salesperson</th>
-                    <th className="py-3 px-4 text-left border-none">Customer</th>
-                    <th className="py-3 px-4 text-left border-none">Note</th>
-                    <th className="py-3 px-4 text-left border-none">Professional</th>
-                    <th className="py-3 px-4 text-center border-none">Date</th>
-                    <th className="py-3 px-4 text-right border-none">Amount</th>
-                    <th className="py-3 px-4 text-center w-36 border-none">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-[13px] text-slate-600">
-                  {currentItems.map((order, idx) => (
-                    <tr 
-                      key={order.id} 
-                      className="row-hover"
-                      onClick={() => onNavigate('order-detail', order.id)}
+          <div className="table-wrapper">
+            <table className="products-datatable">
+              <thead>
+                <tr>
+                  <th className="text-center" style={{ width: '40px' }}>Sr.No</th>
+                  <th style={{ width: '100px' }}>Date</th>
+                  <th style={{ width: '130px' }}>Sale Person</th>
+                  <th style={{ width: '180px' }}>Customer</th>
+                  {showProfessional && <th style={{ width: '150px' }}>Professional</th>}
+                  <th style={{ minWidth: '150px' }}>Note</th>
+                  <th style={{ minWidth: '150px' }}>Task</th>
+                  <th className="text-center" style={{ width: '60px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.map((order, idx) => (
+                  <tr 
+                    key={order.id} 
+                    onClick={() => onNavigate('order-detail', order.id)}
+                  >
+                    <td className="text-center cell-light" data-label="Sr.No">
+                      {indexOfFirstItem + idx + 1}
+                    </td>
+                    <td className="cell-light" data-label="Date">
+                      {order.order_date || '-'}
+                    </td>
+                    <td className="cell-light" data-label="Sale Person">
+                      {order.salesperson || '-'}
+                    </td>
+                    <td className="cell-highlight" data-label="Customer">
+                      <div className="customer-main">{order.customer || '-'}</div>
+                      {order.phone && <div className="cell-light" style={{ fontSize: '15px', marginTop: '2px' }}>{order.phone}</div>}
+                    </td>
+                    {showProfessional && (
+                      <td className="cell-light" data-label="Professional">
+                        {order.architect && (
+                          <div className="pro-line">
+                            <strong>A:</strong> {order.architect}
+                            {order.architect_phone && <span className="cell-light" style={{ fontSize: '11px', marginLeft: '4px' }}>({order.architect_phone})</span>}
+                          </div>
+                        )}
+                        {order.electrician && (
+                          <div className="pro-line">
+                            <strong>E:</strong> {order.electrician}
+                            {order.electrician_phone && <span className="cell-light" style={{ fontSize: '11px', marginLeft: '4px' }}>({order.electrician_phone})</span>}
+                          </div>
+                        )}
+                        {!order.architect && !order.electrician && '-'}
+                      </td>
+                    )}
+                    <td className="cell-highlight" data-label="Note">
+                      <div className="note-truncate" title={order.remark}>
+                        {order.remark || '-'}
+                      </div>
+                    </td>
+                    <td className="cell-highlight" data-label="Task">
+                      <div className="note-truncate" title={order.last_activity}>
+                        {order.last_activity || '-'}
+                      </div>
+                    </td>
+                    <td 
+                      className="text-center" 
+                      data-label="Actions" 
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <td className="py-3 px-4" data-label="Salesperson">
-                        <div style={{ fontWeight: '600', color: '#4f46e5' }}>{order.salesperson || '-'}</div>
-                      </td>
-                      <td className="py-3 px-4" data-label="Customer">
-                        <div style={{ fontWeight: '700', color: '#1e293b' }}>{order.customer || '-'}</div>
-                        {order.phone && <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{order.phone}</div>}
-                      </td>
-                      <td className="py-3 px-4" data-label="Note">
-                        <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={order.last_note}>
-                          {order.last_note || '-'}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4" data-label="Professional">
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {order.architect && (
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ fontSize: '9px', color: 'white', backgroundColor: '#3b82f6', padding: '2px 4px', borderRadius: '4px', fontWeight: 'bold' }}>ARCH</span>
-                                <span style={{ fontWeight: '500', color: '#334155' }}>{order.architect}</span>
-                              </div>
-                              {order.architect_phone && (
-                                <div style={{ fontSize: '11px', color: '#64748b', marginLeft: '34px', marginTop: '2px' }}>
-                                  {order.architect_phone}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {order.electrician && (
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ fontSize: '9px', color: 'white', backgroundColor: '#22c55e', padding: '2px 4px', borderRadius: '4px', fontWeight: 'bold' }}>ELEC</span>
-                                <span style={{ fontWeight: '500', color: '#334155' }}>{order.electrician}</span>
-                              </div>
-                              {order.electrician_phone && (
-                                <div style={{ fontSize: '11px', color: '#64748b', marginLeft: '34px', marginTop: '2px' }}>
-                                  {order.electrician_phone}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {!order.architect && !order.electrician && <span style={{ color: '#cbd5e1' }}>-</span>}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-center text-slate-600" data-label="Date">{order.order_date || '-'}</td>
-                      <td className="py-3 px-4 text-right" data-label="Amount" style={{ fontWeight: '700', color: '#0f172a' }}>
-                        {order.currency_symbol} {parseFloat(order.amount_total || 0).toLocaleString()}
-                      </td>
-                      <td 
-                        className="py-4 px-4 border-none" 
-                        data-label="Action" 
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseEnter={() => setOpenDropdownId(order.id)}
-                        onMouseLeave={() => setOpenDropdownId(null)}
-                      >
-                        <div className="flex justify-center">
-                          <div className="relative">
+                      <div className="action-cell">
+                        <button 
+                          className="action-trigger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdownId(openDropdownId === order.id ? null : order.id);
+                          }}
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+
+                        {openDropdownId === order.id && (
+                          <div 
+                            className="action-dropdown-popover"
+                            onMouseEnter={() => setOpenDropdownId(order.id)}
+                            onMouseLeave={() => setOpenDropdownId(null)}
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <button 
-                              className={`p-2 rounded-full transition-all duration-200 ${openDropdownId === order.id ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                              className="btn-action-soft"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setOpenDropdownId(openDropdownId === order.id ? null : order.id);
+                                setOpenDropdownId(null);
+                                setQuickDetailOrderId(order.id);
                               }}
                             >
-                              <ChevronDown size={18} className={`transition-transform duration-200 ${openDropdownId === order.id ? 'rotate-90' : ''}`} />
+                              <Eye size={12} className="text-blue-500" />
+                              <span>View Quick Details</span>
                             </button>
 
-                            {openDropdownId === order.id && (
-                              <div 
-                                className="action-dropdown-popover"
-                                onMouseEnter={() => setOpenDropdownId(order.id)}
-                                onMouseLeave={() => setOpenDropdownId(null)}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {(order.status === 'draft' || order.status === 'sent' || order.status === 'selection') && (
-                                  <button 
-                                    className="btn-action-soft btn-edit-soft"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setOpenDropdownId(null);
-                                      onNavigate(order.status === 'selection' ? 'create-selection' : 'create-order', order.id);
-                                    }}
-                                  >
-                                    <Edit size={14} />
-                                    <span>{order.status === 'selection' ? 'Edit Selection' : 'Edit Detail'}</span>
-                                  </button>
-                                )}
-                                
-                                {(order.status === 'draft' || order.status === 'sent') && (
-                                    <button 
-                                      className="btn-action-soft btn-confirm-soft"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenDropdownId(null);
-                                        handleConfirm(order.id);
-                                      }}
-                                    >
-                                      <CheckCircle size={14} />
-                                      <span>Confirm Order</span>
-                                    </button>
-                                )}
+                            <button 
+                              className="btn-action-soft"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                setQuickNoteOrderId(order.id);
+                              }}
+                            >
+                              <MessageSquare size={12} className="text-emerald-500" />
+                              <span>Add Remark</span>
+                            </button>
 
-                                {(order.status === 'draft' || order.status === 'sent' || order.status === 'sale') && (
-                                    <button 
-                                      className="btn-action-soft btn-cancel-soft"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenDropdownId(null);
-                                        handleDecline(order.id);
-                                      }}
-                                    >
-                                      <XCircle size={14} />
-                                      <span>{order.status === 'sale' ? 'Cancel Order' : 'Cancel Quotation'}</span>
-                                    </button>
-                                )}
-                              </div>
-                            )}
+                            <button 
+                              className="btn-action-soft"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                setQuickTaskOrderId(order.id);
+                              }}
+                            >
+                              <Calendar size={12} className="text-orange-500" />
+                              <span>Add Task</span>
+                            </button>
                           </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
                   {currentItems.length === 0 && (
                     <tr>
                       <td colSpan="7" className="py-8 text-center text-slate-400">
@@ -352,13 +367,9 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                 </tbody>
               </table>
             </div>
-          </div>
         )}
 
-        <div className="datatable-footer mt-6 dt-flex-between">
-          <div className="entries-info text-sm text-slate-500 font-medium">
-            Showing {totalEntries > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, totalEntries)} of {totalEntries} entries
-          </div>
+        <div className="datatable-footer dt-flex-between">
           <div className="pagination dt-flex border border-slate-300 rounded overflow-hidden">
             {renderPagination()}
           </div>
@@ -439,7 +450,227 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
         </>,
         document.body
       )}
+     {/* VIEW QUICK DETAIL MODAL */}
+     {quickDetailOrderId && (
+       <QuickDetailModal 
+          orderId={quickDetailOrderId} 
+          onClose={() => setQuickDetailOrderId(null)} 
+       />
+     )}
+
+     {/* ADD QUICK NOTE MODAL */}
+     {quickNoteOrderId && (
+       <QuickNoteModal 
+          orderId={quickNoteOrderId}
+          onClose={() => setQuickNoteOrderId(null)}
+          onSuccess={() => { fetchOrders(); setQuickNoteOrderId(null); }}
+       />
+     )}
+
+     {/* ADD QUICK TASK MODAL */}
+     {quickTaskOrderId && (
+       <QuickTaskModal 
+          orderId={quickTaskOrderId}
+          users={users}
+          onClose={() => setQuickTaskOrderId(null)}
+          onSuccess={() => { fetchOrders(); setQuickTaskOrderId(null); }}
+       />
+     )}
     </div>
+  );
+};
+
+// --- QUICK ACTION MODALS ---
+
+const QuickDetailModal = ({ orderId, onClose }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const res = await odooService.getOrderDetail(orderId);
+        setData(res);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, [orderId]);
+
+  return createPortal(
+    <div className="co-modal-overlay animate-fade-in" onClick={onClose}>
+      <div className="co-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
+        <div className="co-modal-header" style={{ borderBottom: '1px solid #eee', paddingBottom: '1rem' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Order Quick Details</h2>
+          <button className="co-btn-close" onClick={onClose}><X size={20} /></button>
+        </div>
+        
+        <div className="co-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '1rem 0' }}>
+          {loading ? <Loader message="Fetching internal data..." /> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <section>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                  <Calendar size={18} className="text-orange-500" />
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' }}>Active Tasks</h3>
+                </div>
+                {data?.activities?.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {data.activities.map((act, i) => (
+                      <div key={i} style={{ padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>{act.summary || 'Task'}</span>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>{act.date_deadline}</span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#334155' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                      </div>
+                    ))}
+                  </div>
+                ) : <div style={{ fontSize: '13px', color: '#94a3b8', padding: '4px' }}>No active tasks found.</div>}
+              </section>
+
+              <section>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                  <MessageSquare size={18} className="text-emerald-500" />
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' }}>Remarks & Notes</h3>
+                </div>
+                {data?.remark ? (
+                   <div style={{ padding: '12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #dcfce7', fontSize: '13px', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                     {data.remark.replace(/<[^>]*>/g, '')}
+                   </div>
+                ) : <div style={{ fontSize: '13px', color: '#94a3b8', padding: '4px' }}>No remarks found.</div>}
+              </section>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+const QuickNoteModal = ({ orderId, onClose, onSuccess }) => {
+  const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!text.trim()) return alert("Please enter some text");
+    setSubmitting(true);
+    try {
+      const res = await odooService.addQuickNote(orderId, text);
+      if (res.success || !res.error) onSuccess();
+      else alert(res.error || "Failed to add note");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return createPortal(
+    <div className="co-modal-overlay animate-fade-in" onClick={onClose}>
+      <div className="co-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px', width: '90%' }}>
+        <div className="co-modal-header" style={{ marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <MessageSquare size={20} className="text-emerald-500" />
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Add Remark</h2>
+          </div>
+          <button className="co-btn-close" onClick={onClose}><X size={20} /></button>
+        </div>
+        <textarea 
+          placeholder="Type your remark here..."
+          value={text}
+          onChange={e => setText(e.target.value)}
+          style={{ width: '100%', minHeight: '120px', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1rem', fontSize: '14px' }}
+        />
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className="co-btn co-btn-primary" 
+            style={{ flex: 1, background: '#10b981', height: '44px', color: '#fff' }}
+            onClick={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? 'Saving...' : 'Add Remark'}
+          </button>
+          <button className="co-btn co-btn-secondary" style={{ flex: 1, height: '44px' }} onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+const QuickTaskModal = ({ orderId, users = [], onClose, onSuccess }) => {
+  const [vals, setVals] = useState({ summary: '', note: '', deadline: new Date().toISOString().split('T')[0], userId: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      // Use summary or generic 'Task' if empty
+      const finalSummary = vals.summary.trim() || 'Task';
+      const res = await odooService.addQuickActivity(orderId, finalSummary, vals.note, vals.deadline, vals.userId);
+      if (res.success || !res.error) onSuccess();
+      else alert(res.error || "Failed to create task");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return createPortal(
+    <div className="co-modal-overlay animate-fade-in" onClick={onClose}>
+      <div className="co-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '95%' }}>
+        <div className="co-modal-header" style={{ marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+             <Calendar size={20} className="text-orange-500" />
+             <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>TASKS</h2>
+          </div>
+          <button className="co-btn-close" onClick={onClose}><X size={20} /></button>
+        </div>
+        
+        <div className="co-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '16px' }}>
+             <div>
+               <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Due Date</label>
+               <input 
+                 type="date" 
+                 className="co-input" 
+                 value={vals.deadline} 
+                 onChange={e => setVals({...vals, deadline: e.target.value})}
+                 style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px' }}
+               />
+             </div>
+             <div>
+               <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Assigned To</label>
+               <SearchableSelect 
+                 options={users.map(u => ({ value: u.id, label: u.name }))}
+                 value={vals.userId}
+                 onChange={(id) => setVals({...vals, userId: id})}
+                 placeholder="Select User"
+               />
+             </div>
+           </div>
+
+           <div>
+             <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Activity Note</label>
+             <textarea 
+               placeholder="Type details here..." 
+               value={vals.note} 
+               onChange={e => setVals({...vals, note: e.target.value})}
+               style={{ width: '100%', minHeight: '120px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '14px', lineHeight: '1.5', resize: 'vertical' }}
+             />
+           </div>
+
+           <button 
+             className="co-btn co-btn-primary" 
+             style={{ width: '100%', background: '#3b82f6', height: '52px', color: '#fff', fontSize: '15px', fontWeight: 700, borderRadius: '12px', marginTop: '8px' }}
+             onClick={handleSubmit}
+             disabled={submitting}
+           >
+             {submitting ? 'Creating...' : 'Create Task'}
+           </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 

@@ -4,7 +4,7 @@ import { odooService } from '../services/odoo';
 import SearchableSelect from '../components/SearchableSelect';
 import './FormPages.css';
 
-const CreateCustomer = ({ onNavigate, extraData }) => {
+const CreateCustomer = ({ editId, onNavigate, extraData }) => {
   // Where to go back after creating — set by the calling form (create-order / create-selection / create-direct-order)
   const returnRoute = extraData?.returnRoute || 'create-order';
   const [saving, setSaving] = useState(false);
@@ -31,15 +31,63 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
     registeredAddress: '',
     operationPerson: '',
     architectId: '',
-    electricianId: ''
+    architectName: '',
+    electricianId: '',
+    electricianName: ''
   });
 
   const [hasChanges, setHasChanges] = useState(false);
   
   useEffect(() => {
-    const isDirty = customer.name !== '' || customer.mobile !== '' || customer.street !== '';
-    setHasChanges(isDirty);
-  }, [customer]);
+    const isDirty = customer.name !== '' || customer.mobile !== '' || customer.houseNo !== '' || customer.area !== '';
+    setHasChanges(isDirty && !editId); // Only track unsaved changes for new creations or if actually edited
+  }, [customer, editId]);
+
+  // Load existing customer data if editing
+  useEffect(() => {
+    if (editId) {
+      setSaving(true);
+      odooService.getPartnerDetail(editId).then(res => {
+        if (res) {
+          // Helper to extract numeric ID from Odoo's Many2one [id, name] or raw ID
+          const extractId = (val) => {
+            if (!val) return '';
+            if (Array.isArray(val) && val.length > 0) return val[0];
+            return val;
+          };
+
+          setCustomer({
+            name: res.name || '',
+            mobile: res.phone || res.mobile || '',
+            email: res.email || '',
+            otherName: res.other_name || '',
+            otherNumber: res.other_number || '',
+            houseNo: res.street?.split(',')[0]?.trim() || '',
+            buildingName: res.street?.split(',')[1]?.trim() || '',
+            area: res.street2 || '',
+            pincode: res.zip || '',
+            city: res.city || '',
+            state: res.state_name || '',
+            empAssigned: res.emp_assigned || '',
+            sourceType: res.source_type || '',
+            source: res.source_name || '',
+            competitor: res.competitor || '',
+            budget: res.budget || '',
+            gstNo: res.vat || '',
+            registeredAddress: res.registered_address || '',
+            operationPerson: res.operation_person || '',
+            architectId: extractId(res.architect_id),
+            architectName: res.architect_name || '',
+            electricianId: extractId(res.electrician_id),
+            electricianName: res.electrician_name || ''
+          });
+          // Reset hasChanges after initial load
+          setTimeout(() => setHasChanges(false), 200);
+        }
+        setSaving(false);
+      }).catch(() => setSaving(false));
+    }
+  }, [editId]);
 
   const safeNavigate = (to, id = null, data = null) => {
     if (hasChanges) {
@@ -81,10 +129,10 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
     if (!canSubmit || saving) return;
     setSaving(true);
     try {
-      const res = await odooService.createPartner({
+      const payload = {
         name: customer.name,
         phone: customer.mobile,
-        // Consolidate House + Building into street
+        email: customer.email,
         street: [customer.houseNo, customer.buildingName].filter(Boolean).join(', '),
         street2: customer.area,
         city: customer.city,
@@ -103,17 +151,24 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
         operation_person: customer.operationPerson,
         registered_address: customer.registeredAddress,
         vat: customer.gstNo
-      });
+      };
+
+      let res;
+      if (editId) {
+        res = await odooService.updatePartner(editId, payload);
+      } else {
+        res = await odooService.createPartner(payload);
+      }
 
       if (!res) {
-        alert('Customer creation failed');
+        alert(`${editId ? 'Update' : 'Creation'} failed`);
         return;
       }
-      // Navigate back to the originating form with the new partner pre-selected
+      // Navigate back to the originating form with the partner pre-selected
       setHasChanges(false);
-      onNavigate(returnRoute, null, { preFilledPartnerId: res.id || res.data?.id });
+      onNavigate(returnRoute, null, { preFilledPartnerId: res.id || res.data?.id || editId });
     } catch {
-      alert('Customer creation failed');
+      alert(`${editId ? 'Update' : 'Creation'} failed`);
     } finally {
       setSaving(false);
     }
@@ -132,16 +187,28 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
         is_electrician: modalState.isElectrician
       });
       if (res) {
+        // Construct full record from response ID and submitted data
+        const newId = res.id || (typeof res === 'number' ? res : res.data?.id);
+        const fullRecord = {
+          id: newId,
+          name: modalState.newName,
+          phone: modalState.newPhone,
+          mobile: modalState.newPhone,
+          email: modalState.newEmail,
+          street: modalState.newAddress,
+          comment: modalState.newNote
+        };
+
         setMasterData(prev => {
           const newData = { ...prev };
-          if (modalState.isArchitect) newData.architects = [...newData.architects, res];
-          if (modalState.isElectrician) newData.electricians = [...newData.electricians, res];
+          if (modalState.isArchitect) newData.architects = [...(newData.architects || []), fullRecord];
+          if (modalState.isElectrician) newData.electricians = [...(newData.electricians || []), fullRecord];
           return newData;
         });
         setCustomer(prev => {
           const newCust = { ...prev };
-          if (modalState.isArchitect) newCust.architectId = res.id;
-          if (modalState.isElectrician) newCust.electricianId = res.id;
+          if (modalState.isArchitect) newCust.architectId = newId;
+          if (modalState.isElectrician) newCust.electricianId = newId;
           return newCust;
         });
         setModalState({ show: false, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
@@ -213,7 +280,8 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
                     <SearchableSelect
                       placeholder="Select Architect"
                       value={customer.architectId}
-                      onChange={(val) => setCustomer({ ...customer, architectId: val })}
+                      defaultValue={customer.architectName}
+                      onChange={(val, opt) => setCustomer({ ...customer, architectId: val, architectName: opt?.label || '' })}
                       options={masterData.architects?.map((a) => ({ value: a.id, label: a.name || 'Unknown' })) || []}
                       className="clean-select"
                     />
@@ -247,7 +315,8 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
                     <SearchableSelect
                       placeholder="Select Electrician"
                       value={customer.electricianId}
-                      onChange={(val) => setCustomer({ ...customer, electricianId: val })}
+                      defaultValue={customer.electricianName}
+                      onChange={(val, opt) => setCustomer({ ...customer, electricianId: val, electricianName: opt?.label || '' })}
                       options={masterData.electricians?.map((e) => ({ value: e.id, label: e.name || 'Unknown' })) || []}
                       className="clean-select"
                     />
@@ -404,7 +473,7 @@ const CreateCustomer = ({ onNavigate, extraData }) => {
 
         <div className="form-footer">
           <button className="btn-ui primary lg" onClick={handleSubmit} disabled={!canSubmit || saving}>
-            {saving ? 'Submitting...' : 'Submit'}
+            {saving ? (editId ? 'Updating...' : 'Submitting...') : (editId ? 'Update' : 'Submit')}
           </button>
           <button className="btn-ui secondary lg" onClick={() => safeNavigate(returnRoute)}>
             Back

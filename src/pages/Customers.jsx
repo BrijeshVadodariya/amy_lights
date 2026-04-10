@@ -134,7 +134,6 @@ const Customers = ({ onNavigate }) => {
            </button>
         </div>
       </div>
-
       {loading ? (
         <div className="py-20 flex flex-col items-center">
             <Loader message="Loading directory..." />

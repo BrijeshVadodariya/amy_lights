@@ -1,24 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Search, 
-  Filter, 
-  ChevronRight, 
-  ChevronLeft, 
-  MoreVertical, 
   Plus, 
-  Target, 
-  TrendingUp, 
-  CheckCircle2, 
-  XCircle,
-  Clock,
-  Phone,
-  Mail,
-  User,
-  Calendar as CalendarIcon
+  Filter,
+  ChevronLeft, 
+  ChevronRight, 
+  Calendar as CalendarIcon,
+  Phone
 } from 'lucide-react';
 import { odooService } from '../services/odoo';
-import './Orders.css'; // Global table styles
-import './CRM.css';    // Dedicated CRM styles
+import './Orders.css'; // Shared table styles
+import './CRM.css';    // CRM-specific styles
 
 const CRM = ({ onNavigate }) => {
   const [leads, setLeads] = useState([]);
@@ -28,8 +19,9 @@ const CRM = ({ onNavigate }) => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(0);
-  const limit = 20;
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const limit = 500; // fetch all, paginate client-side
 
   const fetchStages = async () => {
     try {
@@ -46,7 +38,7 @@ const CRM = ({ onNavigate }) => {
       const res = await odooService.getCRMLeads(
         'all', 
         limit, 
-        page * limit,
+        0,
         selectedStage || null,
         fromDate || null,
         toDate || null
@@ -59,210 +51,239 @@ const CRM = ({ onNavigate }) => {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, selectedStage, fromDate, toDate]);
+  }, [selectedStage, fromDate, toDate]);
 
-  useEffect(() => {
-    fetchStages();
-  }, []);
-
-  useEffect(() => {
-    fetchLeads();
-  }, [fetchLeads]);
+  useEffect(() => { fetchStages(); }, []);
+  useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
   const getPriorityStars = (p) => {
     const priority = parseInt(p) || 0;
     return '⭐'.repeat(priority + 1);
   };
 
-  const getProbClass = (prob) => {
-    if (prob >= 80) return 'crm-probability-high';
-    if (prob >= 40) return 'crm-probability-med';
-    return 'crm-probability-low';
+  // Wide search across all relevant CRM fields
+  const filtered = leads.filter(l => {
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase();
+    return (
+      String(l.name || '').toLowerCase().includes(q)               ||  
+      String(l.contact_name || '').toLowerCase().includes(q)        ||  
+      String(l.phone || '').toLowerCase().includes(q)               ||  
+      String(l.address || '').toLowerCase().includes(q)             ||  
+      String(l.architect_name || '').toLowerCase().includes(q)      ||  
+      String(l.architect_number || '').toLowerCase().includes(q)    ||  
+      String(l.architect_remark || '').toLowerCase().includes(q)    ||  
+      String(l.architect_follow_up || '').toLowerCase().includes(q) ||  
+      String(l.notes || '').toLowerCase().includes(q)
+    );
+  });
+
+  const totalEntries = filtered.length;
+  const totalPages = Math.ceil(totalEntries / entriesPerPage);
+  const indexOfFirstItem = (currentPage - 1) * entriesPerPage;
+  const indexOfLastItem = indexOfFirstItem + entriesPerPage;
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePageChange = (p) => {
+    if (p >= 1 && p <= totalPages) setCurrentPage(p);
   };
 
   const clearFilters = () => {
     setSelectedStage('');
     setFromDate('');
     setToDate('');
-    setFilterType('all');
-    setPage(0);
+    setCurrentPage(1);
   };
 
-  const filteredLeads = leads.filter(l => 
-    l.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    l.contact_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    const pages = [];
+    pages.push(
+      <button key="prev" className="page-btn prev" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
+        Previous
+      </button>
+    );
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+    for (let i = start; i <= end; i++) {
+      pages.push(
+        <button key={i} className={`page-btn ${currentPage === i ? 'active' : ''}`} onClick={() => handlePageChange(i)}>{i}</button>
+      );
+    }
+    pages.push(
+      <button key="next" className="page-btn next" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+        Next
+      </button>
+    );
+    return pages;
+  };
 
   return (
-    <div className="orders-page crm-page">
-      <div className="orders-header">
-        <h1 className="text-2xl font-bold text-slate-800">Pipeline</h1>
-      </div>
+    <div className="dt-page">
+      <div className="dt-card">
 
-      <div className="filter-bar shadow-sm">
-        <div className="filter-group">
-          <label><Filter size={14} /> Stage</label>
-          <select 
-            value={selectedStage} 
-            onChange={(e) => { setSelectedStage(e.target.value); setPage(0); }}
-            className="filter-select"
-          >
-            <option value="">All Stages</option>
-            {stages.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label><CalendarIcon size={14} /> From</label>
-          <input 
-            type="date" 
-            value={fromDate} 
-            onChange={(e) => { setFromDate(e.target.value); setPage(0); }}
-            className="filter-date"
-          />
-        </div>
-        <div className="filter-group">
-          <label><CalendarIcon size={14} /> To</label>
-          <input 
-            type="date" 
-            value={toDate} 
-            onChange={(e) => { setToDate(e.target.value); setPage(0); }}
-            className="filter-date"
-          />
-        </div>
-        <button className="clear-filters-btn" onClick={clearFilters}>
-          Reset
-        </button>
-      </div>
+        {/* Toolbar Row — matches Orders list */}
+        <div className="dt-toolbar-row">
+          <div className="dt-toolbar-left">
+            <div className="dt-flex">
+              <span className="dt-control-label">Show</span>
+              <select
+                className="entries-select"
+                value={entriesPerPage}
+                onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="dt-control-label">entries</span>
+            </div>
+            <div className="dt-flex dt-search-box">
+              <input
+                type="text"
+                className="search-input"
+                value={searchTerm}
+                placeholder="Search client, architect, notes..."
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              />
+            </div>
+          </div>
 
-      <div className="table-controls">
-        <div className="search-box">
-          <Search size={18} />
-          <input 
-            type="text" 
-            placeholder="Search leads or contacts..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="dt-toolbar-right">
+            {/* Stage filter */}
+            <div className="dt-flex crm-filter-inline">
+              <select
+                value={selectedStage}
+                onChange={(e) => { setSelectedStage(e.target.value); setCurrentPage(1); }}
+                className="entries-select"
+                style={{ width: '100px' }}
+              >
+                <option value="">All Stages</option>
+                {stages.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            {/* Date filters */}
+            <div className="dt-flex">
+              <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setCurrentPage(1); }} className="entries-select crm-date-input" title="From date" />
+            </div>
+            <div className="dt-flex">
+              <input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setCurrentPage(1); }} className="entries-select crm-date-input" title="To date" />
+            </div>
+            {(selectedStage || fromDate || toDate) && (
+              <button className="btn-ui secondary" onClick={clearFilters} style={{ fontSize: '10px', height: '24px', padding: '0 8px' }}>
+                Reset
+              </button>
+            )}
+            <div className="btn-group-wrap">
+              <button className="btn-ui primary" onClick={() => alert('Create Lead coming soon!')}>
+                <Plus size={14} />
+                <span>New Lead</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="action-buttons">
-          <button className="btn btn-primary" onClick={() => alert('Create Lead feature coming soon!')}>
-            <Plus size={18} />
-            <span>New Lead</span>
-          </button>
-        </div>
-      </div>
-      <div className="table-wrapper">
-        <table className="orders-table">
-          <thead>
-            <tr>
-              <th>Client Name</th>
-              <th>Client Address</th>
-              <th>Architect</th>
-              <th>Architect FollowUp</th>
-              <th>Electrician</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="6" className="text-center py-10">
-                  <div className="loading-spinner"></div>
-                  <p>Loading CRM data...</p>
-                </td>
-              </tr>
-            ) : filteredLeads.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="text-center py-10 text-gray-400">
-                  No leads found for this filter.
-                </td>
-              </tr>
-            ) : filteredLeads.map((lead) => (
-              <tr key={lead.id}>
-                <td>
-                  <div className="crm-contact-cell">
-                    <span className="crm-contact-name">{lead.contact_name}</span>
-                    {lead.phone && (
-                      <div className="crm-text-muted">
-                        <Phone size={12} className="inline mr-1" /> {lead.phone}
+
+        {/* Table */}
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#999', fontSize: '13px' }}>
+            Loading CRM data...
+          </div>
+        ) : (
+          <div className="table-wrapper" style={{ overflowX: 'auto', display: 'block', width: '100%' }}>
+            <table className="products-datatable crm-table">
+              <thead>
+                <tr>
+                  <th className="text-center">Sr.No</th>
+                  <th>Client</th>
+                  <th>Address</th>
+                  <th>Architect</th>
+                  <th>Arch. Follow-Up</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
+                      No leads found.
+                    </td>
+                  </tr>
+                ) : currentItems.map((lead, idx) => (
+                  <tr key={lead.id}>
+                    {/* Sr.No */}
+                    <td className="text-center cell-light" style={{ fontWeight: 600, color: '#000' }}>
+                      {indexOfFirstItem + idx + 1}
+                    </td>
+
+                    {/* Client */}
+                    <td className="cell-highlight">
+                      <div className="customer-main">{lead.contact_name || lead.name || '—'}</div>
+                      {lead.phone && (
+                        <div style={{ fontSize: '10px', color: '#555', marginTop: '2px' }}>
+                          {lead.phone}
+                        </div>
+                      )}
+                      {lead.priority !== undefined && (
+                        <div className="priority-stars">
+                          {getPriorityStars(lead.priority)}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Address */}
+                    <td className="cell-light">
+                      <div className="note-truncate" title={lead.address}>
+                        {lead.address || '—'}
                       </div>
-                    )}
-                    <div className="priority-stars mt-1">
-                      {getPriorityStars(lead.priority)}
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div className="crm-address-cell">
-                    {lead.address?.split(',').map((part, i) => (
-                      <div key={i} className="crm-text-sm">{part.trim()}</div>
-                    ))}
-                  </div>
-                </td>
-                <td>
-                  <div className="crm-contact-cell">
-                     <span className="font-medium text-slate-700">{lead.architect_name || '—'}</span>
-                     {lead.architect_number && (
-                       <div className="crm-text-muted">
-                         <Phone size={12} className="inline mr-1" /> {lead.architect_number}
-                       </div>
-                     )}
-                  </div>
-                </td>
-                <td>
-                  <div className="crm-followup-cell">
-                    {lead.architect_follow_up && (
-                      <div className="font-medium text-slate-600">{lead.architect_follow_up}</div>
-                    )}
-                    <div className="crm-text-sm text-slate-500 italic">
-                      {lead.architect_remark || 'No remarks'}
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div className="crm-contact-cell">
-                     <span className="font-medium text-slate-700">{lead.electrician_name || '—'}</span>
-                     {lead.electrician_number && (
-                       <div className="crm-text-muted text-sm">
-                         {lead.electrician_number}
-                       </div>
-                     )}
-                     <div className="crm-text-sm text-slate-500 italic">
-                        {lead.electrician_remark}
-                     </div>
-                  </div>
-                </td>
-                <td>
-                  <div className="crm-notes-cell">
-                    {lead.notes}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    </td>
 
-      <div className="table-footer">
-        <div className="pagination">
-          <button 
-            disabled={page === 0 || loading} 
-            onClick={() => setPage(p => p - 1)}
-            className={`page-btn ${page === 0 ? 'disabled' : ''}`}
-          >
-            <ChevronLeft size={18} /> Prev
-          </button>
-          <span className="page-indicator">Page {page + 1}</span>
-          <button 
-            disabled={leads.length < limit || loading} 
-            onClick={() => setPage(p => p + 1)}
-            className={`page-btn ${leads.length < limit ? 'disabled' : ''}`}
-          >
-            Next <ChevronRight size={18} />
-          </button>
+                    {/* Architect */}
+                    <td className="cell-highlight">
+                      <div className="customer-main">{lead.architect_name || '—'}</div>
+                      {lead.architect_number && (
+                        <div style={{ fontSize: '10px', color: '#555', marginTop: '2px' }}>
+                          {lead.architect_number}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Arch. Follow-Up */}
+                    <td className="cell-light">
+                      {lead.architect_follow_up && (
+                        <div style={{ fontWeight: 600, color: '#000', fontSize: '11px' }}>{lead.architect_follow_up}</div>
+                      )}
+                      <div className="note-truncate" title={lead.architect_remark} style={{ color: '#555', fontStyle: 'italic' }}>
+                        {lead.architect_remark || '—'}
+                      </div>
+                    </td>
+
+                    {/* Note */}
+                    <td className="cell-highlight">
+                      <div className="note-truncate" title={lead.notes}>
+                        {lead.notes || '—'}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="datatable-footer">
+          <div className="dt-info">
+            Showing {Math.min(indexOfFirstItem + 1, totalEntries)}–{Math.min(indexOfLastItem, totalEntries)} of {totalEntries} entries
+          </div>
+          <div className="pagination">
+            {renderPagination()}
+          </div>
         </div>
+
       </div>
     </div>
   );

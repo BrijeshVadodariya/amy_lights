@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import './Sidebar.css';
 
-const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, onCloseSidebar }) => {
+const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, onCloseSidebar, isCollapsed }) => {
   const [isSaleOrderOpen, setIsSaleOrderOpen] = useState(true);
 
   const menuItems = [
@@ -71,21 +71,26 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
   };
 
   return (
-    <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
+    <aside className={`sidebar ${isOpen ? 'open' : 'closed'} ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         <div className="sidebar-logo">
            {renderLogo()}
         </div>
+        {!isCollapsed && companyInfo?.name && (
+          <span className="company-name">{companyInfo.name}</span>
+        )}
       </div>
       
       <div className="user-profile">
         <div className="user-avatar">
           <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random`} alt="User" />
         </div>
-        <div className="user-info">
-          <h3>{user?.name || 'User'}</h3>
-          <p>{user?.company || 'Company'}</p>
-        </div>
+        {!isCollapsed && (
+          <div className="user-info">
+            <h3>{user?.name || 'User'}</h3>
+            <p>{user?.company || 'Company'}</p>
+          </div>
+        )}
       </div>
 
       <nav className="sidebar-nav">
@@ -94,23 +99,23 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
             if (item.isGroup) {
               const isActive = item.children.some(child => child.id === activeTab);
               return (
-                <li key={item.id} className="menu-group">
+                <li key={item.id} className={`menu-group ${isCollapsed ? 'collapsed-group' : ''}`}>
                   <div 
                     className={`group-header ${isActive ? 'active' : ''}`}
-                    onClick={toggleSaleOrder}
+                    onClick={isCollapsed ? () => handleTabClick(item.children[0]) : toggleSaleOrder}
                   >
                     <div className="group-title">
                       <item.icon size={20} />
-                      <span>{item.label}</span>
+                      {!isCollapsed && <span>{item.label}</span>}
                     </div>
-                    {isSaleOrderOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    {!isCollapsed && (isSaleOrderOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
                   </div>
-                  {isSaleOrderOpen && (
+                  {!isCollapsed && isSaleOrderOpen && (
                     <ul className="submenu">
                       {item.children.map((child) => (
                         <li 
                           key={child.id}
-                          className={`submenu-item ${child.disabled ? 'submenu-item-disabled' : ''} ${activeTab === child.id ? 'active' : ''}`}
+                          className={`submenu-item ${child.disabled ? 'submenu-item-disabled' : ''}  ${activeTab === child.id ? 'active' : ''}`}
                           onClick={() => handleTabClick(child)}
                         >
                           <child.icon size={16} />
@@ -127,18 +132,19 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
                 key={item.id} 
                 className={activeTab === item.id ? 'active' : ''}
                 onClick={() => handleTabClick(item)}
+                title={isCollapsed ? item.label : ''}
               >
                 <item.icon size={20} />
-                <span>{item.label}</span>
+                {!isCollapsed && <span>{item.label}</span>}
               </li>
             );
           })}
         </ul>
       </nav>
       <div className="sidebar-footer">
-        <button className="sidebar-logout-btn" onClick={onLogout}>
+        <button className="sidebar-logout-btn" onClick={onLogout} title={isCollapsed ? 'Logout' : ''}>
           <LogOut size={20} />
-          <span>Logout</span>
+          {!isCollapsed && <span>Logout</span>}
         </button>
       </div>
     </aside>

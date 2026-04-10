@@ -6,6 +6,7 @@ import {
   X, 
   ChevronLeft,
   ChevronRight, 
+  ArrowRight,
   ChevronDown,
   Activity, 
   Users, 
@@ -81,10 +82,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     is_automate: false
   });
 
-  const [showProducts, setShowProducts] = useState(true);
-  const [showNotes, setShowNotes] = useState(false);
-  const [showMore, setShowMore] = useState(null);
-  const [showCategories, setShowCategories] = useState(false);
+   const [showProducts, setShowProducts] = useState(true);
+   const [showNotes, setShowNotes] = useState(false);
+   const [expandedCategoryIds, setExpandedCategoryIds] = useState({});
+   const [showCategories, setShowCategories] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [taskEditText, setTaskEditText] = useState({});
@@ -110,6 +111,20 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     visit: [],
     email: []
   });
+
+  const partnerOptions = useMemo(() => {
+    return Array.from(new Map((masterData.partners || []).filter(p => p && p.id).map(p => [String(p.name).toLowerCase().trim(), p])).values()).map((p) => ({ value: p.id, label: p.name }));
+  }, [masterData.partners]);
+
+  const productOptions = useMemo(() => {
+    return (masterData.products || [])
+      .filter(p => orderHeader.is_automate ? true : !p.is_automation)
+      .map(p => ({ value: p.id, label: p.name }));
+  }, [masterData.products, orderHeader.is_automate]);
+
+  const userOptions = useMemo(() => {
+    return (masterData.users || []).map(u => ({ value: u.id, label: u.name }));
+  }, [masterData.users]);
   // --- HELPER FUNCTIONS (Moved up to avoid "before initialization" errors) ---
 
   const fetchMasterData = React.useCallback(async () => {
@@ -345,6 +360,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           // Auto-expand categories if we have history
           if (Object.keys(mappedHistory).length > 0) {
             setShowCategories(true);
+            const initialExpanded = {};
+            Object.keys(mappedHistory).forEach(key => initialExpanded[key] = true);
+            setExpandedCategoryIds(initialExpanded);
           }
         }
         
@@ -411,32 +429,47 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         setRows(mappedRows.length ? mappedRows : [createProductRow()]);
         setShowProducts(mappedRows.length > 0);
 
-        // --- NEW: Sync Notes and Activities from Backend ---
-        // 1. Sync General Notes (Remark field)
-        const remark = data.remark || data.note || '';
-        if (remark) {
-           // Try splitting by common separators used in the backend
-           const parts = remark.split(/\n---\n|<br\s*\/?>/).filter(Boolean);
-           setGeneralNotes(parts.map(t => ({
-             id: `hist-${Math.random()}`,
-             text: t.replace(/<[^>]*>?/gm, '').trim(), // Global tag cleanup
-             date: data.date_order || '',
-             by: t.match(/<b>(.*?)<\/b>/)?.[1] || 'Odoo',
-             is_new: false
-           })));
-        }
-
-        // 3. Sync Scheduled Activities (Tasks)
-        if (data.activities && Array.isArray(data.activities)) {
-           setScheduledActivities(data.activities.map(act => ({
-             id: act.id,
-             activity_type_id: act.activity_type_id,
-             summary: act.summary || act.activity_type_name || 'Activity',
-             note: (act.note || '').replace(/<[^>]*>?/gm, '').trim(),
-             user_id: act.user_id,
-             date_deadline: act.date_deadline || ''
-           })));
-        }
+         // --- NEW: Sync Notes and Activities from Backend ---
+         // 1. Sync General Notes (Remark field)
+         const remark = data.remark || data.note || '';
+         if (remark) {
+            // Try splitting by common separators used in the backend
+            const parts = remark.split(/\n---\n|<br\s*\/?>/).filter(Boolean);
+            setGeneralNotes(parts.map(t => {
+               const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
+               const authorName = authorMatch ? authorMatch[1] : 'Odoo';
+               let cleanText = t.replace(/<[^>]*>?/gm, '').trim();
+               
+               if (authorName !== 'Odoo') {
+                  // Strip "Name: " prefix
+                  cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
+                  // Strip "[Name - Date]\n" prefix
+                  cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
+               }
+               
+               return {
+                 id: `hist-${Math.random()}`,
+                 text: cleanText.trim(),
+                 date: data.date_order || '',
+                 by: authorName,
+                 is_new: false
+               };
+            }));
+            setShowNotes(true);
+         }
+ 
+         // 3. Sync Scheduled Activities (Tasks)
+         if (data.activities && Array.isArray(data.activities) && data.activities.length > 0) {
+            setShowActivitySection(true);
+            setScheduledActivities(data.activities.map(act => ({
+              id: act.id,
+              activity_type_id: act.activity_type_id,
+              summary: act.summary || act.activity_type_name || 'Activity',
+              note: (act.note || '').replace(/<[^>]*>?/gm, '').trim(),
+              user_id: act.user_id,
+              date_deadline: act.date_deadline || ''
+            })));
+         }
       }
     } catch (err) {
       console.error('Edit fetch failed', err);
@@ -449,7 +482,16 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       const { preFilledPartnerId, preFilledProducts, partner_id } = extraData;
       const targetPartnerId = preFilledPartnerId || partner_id;
       
-      if (targetPartnerId) {
+      if (extraData.preFilledPartner) {
+        const p = extraData.preFilledPartner;
+        setOrderHeader(prev => ({ 
+          ...prev, 
+          partnerId: p.id,
+          partnerName: p.name,
+          architectId: p.architect_id || p.architect || '',
+          electricianId: p.electrician_id || p.electrician || ''
+        }));
+      } else if (targetPartnerId) {
         fetchMasterData().then(() => {
           odooService.getPartners().then(partners => {
             const partner = partners?.find(p => String(p.id) === String(targetPartnerId));
@@ -457,6 +499,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
               setOrderHeader(prev => ({ 
                 ...prev, 
                 partnerId: targetPartnerId,
+                partnerName: partner.name,
                 architectId: partner.architect_id || '',
                 electricianId: partner.electrician_id || ''
               }));
@@ -471,6 +514,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         setRows(preFilledProducts.map(p => ({
           id: Date.now() + Math.random(),
           productId: p.productId,
+          productName: p.name || '',
+          description: p.description || p.description_sale || '',
+          beam: p.beam || '-',
+          image_url: p.image_url || '',
           qty: p.qty || 1,
           price: p.price || 0,
           remark: '',
@@ -651,12 +698,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         if (field === 'productId') {
           const parsedId = /^\d+$/.test(value) ? parseInt(value) : value;
           const prod = masterData.products.find(p => String(p.id) === String(parsedId));
+          const baseDesc = prod ? (prod.description || prod.description_sale || '') : '';
+          const baseBeam = prod ? (prod.beam || '-') : '-';
           return { 
             ...r, 
             productId: value, 
+            productName: prod ? prod.name : r.productName,
             price: prod ? prod.price : 0,
-            beam: prod ? (prod.beam || '-') : '-',
-            description: prod ? (prod.description || '') : ''
+            beam: baseBeam,
+            description: updateDescriptionWithBeam(baseDesc, baseBeam)
           };
         }
         if (field === 'beam') {
@@ -782,7 +832,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
      }
   };
 
-  const handleProcess = async () => {
+  const handleProcess = async (e, targetState = null) => {
 
     const resolveGhostId = (ghostId, type) => {
       if (!ghostId) return null;
@@ -807,7 +857,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     }
 
     const productLines = rows.filter(r => r.display_type === 'line_section' || (r.productId !== '' && r.productId !== null && r.productId !== undefined));
-    if (productLines.length === 0) {
+    if (productLines.length === 0 && !isSelection) {
         return alert("Please select at least one product before saving.");
     }
 
@@ -842,12 +892,13 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           finalProdId = numericProdId;
         }
 
-        // Return Odoo command tuple format [0, 0, {data}] for proper backend parsing
-        // Note: The backend uses a (5, 0, 0) clear-all strategy on edit, 
-        // so we can safely send every line as a New Line [0, 0, vals] to ensure sync.
-        return [0, 0, {
+        const isExisting = typeof r.id === 'number' && String(r.id).length < 12; // Odoo IDs are typically shorter than timestamps
+        const cmd = isExisting ? 1 : 0;
+        const lineId = isExisting ? r.id : 0;
+
+        return [cmd, lineId, {
           product_id: parseInt(finalProdId),
-          product_uom_qty: parseFloat(r.qty) || 1,
+          product_uom_qty: parseFloat(r.qty) || 0,
           price_unit: parseFloat(r.price) || 0,
           discount: parseFloat(r.discount) || 0,
           name: r.remark || '', 
@@ -858,7 +909,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
       console.log(`[Save Order] Prepared ${finalProductLines.length} product lines for submission.`);
 
-      if (finalProductLines.length === 0) {
+      if (finalProductLines.length === 0 && !isSelection) {
         setLoading(false);
         console.error("[Save Order] Submission blocked: Rows present in state but no valid product lines formed.", rows);
         return alert("Validation error: None of your product lines have a valid ID. Please re-select the products.");
@@ -952,7 +1003,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         is_image: !!orderHeader.is_image,
         is_beam: !!orderHeader.is_beam,
         is_automate: !!orderHeader.is_automate,
-        state: isSelection ? 'selection' : isOrder ? 'sale' : 'draft',
+        state: targetState || (isSelection ? 'selection' : isOrder ? 'sale' : 'draft'),
         date_order: ensureIsoDate(orderHeader.date),
         // All scheduled activities (existing + new) — backend will clear old ones and recreate
         activities: scheduledActivities,
@@ -987,7 +1038,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         
       if (res.success) {
         setActivityHistory({});
-        onNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations');
+        onNavigate((targetState === 'sale' || isOrder) ? 'orders' : (targetState === 'draft' || isSelection ? (targetState === 'draft' ? 'quotations' : 'selection') : 'quotations'));
       } else {
         alert(res.error?.message || "Error processing order");
       }
@@ -1004,119 +1055,149 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
   return (
     <div className="create-order-page dt-page">
-      <div className="co-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderBottom: '1px solid #e2e8f0', marginBottom: '1rem', backgroundColor: '#fff' }}>
-        <button className="co-btn-icon" onClick={() => safeNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations')} style={{ backgroundColor: '#f1f5f9' }}>
-          <ChevronLeft size={20} />
-        </button>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#1e293b' }}>
-          {editId ? (isSelection ? 'Edit Selection' : isOrder ? 'Edit Order' : 'Edit Quotation') : (isSelection ? 'Create Selection' : isOrder ? 'Create Order' : 'Create Quotation')}
-        </h1>
-      </div>
-      <div className="co-container">
-        <div className="co-card lead-card">
-          <div className="co-card-header">
-            <h3>Customer Selection</h3>
-            <button className="co-btn-icon" onClick={() => {
-              const returnRoute = isSelection ? 'create-selection' : isOrder ? 'create-direct-order' : 'create-order';
-              onNavigate('create-customer', null, { returnRoute });
-            }}>
-              <Plus size={18} />
-            </button>
+      {/* Redundant inner header removed - using app navbar instead */}
+      <div className="co-container" style={{ padding: '0.5rem' }}>
+        <div className="co-card lead-card" style={{ padding: '0.75rem' }}>
+          <div className="co-card-header" style={{ marginBottom: '0.4rem' }}>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: '#64748b' }}>Customer Selection</h3>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {orderHeader.partnerId && (
+                <button 
+                  className="co-btn-icon" 
+                  style={{ backgroundColor: '#f1f5f9', color: '#6366f1' }}
+                  onClick={() => {
+                    const returnRoute = isSelection ? 'create-selection' : isOrder ? 'create-direct-order' : 'create-order';
+                    onNavigate('create-customer', orderHeader.partnerId, { returnRoute });
+                  }}
+                  title="Edit Customer"
+                >
+                  <Edit2 size={16} />
+                </button>
+              )}
+              <button 
+                className="co-btn-icon" 
+                onClick={() => {
+                  const returnRoute = isSelection ? 'create-selection' : isOrder ? 'create-direct-order' : 'create-order';
+                  onNavigate('create-customer', null, { returnRoute });
+                }}
+                title="Add Customer"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
           </div>
           <div className="co-card-body">
-            {/* Row 1: Select Customer, Phone and GST */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.5rem' : '1.25rem', marginBottom: isMobile ? '0.75rem' : '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1.2fr 1fr' : 'repeat(3, 1fr)', gap: isMobile ? '0.5rem' : '1.25rem', alignItems: isMobile ? 'start' : 'flex-end' }}>
+            {isMobile ? (
+              <>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                    <label style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>Select Customer *</label>
+                    <SearchableSelect
+                      placeholder="Select Customer"
+                      value={orderHeader.partnerId}
+                      defaultValue={orderHeader.partnerName}
+                      small
+                      onChange={(val) => {
+                        const selected = masterData.partners.find(p => String(p.id) === String(val));
+                        setOrderHeader({ 
+                          ...orderHeader, 
+                          partnerId: val,
+                          partnerName: selected?.name || orderHeader.partnerName,
+                          architectId: selected?.architect_id || orderHeader.architectId,
+                          electricianId: selected?.electrician_id || orderHeader.electricianId
+                        });
+                      }}
+                      options={partnerOptions}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '18px', minWidth: '100px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
+                      <span style={{ fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Phone:</span>
+                      <span style={{ fontWeight: 800, color: '#334155' }}>{selectedPartner?.phone || selectedPartner?.mobile || '-'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
+                      <span style={{ fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>GSTIN:</span>
+                      <span style={{ fontWeight: 800, color: '#334155' }}>{selectedPartner?.vat || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+                {selectedPartner && (
+                  <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 800, color: '#334155', marginBottom: '4px', display: 'block' }}>Full Address</label>
+                    <div style={{ fontSize: '14px', fontStyle: 'italic', color: '#64748b', padding: '0 2px' }}>
+                      {[selectedPartner.street, selectedPartner.street2, selectedPartner.city, selectedPartner.state_name || (selectedPartner.state_id ? selectedPartner.state_id[1] : null), selectedPartner.zip].filter(Boolean).join(', ') || 'No address provided'}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 0.8fr 2.5fr', gap: '0.75rem' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: isMobile ? '10px' : '12px', fontWeight: 700, color: isMobile ? '#94a3b8' : 'inherit', textTransform: isMobile ? 'uppercase' : 'none' }}>Select Customer *</label>
+                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Select Customer *</label>
                   <SearchableSelect
                     placeholder="Select Customer"
                     value={orderHeader.partnerId}
                     defaultValue={orderHeader.partnerName}
-                    small={isMobile}
                     onChange={(val) => {
                       const selected = masterData.partners.find(p => String(p.id) === String(val));
                       setOrderHeader({ 
                         ...orderHeader, 
                         partnerId: val,
+                        partnerName: selected?.name || orderHeader.partnerName,
                         architectId: selected?.architect_id || orderHeader.architectId,
                         electricianId: selected?.electrician_id || orderHeader.electricianId
                       });
                     }}
-                    options={Array.from(new Map(masterData.partners.filter(p => p && p.id).map(p => [String(p.name).toLowerCase().trim(), p])).values()).map((p) => ({ value: p.id, label: p.name }))}
+                    options={partnerOptions}
                   />
                 </div>
-
-                {isMobile ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
-                      <span style={{ fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: '40px' }}>Phone:</span>
-                      <span style={{ fontWeight: 700, color: '#334155', whiteSpace: 'nowrap' }}>{selectedPartner?.phone || selectedPartner?.mobile || '-'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
-                      <span style={{ fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: '40px' }}>GSTIN:</span>
-                      <span style={{ fontWeight: 700, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedPartner?.vat || '-'}</span>
-                    </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Phone Number</label>
+                  <div style={{ height: '32px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 10px', borderRadius: '2px', border: '1px solid #ddd', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                    {selectedPartner?.phone || selectedPartner?.mobile || '-'}
                   </div>
-                ) : (
-                  <>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '12px' }}>Phone Number</label>
-                      <div style={{ height: '42px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                        {selectedPartner?.phone || selectedPartner?.mobile || (isMobile ? '-' : 'No phone number')}
-                      </div>
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '12px' }}>GSTIN</label>
-                      <div style={{ height: '42px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                        {selectedPartner?.vat || 'No GST provided'}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Row 2: Full Address */}
-            {selectedPartner && (
-              <div className="form-group" style={{ marginTop: isMobile ? '0.5rem' : '1rem' }}>
-                 <label style={{ fontSize: isMobile ? '11px' : '12px' }}>Full Address</label>
-                 <div style={isMobile ? { fontSize: '13px', fontStyle: 'italic', color: '#64748b', padding: '0 4px', lineHeight: 1.4 } : { background: '#f8fafc', padding: '10px 14px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                   {!isMobile && <MapPin size={16} className="text-blue-500" style={{ flexShrink: 0 }} />}
-                   <span style={isMobile ? {} : { color: '#334155', fontWeight: 500 }}>
-                     {[selectedPartner.street, selectedPartner.street2, selectedPartner.city, selectedPartner.state_name || (selectedPartner.state_id ? selectedPartner.state_id[1] : null), selectedPartner.zip].filter(Boolean).join(', ') || 'No address provided'}
-                   </span>
-                 </div>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>GSTIN</label>
+                  <div style={{ height: '32px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 10px', borderRadius: '2px', border: '1px solid #ddd', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                    {selectedPartner?.vat || '-'}
+                  </div>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Full Address</label>
+                  <div style={{ height: '32px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 10px', borderRadius: '2px', border: '1px solid #ddd', fontSize: '13px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {[selectedPartner?.street, selectedPartner?.street2, selectedPartner?.city, selectedPartner?.state_name || (selectedPartner?.state_id ? selectedPartner?.state_id[1] : null), selectedPartner?.zip].filter(Boolean).join(', ') || 'No address provided'}
+                  </div>
+                </div>
               </div>
             )}
 
             {/* Row 3: Professionals */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr', gap: isMobile ? '0.75rem' : '1.25rem', marginTop: isMobile ? '0.65rem' : '1.25rem' }}>
-              <div className="form-group" style={isMobile ? { marginBottom: 0, padding: '8px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fcfcfd' } : { marginBottom: 0 }}>
-                <label style={{ margin: 0, fontSize: isMobile ? '10px' : '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Architect</label>
-                <div style={isMobile ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '2px 0' } : { height: '42px', marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                  <span style={{ fontSize: isMobile ? '13px' : '13px', fontWeight: isMobile ? 700 : 600, color: isMobile ? '#334155' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {selectedArchitect?.name || selectedPartner?.architect_name || (orderHeader.architectId ? 'Architect Selected' : (isMobile ? '-' : 'No Architect assigned'))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem' }}>
+              <div className="form-group" style={{ marginBottom: 0, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fcfcfd' }}>
+                <label style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Architect</label>
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '2px' : '1.5rem', padding: '2px 0' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                    {selectedArchitect?.name || selectedPartner?.architect_name || (orderHeader.architectId ? 'Architect Selected' : '-')}
                   </span>
                   {(selectedArchitect?.phone || selectedPartner?.architect_phone) && (
-                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                      <Phone size={12} className="text-blue-500" />
+                    <span style={{ fontSize: isMobile ? '11px' : '13px', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Phone size={isMobile ? 12 : 14} className="text-blue-500" />
                       {selectedArchitect?.phone || selectedPartner.architect_phone}
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="form-group" style={isMobile ? { marginBottom: 0, padding: '8px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fcfcfd' } : { marginBottom: 0 }}>
-                <label style={{ margin: 0, fontSize: isMobile ? '10px' : '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Electrician</label>
-                <div style={isMobile ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '2px 0' } : { height: '42px', marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '0 12px', borderRadius: '12px', border: '1px solid #d7dee8', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                  <span style={{ fontSize: isMobile ? '13px' : '13px', fontWeight: isMobile ? 700 : 600, color: isMobile ? '#334155' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {selectedElectrician?.name || selectedPartner?.electrician_name || (orderHeader.electricianId ? 'Electrician Selected' : (isMobile ? '-' : 'No Electrician assigned'))}
+              <div className="form-group" style={{ marginBottom: 0, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fcfcfd' }}>
+                <label style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Electrician</label>
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '2px' : '1.5rem', padding: '2px 0' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                    {selectedElectrician?.name || selectedPartner?.electrician_name || (orderHeader.electricianId ? 'Electrician Selected' : '-')}
                   </span>
                   {(selectedElectrician?.phone || selectedPartner?.electrician_phone) && (
-                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                      <Phone size={12} className="text-blue-500" />
+                    <span style={{ fontSize: isMobile ? '11px' : '13px', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Phone size={isMobile ? 12 : 14} className="text-blue-500" />
                       {selectedElectrician?.phone || selectedPartner.electrician_phone}
                     </span>
                   )}
@@ -1184,7 +1265,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                         padding: '0.25rem 0.5rem', 
                         borderBottom: '2px solid #f8fafc', 
                         display: 'grid',
-                        gridTemplateColumns: `minmax(300px, 1fr) 210px ${orderHeader.is_image ? '80px' : ''} ${orderHeader.is_beam ? '80px' : ''} 40px`.trim().replace(/\s+/g, ' '),
+                        gridTemplateColumns: `1fr 300px ${orderHeader.is_image ? '120px' : ''} ${orderHeader.is_beam ? '180px' : ''} 40px`.trim().replace(/\s+/g, ' '),
                         gap: '8px',
                         alignItems: 'center'
                     }}>
@@ -1250,7 +1331,13 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                             {isMobile && (
                               <button 
                                 className="pi-remove" 
-                                onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))} 
+                                onClick={() => {
+                                  if (isOrder && editId) {
+                                    handleRowChange(r.id, 'qty', 0);
+                                  } else {
+                                    setRows(prev => prev.filter(row => row.id !== r.id));
+                                  }
+                                }} 
                                 style={{ 
                                   position: 'absolute', 
                                   top: '0.75rem', 
@@ -1273,7 +1360,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                 display: isMobile ? 'flex' : 'grid', 
                                 gridTemplateColumns: r.display_type === 'line_section' 
                                   ? `1fr 40px` 
-                                  : isMobile ? 'none' : `minmax(300px, 1fr) 210px ${orderHeader.is_image ? '80px' : ''} ${orderHeader.is_beam ? '80px' : ''} 40px`.trim().replace(/\s+/g, ' '),
+                                  : isMobile ? 'none' : `1fr 300px ${orderHeader.is_image ? '120px' : ''} ${orderHeader.is_beam ? '180px' : ''} 40px`.trim().replace(/\s+/g, ' '),
                                 alignItems: 'flex-start', 
                                 gap: isMobile ? '4px' : '8px', 
                                 flexWrap: isMobile ? 'wrap' : 'nowrap',
@@ -1315,9 +1402,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                            <div style={{ flex: 1, minWidth: 0 }}>
                                              <SearchableSelect
                                                placeholder="Select Product"
-                                               options={masterData.products
-                                                 .filter(p => orderHeader.is_automate ? true : !p.is_automation)
-                                                 .map(p => ({ value: p.id, label: p.name }))}
+                                               options={productOptions}
                                                value={r.productId}
                                                defaultValue={r.productName}
                                                onChange={(val) => handleRowChange(r.id, 'productId', val)}
@@ -1446,7 +1531,13 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                                  <div style={{ display: 'flex', justifyContent: 'center' }}>
                                     <button 
                                       className="pi-remove-row" 
-                                      onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))}
+                                      onClick={() => {
+                                        if (isOrder && editId) {
+                                          handleRowChange(r.id, 'qty', 0);
+                                        } else {
+                                          setRows(prev => prev.filter(row => row.id !== r.id));
+                                        }
+                                      }}
                                       style={{ width: '40px', height: '32px', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                       title="Delete Row"
                                     >
@@ -1519,15 +1610,16 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
               </div>
             </div>
 
-        {/* Schedule Activity Section */}
-        <div className="co-expandable-card activity-schedule-card" style={{ marginBottom: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', alignItems: 'flex-start' }}>
+          {/* Schedule Activity Section */}
+          <div className="co-expandable-card activity-schedule-card" style={{ marginBottom: 0, marginTop: 0 }}>
           <div className="co-expand-header" onClick={() => setShowActivitySection(!showActivitySection)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div className="co-card-icon-pill" style={{ backgroundColor: '#f0f9ff', color: '#0ea5e9' }}>
                 <Calendar size={18} />
               </div>
-              <div className="co-card-title-stack">
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Tasks</h2>
+              <div className="co-card-title-stack" style={{ height: '18px', display: 'flex', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155' }}>Tasks</h2>
               </div>
             </div>
             <div className={`co-chevron ${showActivitySection ? 'open' : ''}`}>
@@ -1536,39 +1628,40 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           </div>
 
           {showActivitySection && (
-            <div className="co-card-body" style={{ padding: '0.75rem 1.25rem 1.25rem' }}>
+            <div className="co-card-body" style={{ padding: '0.5rem 1rem' }}>
               {/* Form Grid: Due Date and Assigned To side-by-side */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.5fr', gap: '0.75rem', marginBottom: '0.4rem' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Due Date</label>
+                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Due Date</label>
                   <input 
                     type="date" 
                     className="co-input-border"
                     value={newActivity.date_deadline} 
                     onChange={e => setNewActivity(prev => ({ ...prev, date_deadline: e.target.value }))}
-                    style={{ width: '100%', height: '42px', padding: '0 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
+                    style={{ width: '100%', height: '32px', padding: '0 8px', borderRadius: '2px', border: '1px solid #ddd', fontSize: '13px' }}
                   />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Assigned To</label>
+                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Assigned To</label>
                   <SearchableSelect
                     placeholder="Select User"
                     value={newActivity.user_id}
+                    small
                     onChange={(val) => setNewActivity(prev => ({ ...prev, user_id: val }))}
-                    options={masterData.users?.map(u => ({ value: u.id, label: u.name }))}
+                    options={userOptions}
                   />
                 </div>
               </div>
 
               {/* Note Section */}
-              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Activity Note</label>
+              <div className="form-group" style={{ marginBottom: '0.4rem' }}>
+                <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Activity Note</label>
                 <textarea 
                   className="co-textarea"
                   value={newActivity.note} 
                   onChange={e => setNewActivity(prev => ({ ...prev, note: e.target.value }))}
-                  placeholder="Type details here... (Press Enter for new line)"
-                  style={{ width: '100%', minHeight: '100px', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontSize: '14px', lineHeight: '1.5' }}
+                  placeholder="Type details here..."
+                  style={{ width: '100%', minHeight: '60px', padding: '8px', borderRadius: '2px', border: '1px solid #ddd', backgroundColor: '#fcfcfc', fontSize: '13px', lineHeight: '1.4' }}
                 />
               </div>
 
@@ -1593,17 +1686,17 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                     });
                   }}
                   className="co-btn-primary"
-                  style={{ padding: '0 24px', height: '42px', borderRadius: '10px' }}
+                  style={{ padding: '0 16px', height: '32px', borderRadius: '4px', fontSize: '12px' }}
                 >
-                  <Plus size={18} style={{ marginRight: '8px' }} />
+                  <Plus size={14} style={{ marginRight: '4px' }} />
                   Add Activity
                 </button>
               </div>
 
               {/* List of planned activities */}
               {scheduledActivities.length > 0 && (
-                <div className="planned-activities" style={{ marginTop: '1.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
-                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b', marginBottom: '1rem' }}>Planned Activities</h3>
+                <div className="planned-activities" style={{ marginTop: '0.4rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.4rem' }}>
+                  <h3 style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', marginBottom: '0.4rem' }}>Planned Activities</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {scheduledActivities.map(act => {
                       const typeName = masterData.activity_types?.find(t => t.id === act.activity_type_id)?.name || 'Activity';
@@ -1716,14 +1809,14 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           )}
         </div>
 
-        <div className="co-expandable-card main-notes-card">
+          <div className="co-expandable-card main-notes-card" style={{ marginBottom: 0, marginTop: 0 }}>
           <div className="co-expand-header" onClick={() => setShowNotes(!showNotes)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div className="co-card-icon-pill" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
                 <Send size={18} />
               </div>
-              <div className="co-card-title-stack">
-                <h2>Notes</h2>
+              <div className="co-card-title-stack" style={{ height: '18px', display: 'flex', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155' }}>Notes</h2>
               </div>
             </div>
             <div className={`co-chevron ${showNotes ? 'open' : ''}`}>
@@ -1884,6 +1977,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             </div>
           )}
         </div>
+      </div>
 
         <div className="activity-section">
           <div className="activity-toggle-bar" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 1rem', marginBottom: '0.5rem' }}>
@@ -1898,7 +1992,18 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
           {(() => {
             const getIcon = (type) => {
-              switch(type) {
+              const t = String(type || '').toLowerCase();
+              if (t.includes('switch')) return <ToggleRight size={20} />;
+              if (t.includes('fan')) return <Wind size={20} />;
+              if (t.includes('ac')) return <Activity size={20} />;
+              if (t.includes('curtain')) return <Layers size={20} />;
+              if (t.includes('automation')) return <Zap size={20} />;
+              if (t.includes('light')) return <Lightbulb size={20} />;
+              if (t.includes('profile')) return <Layers size={20} />;
+              if (t.includes('decorative')) return <Sparkles size={20} />;
+              if (t.includes('other')) return <MoreHorizontal size={20} />;
+              
+              switch(t) {
                 case 'switches': return <ToggleRight size={20} />;
                 case 'fans': return <Wind size={20} />;
                 case 'ac': return <Activity size={20} />;
@@ -1906,6 +2011,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                 case 'automation': return <Zap size={20} />;
                 case 'lights': return <Lightbulb size={20} />;
                 case 'profiles': return <Layers size={20} />;
+                case 'decorative': return <Sparkles size={20} />;
                 default: return <MoreHorizontal size={20} />;
               }
             };
@@ -1927,7 +2033,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             if (act.group === 'cat' && !showCategories) return null;
             return (
               <div key={act.id} className="activity-card">
-                <div className="activity-header" onClick={() => setShowMore(showMore === act.id ? null : act.id)}>
+                <div className="activity-header" onClick={() => setExpandedCategoryIds(prev => ({ ...prev, [act.id]: !prev[act.id] }))}>
                   <div className="activity-title-group">
                     <span className="activity-icon">{act.icon}</span>
                     <span className="activity-label">{act.title}</span>
@@ -1937,7 +2043,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                       onClick={(e) => {
                         e.stopPropagation();
                         handleAddActivityNote(act.id);
-                        if(showMore !== act.id) setShowMore(act.id);
+                        setExpandedCategoryIds(prev => ({ ...prev, [act.id]: true }));
                       }} 
                       style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
                       title="Add note to this section"
@@ -1945,10 +2051,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                     >
                       <Plus size={16} />
                     </button>
-                    <ChevronDown size={18} className={showMore === act.id ? 'rotate-180' : ''} />
+                    <ChevronDown size={18} className={expandedCategoryIds[act.id] ? 'rotate-180' : ''} />
                   </div>
                 </div>
-                {showMore === act.id && (
+                {expandedCategoryIds[act.id] && (
                   <div className="activity-body">
                       {(activityHistory[act.id] || []).map(note => (
                         <div key={note.id} className="activity-note" style={{ position: 'relative' }}>
@@ -2045,17 +2151,119 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           })}
         </div>
 
-        <div className="co-page-footer">
-          <button className="co-btn co-btn-primary co-btn-lg" onClick={handleProcess}>
-            {loading ? "Processing..." : (
-              editId 
-                ? (isSelection ? "Update Selection" : (isOrder ? "Update Order" : "Update Quotation"))
-                : (isSelection ? "Create Selection" : (isOrder ? "Create Order" : "Submit Quotation"))
-            )}
-          </button>
-          <button className="co-btn co-btn-secondary co-btn-lg" onClick={() => safeNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations')}>
-            Cancel
-          </button>
+        <div className="co-page-footer" style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          gap: '1rem',
+          padding: '1.25rem 0.75rem',
+          borderTop: '1px solid #e2e8f0',
+          marginTop: '2rem',
+          flexWrap: 'wrap',
+          backgroundColor: '#fff'
+        }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: isMobile ? '100%' : '300px' }}>
+            <button 
+              className="co-btn co-btn-primary" 
+              onClick={(e) => handleProcess(e)} 
+              disabled={loading}
+              style={{ 
+                flex: 1, 
+                maxWidth: isMobile ? '100%' : '400px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                color: '#fff',
+                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.2)',
+                border: 'none',
+                height: '52px',
+                fontSize: '15px',
+                fontWeight: 700,
+                borderRadius: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}
+            >
+              <CheckCircle size={18} />
+              {loading ? "Processing..." : (
+                editId 
+                  ? (isSelection ? "Update Selection" : (isOrder ? "Update Order" : "Update Quotation"))
+                  : (isSelection ? "Create Selection" : (isOrder ? "Create Order" : "Submit Quotation"))
+              )}
+            </button>
+            
+            <button 
+              className="co-btn co-btn-secondary" 
+              onClick={() => onNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations')}
+              style={{
+                height: '52px',
+                padding: '0 1.75rem',
+                borderRadius: '14px',
+                fontSize: '15px',
+                fontWeight: 600,
+                color: '#64748b',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+          
+          {editId && !isOrder && (
+            <div style={{ display: 'flex', gap: '0.75rem', width: isMobile ? '100%' : 'auto' }}>
+              {isSelection && (
+                <button 
+                  className="co-btn" 
+                  style={{ 
+                    flex: isMobile ? 1 : 'none',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', 
+                    color: '#fff',
+                    border: 'none',
+                    height: '52px',
+                    padding: '0 1.5rem',
+                    borderRadius: '14px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    boxShadow: '0 4px 14px rgba(79, 70, 229, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }} 
+                  onClick={(e) => handleProcess(e, 'draft')}
+                  disabled={loading}
+                >
+                  <FileText size={16} />
+                  Confirm Quotation
+                </button>
+              )}
+              <button 
+                className="co-btn" 
+                style={{ 
+                  flex: isMobile ? 1 : 'none',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+                  color: '#fff',
+                  border: 'none',
+                  height: '52px',
+                  padding: '0 1.5rem',
+                  borderRadius: '14px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  boxShadow: '0 4px 14px rgba(5, 150, 105, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }} 
+                onClick={(e) => handleProcess(e, 'sale')}
+                disabled={loading}
+              >
+                <ArrowRight size={16} />
+                Confirm Order
+              </button>
+            </div>
+          )}
         </div>
       </div> 
     </div>

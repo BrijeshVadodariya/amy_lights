@@ -213,11 +213,15 @@ const Catalog = ({ onNavigate, partnerId, extraData }) => {
     if (cart.length === 0) return;
     const extra = {
       preFilledPartnerId: partnerId,
+      preFilledPartner: partner,
       preFilledProducts: cart.map(item => ({
         productId: item.id,
         qty: item.qty,
         price: item.price,
-        name: item.name
+        name: item.name,
+        description: item.description || item.description_sale || '',
+        beam: item.beam || '-',
+        image_url: item.image_url || ''
       }))
     };
     onNavigate(type, null, extra);
