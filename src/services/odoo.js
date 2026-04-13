@@ -272,5 +272,23 @@ export const odooService = {
       params: { order_id: orderId, note_index: noteIndex }
     });
     return res.data.result || { success: false, error: res.data.error };
+  },
+  checkWhatsappStatus: async () => {
+    const res = await api.get('/api/whatsapp/status');
+    return res.data?.result?.data || res.data?.result || { success: false };
+  },
+  getWhatsappQr: async () => {
+    const res = await api.get('/api/whatsapp/get_qr');
+    return res.data?.result?.data || res.data?.result || { success: false };
+  },
+  disconnectWhatsapp: async () => {
+    const res = await api.post('/api/whatsapp/disconnect');
+    return res.data?.result?.data || res.data?.result || { success: false };
+  },
+  sendWhatsappPdf: async (resModel, resId, mobile, message) => {
+    const res = await api.post('/api/whatsapp/send_pdf', {
+      params: { res_model: resModel, res_id: resId, mobile: mobile, message: message }
+    });
+    return res.data.result || { success: false, error: res.data.error };
   }
 };

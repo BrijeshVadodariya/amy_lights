@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash } from 'lucide-react';
+import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
+import WhatsappModal from '../components/WhatsappModal';
 import { QuickNoteModal, QuickTaskModal } from '../components/QuickActionModals';
 import '../components/Loader.css';
 import './OrderDetail.css';
@@ -22,6 +23,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [activityEditVals, setActivityEditVals] = useState({ summary: '', note: '', date_deadline: '' });
   const [editingRemarkIdx, setEditingRemarkIdx] = useState(null);
   const [remarkEditText, setRemarkEditText] = useState('');
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
@@ -195,6 +197,14 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           </button>
           
           <div className="detail-hero-actions" style={{ display: 'flex', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
+            <button 
+              className="btn-ui hover:bg-[#25D366] hover:text-white" 
+              onClick={() => setShowWhatsappModal(true)} 
+              style={{ height: '32px', borderRadius: '4px', transition: 'all 0.2s', borderColor: 'transparent' }}
+            >
+              <MessageCircle size={14} />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </button>
             <button className="btn-ui" onClick={() => odooService.printQuotation(order.id)} style={{ height: '32px', borderRadius: '4px' }}>
               <Printer size={14} />
               <span>Print</span>
@@ -769,6 +779,15 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           onSuccess={() => { fetchOrder(); setShowTaskModal(false); }}
         />
       )}
+      
+      <WhatsappModal 
+        isOpen={showWhatsappModal}
+        onClose={() => setShowWhatsappModal(false)}
+        resModel="sale.order"
+        resId={order.id}
+        defaultMobile={order.mobile}
+        defaultMessage={`Hello ${order.partner_name || ''},\n\nHere is your ${order.state === 'selection' ? 'selection' : 'quotation'} ${order.name || ''} for an amount of ${formatCurrency(order.amount_total)}.\n\nBest regards,`}
+      />
     </div>
   );
 };
