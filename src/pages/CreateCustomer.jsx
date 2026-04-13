@@ -8,7 +8,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
   // Where to go back after creating — set by the calling form (create-order / create-selection / create-direct-order)
   const returnRoute = extraData?.returnRoute || 'create-order';
   const [saving, setSaving] = useState(false);
-  const [masterData, setMasterData] = useState({ partners: [], architects: [], electricians: [] });
+  const [masterData, setMasterData] = useState({ partners: [], architects: [], electricians: [], users: [] });
   const [modalState, setModalState] = useState({ show: false, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
   const [customer, setCustomer] = useState({
     name: '',
@@ -68,14 +68,14 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             pincode: res.zip || '',
             city: res.city || '',
             state: res.state_name || '',
-            empAssigned: res.emp_assigned || '',
+            empAssigned: extractId(res.emp_assigned),
             sourceType: res.source_type || '',
             source: res.source_name || '',
             competitor: res.competitor || '',
             budget: res.budget || '',
             gstNo: res.vat || '',
             registeredAddress: res.registered_address || '',
-            operationPerson: res.operation_person || '',
+            operationPerson: extractId(res.operation_person),
             architectId: extractId(res.architect_id),
             architectName: res.architect_name || '',
             electricianId: extractId(res.electrician_id),
@@ -101,12 +101,17 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
   };
 
   useEffect(() => {
-    odooService.getMasterData().then(res => {
-      if (res) {
+    Promise.all([
+      odooService.getMasterData().catch(() => null),
+      odooService.getPartners().catch(() => [])
+    ]).then(([masterRes, partnersRes]) => {
+      if (masterRes) {
         setMasterData(prev => ({
           ...prev,
-          architects: res.architects || [],
-          electricians: res.electricians || []
+          architects: masterRes.architects || [],
+          electricians: masterRes.electricians || [],
+          users: masterRes.users || [],
+          partners: partnersRes?.length ? partnersRes : (masterRes.partners || [])
         }));
       }
     });
@@ -147,8 +152,8 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
         competitor: customer.competitor,
         source_type: customer.sourceType,
         source_name: customer.source,
-        emp_assigned: customer.empAssigned,
-        operation_person: customer.operationPerson,
+        emp_assigned: parseInt(customer.empAssigned) || false,
+        operation_person: parseInt(customer.operationPerson) || false,
         registered_address: customer.registeredAddress,
         vat: customer.gstNo
       };
@@ -433,21 +438,27 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             <div className="od-content">
               <div className="od-row">
                 <span className="od-label">Sales Person</span>
-                <input 
-                  className="od-input" 
-                  value={customer.empAssigned} 
-                  onChange={(e) => setCustomer({ ...customer, empAssigned: e.target.value })} 
-                  placeholder="Sales Person Name" 
-                />
+                <div style={{ width: '180px' }}>
+                  <SearchableSelect
+                    placeholder="Select Sales Person"
+                    value={customer.empAssigned}
+                    className="clean-select"
+                    onChange={(val) => setCustomer({ ...customer, empAssigned: val })}
+                    options={masterData.users?.map(u => ({ value: u.id, label: u.name })) || []}
+                  />
+                </div>
               </div>
               <div className="od-row">
                 <span className="od-label">Operation Person</span>
-                <input 
-                  className="od-input" 
-                  value={customer.operationPerson} 
-                  onChange={(e) => setCustomer({ ...customer, operationPerson: e.target.value })} 
-                  placeholder="Operation Person Name" 
-                />
+                <div style={{ width: '180px' }}>
+                  <SearchableSelect
+                    placeholder="Select Operation Person"
+                    value={customer.operationPerson}
+                    className="clean-select"
+                    onChange={(val) => setCustomer({ ...customer, operationPerson: val })}
+                    options={masterData.partners?.map(p => ({ value: p.id, label: p.name })) || []}
+                  />
+                </div>
               </div>
               <div className="od-row">
                 <span className="od-label">Registered Address</span>

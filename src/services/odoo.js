@@ -232,5 +232,29 @@ export const odooService = {
       } 
     });
     return res.data.result || { success: false, error: res.data.error };
+  },
+  updateActivity: async (activityId, summary, note, deadline, userId) => {
+    const res = await api.post('/api/order/update_activity', {
+      params: { activity_id: activityId, summary, note, date_deadline: deadline, user_id: userId }
+    });
+    return res.data.result || { success: false, error: res.data.error };
+  },
+  deleteActivity: async (activityId) => {
+    const res = await api.post('/api/order/delete_activity', {
+      params: { activity_id: activityId }
+    });
+    return res.data.result || { success: false, error: res.data.error };
+  },
+  updateRemark: async (orderId, noteIndex, newText) => {
+    const res = await api.post('/api/order/update_remark', {
+      params: { order_id: orderId, note_index: noteIndex, new_text: newText }
+    });
+    return res.data.result || { success: false, error: res.data.error };
+  },
+  deleteRemark: async (orderId, noteIndex) => {
+    const res = await api.post('/api/order/delete_remark', {
+      params: { order_id: orderId, note_index: noteIndex }
+    });
+    return res.data.result || { success: false, error: res.data.error };
   }
 };

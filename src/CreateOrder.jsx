@@ -764,12 +764,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       uom: 'Units'
     }]);
     
-    // TAB Focus logic: Focus the new product select after it renders
+    // TAB Focus logic: Focus and OPEN the new product select after it renders
     setTimeout(() => {
       const rows = document.querySelectorAll('.product-row');
       const lastRow = rows[rows.length - 1];
       const select = lastRow?.querySelector('.ss-control');
-      if (select) select.focus();
+      if (select) {
+        select.focus();
+        select.click(); // Open the dropdown immediately
+      }
     }, 50);
   };
 
@@ -1629,69 +1632,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
           {showActivitySection && (
             <div className="co-card-body" style={{ padding: '0.5rem 1rem' }}>
-              {/* Form Grid: Due Date and Assigned To side-by-side */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.5fr', gap: '0.75rem', marginBottom: '0.4rem' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Due Date</label>
-                  <input 
-                    type="date" 
-                    className="co-input-border"
-                    value={newActivity.date_deadline} 
-                    onChange={e => setNewActivity(prev => ({ ...prev, date_deadline: e.target.value }))}
-                    style={{ width: '100%', height: '32px', padding: '0 8px', borderRadius: '2px', border: '1px solid #ddd', fontSize: '13px' }}
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Assigned To</label>
-                  <SearchableSelect
-                    placeholder="Select User"
-                    value={newActivity.user_id}
-                    small
-                    onChange={(val) => setNewActivity(prev => ({ ...prev, user_id: val }))}
-                    options={userOptions}
-                  />
-                </div>
-              </div>
-
-              {/* Note Section */}
-              <div className="form-group" style={{ marginBottom: '0.4rem' }}>
-                <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Activity Note</label>
-                <textarea 
-                  className="co-textarea"
-                  value={newActivity.note} 
-                  onChange={e => setNewActivity(prev => ({ ...prev, note: e.target.value }))}
-                  placeholder="Type details here..."
-                  style={{ width: '100%', minHeight: '60px', padding: '8px', borderRadius: '2px', border: '1px solid #ddd', backgroundColor: '#fcfcfc', fontSize: '13px', lineHeight: '1.4' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button 
-                  onClick={() => {
-                    // Auto-pick To Do type if not set
-                    let typeId = newActivity.activity_type_id;
-                    if (!typeId && masterData.activity_types) {
-                       const todoType = masterData.activity_types.find(t => t.name.toLowerCase().includes('todo') || t.name.toLowerCase().includes('to do')) || masterData.activity_types[0];
-                       typeId = todoType?.id;
-                    }
-                    if (!typeId) return alert("Select activity type");
-                    
-                    setScheduledActivities(prev => [...prev, { ...newActivity, activity_type_id: typeId, id: Date.now() }]);
-                    setNewActivity({
-                      activity_type_id: '',
-                      summary: 'To Do',
-                      note: '',
-                      user_id: '',
-                      date_deadline: new Date().toISOString().split('T')[0]
-                    });
-                  }}
-                  className="co-btn-primary"
-                  style={{ padding: '0 16px', height: '32px', borderRadius: '4px', fontSize: '12px' }}
-                >
-                  <Plus size={14} style={{ marginRight: '4px' }} />
-                  Add Activity
-                </button>
-              </div>
+              {/* List of planned activities moved to top */}
 
               {/* List of planned activities */}
               {scheduledActivities.length > 0 && (
@@ -1805,6 +1746,84 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                   </div>
                 </div>
               )}
+
+              {/* Form Grid: Moved to bottom as requested */}
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.5fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Due Date</label>
+                    <input 
+                      type="date" 
+                      className="co-input-border"
+                      value={newActivity.date_deadline} 
+                      onChange={e => setNewActivity(prev => ({ ...prev, date_deadline: e.target.value }))}
+                      style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px' }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Assigned To</label>
+                    <SearchableSelect
+                      placeholder="Select User"
+                      value={newActivity.user_id}
+                      small
+                      options={userOptions}
+                      onChange={(val) => setNewActivity(prev => ({ ...prev, user_id: val }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Activity Note</label>
+                  <textarea 
+                    className="co-textarea"
+                    value={newActivity.note} 
+                    onChange={e => setNewActivity(prev => ({ ...prev, note: e.target.value }))}
+                    placeholder="Type details here..."
+                    style={{ width: '100%', minHeight: '80px', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontSize: '13px', lineHeight: '1.5' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                  <button 
+                    onClick={() => {
+                      let typeId = newActivity.activity_type_id;
+                      if (!typeId && masterData.activity_types) {
+                        const todoType = masterData.activity_types.find(t => t.name.toLowerCase().includes('todo') || t.name.toLowerCase().includes('to do')) || masterData.activity_types[0];
+                        typeId = todoType?.id;
+                      }
+                      if (!typeId) return alert("Select activity type");
+                      if (!newActivity.note) return alert("Please enter activity note");
+                      
+                      setScheduledActivities(prev => [...prev, { ...newActivity, activity_type_id: typeId, id: Date.now() }]);
+                      setNewActivity({
+                        activity_type_id: '',
+                        summary: 'To Do',
+                        note: '',
+                        user_id: '',
+                        date_deadline: new Date().toISOString().split('T')[0]
+                      });
+                    }}
+                    style={{ 
+                      background: '#0ea5e9', 
+                      color: '#fff', 
+                      border: 'none', 
+                      borderRadius: '10px', 
+                      height: '38px', 
+                      padding: '0 20px', 
+                      fontWeight: 800, 
+                      fontSize: '13px', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px',
+                      boxShadow: '0 2px 4px rgba(14, 165, 233, 0.2)'
+                    }}
+                  >
+                    <Zap size={16} fill="white" />
+                    Add Activity
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1971,7 +1990,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                   }}
                   title="Send Note"
                 >
-                  <Send size={18} />
+                  <Zap size={20} fill="white" />
                 </button>
               </div>
             </div>

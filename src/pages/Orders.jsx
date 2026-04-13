@@ -5,6 +5,7 @@ import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import '../components/Loader.css';
 import SearchableSelect from '../components/SearchableSelect';
+import { QuickNoteModal, QuickTaskModal } from '../components/QuickActionModals';
 import './Products.css'; // Global DataTable styles
 import '../CreateOrder.css'; // Use shared form styles for consistency
 
@@ -23,6 +24,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   const [catalogAnchor, setCatalogAnchor] = useState(null);
   const catalogBtnRef = React.useRef(null);
   const [showProfessional, setShowProfessional] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   
   // Quick Actions State
   const [quickDetailOrderId, setQuickDetailOrderId] = useState(null);
@@ -70,6 +73,26 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   }, [fetchOrders]);
 
   const filtered = orders.filter(o => {
+    // 1. Date Filter
+    if (dateFrom || dateTo) {
+      if (!o.order_date) return false;
+      // Parse DD-MM-YYYY to Date
+      const [day, month, year] = o.order_date.split('-').map(Number);
+      const orderDate = new Date(year, month - 1, day);
+      
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        fromDate.setHours(0,0,0,0);
+        if (orderDate < fromDate) return false;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23,59,59,999);
+        if (orderDate > toDate) return false;
+      }
+    }
+
+    // 2. Search Filter
     if (!searchTerm.trim()) return true;
     const q = searchTerm.toLowerCase();
     return (
@@ -82,7 +105,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
       o.electrician?.toLowerCase().includes(q)     ||  // Electrician Name
       o.electrician_phone?.toLowerCase().includes(q)|| // Electrician Phone
       o.remark?.toLowerCase().includes(q)          ||  // Last Remark / Note
-      o.last_activity?.toLowerCase().includes(q)       // Last Planned Activity / Task
+      o.last_activity?.toLowerCase().includes(q)   ||  // Last Planned Activity / Task
+      o.products?.toLowerCase().includes(q)            // Product names
     );
   });
 
@@ -99,8 +123,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   };
 
   const handleConfirm = async (id) => {
-    const isQuotation = stateType === 'quotation';
-    if (!window.confirm(`Confirm this ${isQuotation ? 'quotation' : 'order'}?`)) return;
+    if (!window.confirm('Confirm this order?')) return;
     try {
       const res = await odooService.confirmOrder(id);
       if (res.success) {
@@ -110,6 +133,21 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
       }
     } catch {
       alert("Network error");
+    }
+  };
+
+  const handleConvertSelection = async (id, targetState) => {
+    const stateName = targetState === 'sale' ? 'Sale Order' : 'Quotation';
+    if (!window.confirm(`Convert this selection to a ${stateName}?`)) return;
+    try {
+      const res = await odooService.convertSelection(id, targetState);
+      if (res.success) {
+        fetchOrders();
+      } else {
+        alert(res.error?.message || `Error converting to ${stateName}`);
+      }
+    } catch {
+      alert("Network error while converting.");
     }
   };
 
@@ -188,6 +226,30 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               />
             </div>
+
+            <div className="dt-flex" style={{ gap: '8px', marginLeft: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f8fafc', padding: '4px 8px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <Calendar size={12} className="text-slate-400" />
+                <input 
+                  type="date" 
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+                  style={{ border: 'none', background: 'transparent', fontSize: '12px', outline: 'none', color: '#475569' }}
+                />
+                {dateFrom && <X size={12} className="cursor-pointer text-slate-300 hover:text-red-500" onClick={() => setDateFrom('')} />}
+              </div>
+              <span className="text-slate-400" style={{ fontSize: '11px', fontWeight: 600 }}>TO</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f8fafc', padding: '4px 8px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <Calendar size={12} className="text-slate-400" />
+                <input 
+                  type="date" 
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+                  style={{ border: 'none', background: 'transparent', fontSize: '12px', outline: 'none', color: '#475569' }}
+                />
+                {dateTo && <X size={12} className="cursor-pointer text-slate-300 hover:text-red-500" onClick={() => setDateTo('')} />}
+              </div>
+            </div>
           </div>
 
           <div className="dt-toolbar-right">
@@ -238,13 +300,13 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
               <thead>
                 <tr>
                   <th className="text-center" style={{ width: '40px' }}>Sr.No</th>
-                  <th style={{ width: '100px' }}>Date</th>
-                  <th style={{ width: '130px' }}>Sale Person</th>
-                  <th style={{ width: '180px' }}>Customer</th>
+                  <th style={{ width: '75px', fontSize: '11px' }}>Date</th>
+                  <th style={{ width: '120px', fontSize: '11px' }}>Sale Person</th>
+                  <th style={{ width: '230px' }}>Customer</th>
                   {showProfessional && <th style={{ width: '150px' }}>Professional</th>}
-                  <th style={{ minWidth: '150px' }}>Note</th>
-                  <th style={{ minWidth: '150px' }}>Task</th>
-                  <th className="text-center" style={{ width: '60px' }}>Actions</th>
+                  <th style={{ minWidth: '160px' }}>Note</th>
+                  <th style={{ minWidth: '220px' }}>Task</th>
+                  <th className="text-center" style={{ width: '80px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -252,30 +314,31 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                   <tr 
                     key={order.id} 
                     onClick={() => onNavigate('order-detail', order.id)}
+                    className="hover:bg-slate-50 transition-colors"
                   >
-                    <td className="text-center cell-light" data-label="Sr.No">
+                    <td className="text-center cell-light" data-label="Sr.No" style={{ fontSize: '12px' }}>
                       {indexOfFirstItem + idx + 1}
                     </td>
-                    <td className="cell-light" data-label="Date">
+                    <td className="cell-light" data-label="Date" style={{ fontSize: '11px', color: '#64748b' }}>
                       {order.order_date || '-'}
                     </td>
-                    <td className="cell-light" data-label="Sale Person">
+                    <td className="cell-light" data-label="Sale Person" style={{ fontSize: '11px', color: '#64748b', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {order.salesperson || '-'}
                     </td>
                     <td className="cell-highlight" data-label="Customer">
-                      <div className="customer-main">{order.customer || '-'}</div>
-                      {order.phone && <div className="cell-light" style={{ fontSize: '15px', marginTop: '2px' }}>{order.phone}</div>}
+                      <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>{order.customer || '-'}</div>
+                      {order.phone && <div className="cell-light" style={{ fontSize: '14px', marginTop: '2px', color: '#64748b' }}>{order.phone}</div>}
                     </td>
                     {showProfessional && (
                       <td className="cell-light" data-label="Professional">
                         {order.architect && (
-                          <div className="pro-line">
+                          <div className="pro-line" style={{ fontSize: '13px' }}>
                             <strong>A:</strong> {order.architect}
                             {order.architect_phone && <span className="cell-light" style={{ fontSize: '11px', marginLeft: '4px' }}>({order.architect_phone})</span>}
                           </div>
                         )}
                         {order.electrician && (
-                          <div className="pro-line">
+                          <div className="pro-line" style={{ fontSize: '13px' }}>
                             <strong>E:</strong> {order.electrician}
                             {order.electrician_phone && <span className="cell-light" style={{ fontSize: '11px', marginLeft: '4px' }}>({order.electrician_phone})</span>}
                           </div>
@@ -283,10 +346,10 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                         {!order.architect && !order.electrician && '-'}
                       </td>
                     )}
-                    <td className="cell-highlight" data-label="Note" style={{ padding: '10px 12px' }}>
+                    <td className="cell-highlight" data-label="Note" style={{ padding: '12px' }}>
                       {(() => {
-                        if (!order.note) return '-';
-                        const parts = order.note.split(/\n---\n|<br\s*\/?>/).filter(Boolean);
+                        if (!order.note) return <span style={{ color: '#cbd5e1' }}>-</span>;
+                        const parts = order.note.split(/\n?---\n?|<br\s*\/?>/).filter(Boolean);
                         if (parts.length === 0) return '-';
                         
                         const latestRaw = parts[parts.length - 1];
@@ -300,12 +363,12 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                         }
                         
                         return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <div className="note-truncate" title={cleanText} style={{ fontWeight: 600, color: '#000', marginBottom: 0 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div className="note-truncate" title={cleanText} style={{ fontWeight: 600, color: '#334155', fontSize: '14px', lineHeight: '1.4' }}>
                               {cleanText}
                             </div>
                             {authorName && (
-                              <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.025em' }}>
+                              <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
                                 By {authorName}
                               </div>
                             )}
@@ -313,9 +376,9 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                         );
                       })()}
                     </td>
-                    <td className="cell-highlight" data-label="Task">
-                      <div className="note-truncate" title={order.last_activity}>
-                        {order.last_activity || '-'}
+                    <td className="cell-highlight" data-label="Task" style={{ padding: '12px' }}>
+                      <div className="note-truncate" title={order.last_activity} style={{ fontSize: '14px', fontWeight: 500, color: '#475569' }}>
+                        {order.last_activity || <span style={{ color: '#cbd5e1' }}>-</span>}
                       </div>
                     </td>
                     <td 
@@ -341,17 +404,39 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                             onMouseLeave={() => setOpenDropdownId(null)}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button 
-                              className="btn-action-soft"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenDropdownId(null);
-                                setQuickDetailOrderId(order.id);
-                              }}
-                            >
-                              <Eye size={12} className="text-blue-500" />
-                              <span>View Quick Details</span>
-                            </button>
+                            {/* Smart actions based on stateType */}
+                            {stateType === 'selection' && (
+                              <>
+                                <button 
+                                  className="btn-action-soft"
+                                  style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
+                                  onClick={(e) => { e.stopPropagation(); handleConvertSelection(order.id, 'draft'); setOpenDropdownId(null); }}
+                                >
+                                  <CheckCircle size={12} style={{ color: '#6366f1' }} />
+                                  <span style={{ fontWeight: 700, color: '#6366f1' }}>Convert to Quotation</span>
+                                </button>
+                                <button 
+                                  className="btn-action-soft"
+                                  style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
+                                  onClick={(e) => { e.stopPropagation(); handleConvertSelection(order.id, 'sale'); setOpenDropdownId(null); }}
+                                >
+                                  <CheckCircle size={12} style={{ color: '#10b981' }} />
+                                  <span style={{ fontWeight: 700, color: '#10b981' }}>Convert to Order</span>
+                                </button>
+                              </>
+                            )}
+                            {stateType === 'quotation' && (
+                              <button 
+                                className="btn-action-soft"
+                                style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
+                                onClick={(e) => { e.stopPropagation(); handleConfirm(order.id); setOpenDropdownId(null); }}
+                              >
+                                <CheckCircle size={12} style={{ color: '#10b981' }} />
+                                <span style={{ fontWeight: 700, color: '#10b981' }}>Confirm Order</span>
+                              </button>
+                            )}
+                            {/* No confirm button for stateType === 'order' */}
+
 
                             <button 
                               className="btn-action-soft"
@@ -475,13 +560,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
         </>,
         document.body
       )}
-     {/* VIEW QUICK DETAIL MODAL */}
-     {quickDetailOrderId && (
-       <QuickDetailModal 
-          orderId={quickDetailOrderId} 
-          onClose={() => setQuickDetailOrderId(null)} 
-       />
-     )}
+     {/* VIEW QUICK DETAIL MODAL REMOVED */}
 
      {/* ADD QUICK NOTE MODAL */}
      {quickNoteOrderId && (
@@ -505,222 +584,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   );
 };
 
-// --- QUICK ACTION MODALS ---
+// --- SHARED MODAL COMPONENTS (IMPORTED FROM QuickActionModals.jsx) ---
 
-const QuickDetailModal = ({ orderId, onClose }) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const res = await odooService.getOrderDetail(orderId);
-        setData(res);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [orderId]);
-
-  return createPortal(
-    <div className="co-modal-overlay animate-fade-in" onClick={onClose}>
-      <div className="co-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
-        <div className="co-modal-header" style={{ borderBottom: '1px solid #eee', paddingBottom: '1rem' }}>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Order Quick Details</h2>
-          <button className="co-btn-close" onClick={onClose}><X size={20} /></button>
-        </div>
-        
-        <div className="co-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '1rem 0' }}>
-          {loading ? <Loader message="Fetching internal data..." /> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <section>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <div style={{ background: '#fff7ed', padding: '8px', borderRadius: '8px' }}>
-                    <Calendar size={18} className="text-orange-500" />
-                  </div>
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Recent Activities</h3>
-                </div>
-                {data?.activities?.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {data.activities.map((act, i) => (
-                      <div key={i} style={{ padding: '12px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>{act.summary || 'Task'}</span>
-                          <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>{act.date_deadline}</span>
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: act.note }} />
-                      </div>
-                    ))}
-                  </div>
-                ) : <div style={{ fontSize: '13px', color: '#94a3b8', padding: '10px', background: '#f8fafc', borderRadius: '8px', textAlign: 'center' }}>No active tasks found.</div>}
-              </section>
-
-              <section>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                  <div style={{ background: '#ecfdf5', padding: '8px', borderRadius: '8px' }}>
-                    <MessageSquare size={18} className="text-emerald-500" />
-                  </div>
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Historical Remarks</h3>
-                </div>
-                {data?.remark ? (
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {data.remark.split(/\n?---\n?|<br\s*\/?>/).filter(Boolean).map((t, idx) => {
-                         const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
-                         const authorName = authorMatch ? authorMatch[1] : null;
-                         
-                         let cleanText = t.replace(/<[^>]*>/g, '').trim();
-                         if (authorName) {
-                            cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
-                            cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
-                         }
-                         
-                         return (
-                           <div key={idx} style={{ padding: '12px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                             <div style={{ fontSize: '14px', color: '#334155', lineHeight: 1.5, fontWeight: 500 }}>{cleanText}</div>
-                             {authorName && (
-                               <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginTop: '6px', borderTop: '1px solid #f1f5f9', paddingTop: '4px' }}>
-                                 By {authorName}
-                               </div>
-                             )}
-                           </div>
-                         );
-                      })}
-                   </div>
-                ) : <div style={{ fontSize: '13px', color: '#94a3b8', padding: '10px', background: '#f8fafc', borderRadius: '8px', textAlign: 'center' }}>No remarks found.</div>}
-              </section>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
-
-const QuickNoteModal = ({ orderId, onClose, onSuccess }) => {
-  const [text, setText] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    if (!text.trim()) return alert("Please enter some text");
-    setSubmitting(true);
-    try {
-      const res = await odooService.addQuickNote(orderId, text);
-      if (res.success || !res.error) onSuccess();
-      else alert(res.error || "Failed to add note");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return createPortal(
-    <div className="co-modal-overlay animate-fade-in" onClick={onClose}>
-      <div className="co-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px', width: '90%' }}>
-        <div className="co-modal-header" style={{ marginBottom: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MessageSquare size={20} className="text-emerald-500" />
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Add Remark</h2>
-          </div>
-          <button className="co-btn-close" onClick={onClose}><X size={20} /></button>
-        </div>
-        <textarea 
-          placeholder="Type your remark here..."
-          value={text}
-          onChange={e => setText(e.target.value)}
-          style={{ width: '100%', minHeight: '120px', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1rem', fontSize: '14px' }}
-        />
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            className="co-btn co-btn-primary" 
-            style={{ flex: 1, background: '#10b981', height: '44px', color: '#fff' }}
-            onClick={handleSubmit}
-            disabled={submitting}
-          >
-            {submitting ? 'Saving...' : 'Add Remark'}
-          </button>
-          <button className="co-btn co-btn-secondary" style={{ flex: 1, height: '44px' }} onClick={onClose}>Cancel</button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
-
-const QuickTaskModal = ({ orderId, users = [], onClose, onSuccess }) => {
-  const [vals, setVals] = useState({ summary: '', note: '', deadline: new Date().toISOString().split('T')[0], userId: '' });
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
-      // Use summary or generic 'Task' if empty
-      const finalSummary = vals.summary.trim() || 'Task';
-      const res = await odooService.addQuickActivity(orderId, finalSummary, vals.note, vals.deadline, vals.userId);
-      if (res.success || !res.error) onSuccess();
-      else alert(res.error || "Failed to create task");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return createPortal(
-    <div className="co-modal-overlay animate-fade-in" onClick={onClose}>
-      <div className="co-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '95%' }}>
-        <div className="co-modal-header" style={{ marginBottom: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-             <Calendar size={20} className="text-orange-500" />
-             <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>TASKS</h2>
-          </div>
-          <button className="co-btn-close" onClick={onClose}><X size={20} /></button>
-        </div>
-        
-        <div className="co-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '16px' }}>
-             <div>
-               <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Due Date</label>
-               <input 
-                 type="date" 
-                 className="co-input" 
-                 value={vals.deadline} 
-                 onChange={e => setVals({...vals, deadline: e.target.value})}
-                 style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-               />
-             </div>
-             <div>
-               <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Assigned To</label>
-               <SearchableSelect 
-                 options={users.map(u => ({ value: u.id, label: u.name }))}
-                 value={vals.userId}
-                 onChange={(id) => setVals({...vals, userId: id})}
-                 placeholder="Select User"
-               />
-             </div>
-           </div>
-
-           <div>
-             <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Activity Note</label>
-             <textarea 
-               placeholder="Type details here..." 
-               value={vals.note} 
-               onChange={e => setVals({...vals, note: e.target.value})}
-               style={{ width: '100%', minHeight: '120px', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '14px', lineHeight: '1.5', resize: 'vertical' }}
-             />
-           </div>
-
-           <button 
-             className="co-btn co-btn-primary" 
-             style={{ width: '100%', background: '#3b82f6', height: '52px', color: '#fff', fontSize: '15px', fontWeight: 700, borderRadius: '12px', marginTop: '8px' }}
-             onClick={handleSubmit}
-             disabled={submitting}
-           >
-             {submitting ? 'Creating...' : 'Create Task'}
-           </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
+// --- MODAL COMPONENTS REMOVED (NOW IMPORTED FROM QuickActionModals.jsx) ---
 
 export default Orders;

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer } from 'lucide-react';
+import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
+import { QuickNoteModal, QuickTaskModal } from '../components/QuickActionModals';
 import '../components/Loader.css';
 import './OrderDetail.css';
 import './Products.css';
@@ -14,6 +15,23 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
   ));
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [editingActivityId, setEditingActivityId] = useState(null);
+  const [activityEditVals, setActivityEditVals] = useState({ summary: '', note: '', date_deadline: '' });
+  const [editingRemarkIdx, setEditingRemarkIdx] = useState(null);
+  const [remarkEditText, setRemarkEditText] = useState('');
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const res = await odooService.getMasterData();
+        if (res.users) setUsers(res.users);
+      } catch (err) { console.error("Error fetching master data:", err); }
+    };
+    fetch();
+  }, []);
 
   // Column-visibility toggles — initialised from backend flags, user can override locally
   const [showDesc, setShowDesc]   = useState(false);
@@ -41,26 +59,25 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     })}`.trim();
   };
 
-  useEffect(() => {
-    const fetchDetail = async () => {
-      try {
-        const res = await odooService.getOrderDetail(orderId);
-        if (res) {
-          setOrder(res);
-          // Seed column toggles from backend flags
-          setShowDesc(!!res.is_desc);
-          setShowImg(!!res.is_image);
-          setShowBeam(!!res.is_beam);
-        }
-      } catch (err) {
-        console.error('Error fetching order details', err);
-      } finally {
-        setLoading(false);
+  const fetchOrder = React.useCallback(async () => {
+    try {
+      const res = await odooService.getOrderDetail(orderId);
+      if (res) {
+        setOrder(res);
+        setShowDesc(!!res.is_desc);
+        setShowImg(!!res.is_image);
+        setShowBeam(!!res.is_beam);
       }
-    };
-
-    if (orderId) fetchDetail();
+    } catch (err) {
+      console.error('Error fetching order details', err);
+    } finally {
+      setLoading(false);
+    }
   }, [orderId]);
+
+  useEffect(() => {
+    if (orderId) fetchOrder();
+  }, [orderId, fetchOrder]);
 
   const handleConfirm = async () => {
     if (!window.confirm("Confirm this quotation?")) return;
@@ -411,20 +428,105 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
         }}>
           {order.activities && order.activities.length > 0 && (
             <div style={{ borderRight: isMobile ? 'none' : '1px solid #eee', borderBottom: isMobile ? '1px solid #eee' : 'none' }}>
-              <div className="detail-section-header" style={{ padding: '12px 14px' }}>
+              <div className="detail-section-header" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Tasks</h2>
+                <button 
+                  className="ghost-action-btn" 
+                  onClick={() => setShowTaskModal(true)}
+                  style={{ padding: '4px 10px', height: '28px', fontSize: '11px', color: '#4f46e5', fontWeight: 700 }}
+                >
+                  <Plus size={14} />
+                  <span>Add Task</span>
+                </button>
               </div>
-              <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {order.activities.map((act, idx) => (
-                  <div key={idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '4px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
-                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontWeight: 800, fontSize: '13px', color: '#000' }}>
-                        {((act.summary || act.activity_type_name) === 'To Do') ? 'Task' : (act.summary || act.activity_type_name || 'Task')}
+                  <div key={act.id || idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                    {editingActivityId === act.id ? (
+                      // Inline Edit Form
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <input
+                          className="co-input-v2"
+                          value={activityEditVals.summary}
+                          onChange={e => setActivityEditVals({ ...activityEditVals, summary: e.target.value })}
+                          placeholder="Task summary"
+                          style={{ width: '100%', height: '32px', padding: '0 8px', borderRadius: '6px', border: '1px solid #3b82f6', fontSize: '13px' }}
+                        />
+                        <textarea
+                          value={activityEditVals.note}
+                          onChange={e => setActivityEditVals({ ...activityEditVals, note: e.target.value })}
+                          placeholder="Activity note..."
+                          style={{ width: '100%', minHeight: '60px', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', resize: 'vertical' }}
+                        />
+                        <input
+                          type="date"
+                          value={activityEditVals.date_deadline}
+                          onChange={e => setActivityEditVals({ ...activityEditVals, date_deadline: e.target.value })}
+                          style={{ width: '100%', height: '32px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await odooService.updateActivity(act.id, activityEditVals.summary, activityEditVals.note, activityEditVals.date_deadline);
+                                if (res.success || !res.error) { fetchOrder(); setEditingActivityId(null); }
+                                else alert(res.error || 'Update failed');
+                              } catch { alert('Network error'); }
+                            }}
+                            style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 14px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingActivityId(null)}
+                            style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '6px 14px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '11px', color: '#666', fontWeight: 600 }}>{act.date_deadline || 'No Date'}</div>
-                    </div>
-                    {act.note && (
-                      <div style={{ fontSize: '12px', color: '#000', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                    ) : (
+                      // Display Mode with Edit/Delete
+                      <>
+                        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontWeight: 800, fontSize: '13px', color: '#000' }}>
+                            {((act.summary || act.activity_type_name) === 'To Do') ? 'Task' : (act.summary || act.activity_type_name || 'Task')}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '11px', color: '#666', fontWeight: 600 }}>{act.date_deadline || 'No Date'}</span>
+                            <button
+                              title="Edit task"
+                              onClick={() => {
+                                setEditingActivityId(act.id);
+                                setActivityEditVals({
+                                  summary: act.summary || '',
+                                  note: (act.note || '').replace(/<[^>]*>/g, '').trim(),
+                                  date_deadline: act.date_deadline || ''
+                                });
+                              }}
+                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              title="Delete task"
+                              onClick={async () => {
+                                try {
+                                  const res = await odooService.deleteActivity(act.id);
+                                  if (res.success || !res.error) fetchOrder();
+                                  else alert(res.error || 'Delete failed');
+                                } catch { alert('Network error'); }
+                              }}
+                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+                            >
+                              <Trash size={13} />
+                            </button>
+                          </div>
+                        </div>
+                        {act.note && (
+                          <div style={{ fontSize: '12px', color: '#000', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                        )}
+                      </>
                     )}
                   </div>
                 ))}
@@ -433,24 +535,30 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           )}
 
           <div>
-            <div className="detail-section-header" style={{ padding: '12px 14px' }}>
+            <div className="detail-section-header" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Remarks</h2>
-            </div>            {order.remark ? (() => {
-              const noteLines = order.remark
-                .split(/\n?---\n?|\n|<br\s*\/?>/)
-                .map(t => {
+              <button 
+                className="ghost-action-btn" 
+                onClick={() => setShowNoteModal(true)}
+                style={{ padding: '4px 10px', height: '28px', fontSize: '11px', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Plus size={14} />
+                <span>Add Remark</span>
+              </button>
+            </div>
+            {order.remark ? (() => {
+              // Split ONLY by the primary separator to preserve multi-line notes
+              const parts = order.remark.split(/\n---\n/);
+              const noteLines = parts
+                .map((t, rawIdx) => {
                   const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
                   const authorName = authorMatch ? authorMatch[1] : null;
                   let cleanText = t.replace(/<[^>]*>/g, '').trim();
-                  
                   if (authorName) {
-                    // Strip "Name: " prefix
                     cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
-                    // Strip "[Name - Date]\n" prefix
                     cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
                   }
-                  
-                  return { author: authorName, text: cleanText.trim() };
+                  return { author: authorName, text: cleanText.trim(), rawIdx };
                 })
                 .filter(o => o.text.length > 0);
 
@@ -459,11 +567,70 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               );
 
               return (
-                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {noteLines.map((n, idx) => (
-                    <div key={idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '4px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
-                      <p style={{ margin: 0, fontSize: '12px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{n.text}</p>
-                      <span style={{ fontSize: '10px', color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>{n.author ? `By ${n.author}` : `Note #${idx + 1}`}</span>
+                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {noteLines.map((n) => (
+                    <div key={n.rawIdx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                      {editingRemarkIdx === n.rawIdx ? (
+                        // Inline Edit Form
+                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <textarea
+                            value={remarkEditText}
+                            onChange={e => setRemarkEditText(e.target.value)}
+                            placeholder="Edit remark..."
+                            style={{ width: '100%', minHeight: '70px', padding: '8px', borderRadius: '6px', border: '1px solid #10b981', fontSize: '13px', resize: 'vertical', lineHeight: 1.5 }}
+                          />
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await odooService.updateRemark(orderId, n.rawIdx, remarkEditText);
+                                  if (res.success || !res.error) { fetchOrder(); setEditingRemarkIdx(null); }
+                                  else alert(res.error || 'Update failed');
+                                } catch { alert('Network error'); }
+                              }}
+                              style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 14px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingRemarkIdx(null)}
+                              style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '6px 14px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        // Display Mode with Edit/Delete
+                        <>
+                          <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap', flex: 1, paddingRight: '8px' }}>{n.text}</p>
+                            <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginTop: '1px' }}>
+                              <button
+                                title="Edit remark"
+                                onClick={() => { setEditingRemarkIdx(n.rawIdx); setRemarkEditText(n.text); }}
+                                style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                title="Delete remark"
+                                onClick={async () => {
+                                  try {
+                                    const res = await odooService.deleteRemark(orderId, n.rawIdx);
+                                    if (res.success || !res.error) fetchOrder();
+                                    else alert(res.error || 'Delete failed');
+                                  } catch { alert('Network error'); }
+                                }}
+                                style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+                              >
+                                <Trash size={13} />
+                              </button>
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '10px', color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>{n.author ? `By ${n.author}` : `Note #${n.rawIdx + 1}`}</span>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -584,6 +751,23 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             <img src={lightboxImage} alt="Fullscreen View" />
           </div>
         </div>
+      )}
+
+      {showNoteModal && (
+        <QuickNoteModal 
+          orderId={orderId}
+          onClose={() => setShowNoteModal(false)}
+          onSuccess={() => { fetchOrder(); setShowNoteModal(false); }}
+        />
+      )}
+
+      {showTaskModal && (
+        <QuickTaskModal 
+          orderId={orderId}
+          users={users}
+          onClose={() => setShowTaskModal(false)}
+          onSuccess={() => { fetchOrder(); setShowTaskModal(false); }}
+        />
       )}
     </div>
   );
