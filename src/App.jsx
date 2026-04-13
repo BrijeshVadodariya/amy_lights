@@ -11,9 +11,10 @@ import { getOdooErrorMessage, odooService } from './services/odoo';
 import CreateOrder from './CreateOrder';
 import CreateCustomer from './pages/CreateCustomer';
 import CreateProductPage from './pages/CreateProductPage';
-import Catalog from './pages/Catalog';
 import Customers from './pages/Customers';
 import CRM from './pages/CRM';
+import CRMDetail from './pages/CRMDetail';
+import CreateCRM from './pages/CreateCRM';
 import { Menu } from 'lucide-react';
 import './App.css';
 
@@ -175,6 +176,10 @@ function App() {
         return <CreateProductPage onNavigate={handleNavigate} />;
       case 'catalog':
         return <Catalog onNavigate={handleNavigate} partnerId={selectedId} extraData={extraData} />;
+      case 'crm-detail':
+        return <CRMDetail leadId={selectedId} onBack={() => handleNavigate('crm')} onNavigate={handleNavigate} />;
+      case 'create-crm':
+        return <CreateCRM editId={selectedId} onNavigate={handleNavigate} extraData={extraData} />;
       default:
         return <Dashboard user={user} onNavigate={handleNavigate} />;
     }
@@ -232,6 +237,8 @@ function App() {
                   case 'create-customer': return isEdit ? 'Edit Customer' : 'Create Customer';
                   case 'create-product': return 'Create Product';
                   case 'catalog': return 'Product Catalog';
+                  case 'crm-detail': return 'Lead CRM Detail';
+                  case 'create-crm': return isEdit ? 'Edit CRM Lead' : 'Create CRM Lead';
                   default: return activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                 }
               })()}

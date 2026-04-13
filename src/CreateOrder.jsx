@@ -79,7 +79,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     is_desc: false,
     is_image: false,
     is_beam: false,
-    is_automate: false
+    is_beam: false,
+    is_automate: false,
+    opportunity_id: ''
   });
 
    const [showProducts, setShowProducts] = useState(true);
@@ -479,10 +481,23 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
   useEffect(() => {
     if (extraData) {
-      const { preFilledPartnerId, preFilledProducts, partner_id } = extraData;
-      const targetPartnerId = preFilledPartnerId || partner_id;
+      const { preFilledPartnerId, preFilledProducts, partner_id, lead, targetState } = extraData;
+      const targetPartnerId = preFilledPartnerId || partner_id || (lead?.partner_id ? (Array.isArray(lead.partner_id) ? lead.partner_id[0] : lead.partner_id) : null);
       
-      if (extraData.preFilledPartner) {
+      if (lead) {
+        // Deep pre-fill from Lead object
+        setOrderHeader(prev => ({
+          ...prev,
+          partnerId: targetPartnerId || '',
+          architectId: lead.architect_id ? (Array.isArray(lead.architect_id) ? lead.architect_id[0] : lead.architect_id) : '',
+          electricianId: lead.electrician_id ? (Array.isArray(lead.electrician_id) ? lead.electrician_id[0] : lead.electrician_id) : '',
+          remark: lead.description || lead.partner_remark || '',
+          state: targetState || 'draft',
+          opportunity_id: lead.id
+        }));
+        // Also ensure categories/products section is visible if we want
+        setShowProducts(true);
+      } else if (extraData.preFilledPartner) {
         const p = extraData.preFilledPartner;
         setOrderHeader(prev => ({ 
           ...prev, 
@@ -1008,6 +1023,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         is_automate: !!orderHeader.is_automate,
         state: targetState || (isSelection ? 'selection' : isOrder ? 'sale' : 'draft'),
         date_order: ensureIsoDate(orderHeader.date),
+        opportunity_id: orderHeader.opportunity_id || false,
         // All scheduled activities (existing + new) — backend will clear old ones and recreate
         activities: scheduledActivities,
         clear_activities: true   // Signal backend to unlink all existing activities before creating

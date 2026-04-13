@@ -1,0 +1,166 @@
+/* CRM Detail Specific Styles */
+
+.remarks-history-section {
+  padding: 0 !important;
+}
+
+.section-tabs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #eee;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 850;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.section-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-ui.compact {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.timeline-container {
+  display: flex;
+  min-height: 300px;
+}
+
+.timeline-lane {
+  flex: 1;
+  padding: 14px;
+  border-right: 1px solid #eee;
+}
+
+.timeline-lane:last-child {
+  border-right: none;
+}
+
+.timeline-lane-title {
+  margin: 0 0 12px 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.activity-stack, .history-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.timeline-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.timeline-item:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.activity-item {
+  border-left: 3px solid #3b82f6;
+}
+
+.history-item {
+  border-left: 3px solid #64748b;
+  background: #fcfcfc;
+}
+
+.timeline-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.timeline-item-type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #3b82f6;
+}
+
+.timeline-item-date {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.timeline-item-content {
+  margin-bottom: 6px;
+}
+
+.timeline-item-summary {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.timeline-item-note {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.timeline-item-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.timeline-item-user, .timeline-item-author {
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.timeline-item-author {
+  font-weight: 800;
+  color: #334155;
+}
+
+.empty-state-small {
+  padding: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+  border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+  .timeline-container {
+    flex-direction: column;
+  }
+  
+  .timeline-lane {
+    border-right: none;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .timeline-lane:last-child {
+    border-bottom: none;
+  }
+}

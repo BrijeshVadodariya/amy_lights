@@ -179,7 +179,7 @@ const CRM = ({ onNavigate }) => {
               </button>
             )}
             <div className="btn-group-wrap">
-              <button className="btn-ui primary" onClick={() => alert('Create Lead coming soon!')}>
+              <button className="btn-ui primary" onClick={() => onNavigate('create-crm')}>
                 <Plus size={14} />
                 <span>New Lead</span>
               </button>
@@ -213,7 +213,12 @@ const CRM = ({ onNavigate }) => {
                     </td>
                   </tr>
                 ) : currentItems.map((lead, idx) => (
-                  <tr key={lead.id}>
+                  <tr 
+                    key={lead.id} 
+                    className="row-hover" 
+                    onClick={() => onNavigate('crm-detail', lead.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     {/* Sr.No */}
                     <td className="text-center cell-light" style={{ fontWeight: 600, color: '#000' }}>
                       {indexOfFirstItem + idx + 1}
@@ -227,11 +232,16 @@ const CRM = ({ onNavigate }) => {
                           {lead.phone}
                         </div>
                       )}
-                      {lead.priority !== undefined && (
-                        <div className="priority-stars">
-                          {getPriorityStars(lead.priority)}
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                         {lead.priority !== undefined && (
+                          <div className="priority-stars">
+                            {getPriorityStars(lead.priority)}
+                          </div>
+                        )}
+                        <span className={`crm-stage-badge stage-default`} style={{ fontSize: '8px', padding: '1px 5px' }}>
+                          {lead.stage}
+                        </span>
+                      </div>
                     </td>
 
                     {/* Address */}

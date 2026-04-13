@@ -4,7 +4,7 @@ import { MessageSquare, Calendar, X } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import { odooService } from '../services/odoo';
 
-export const QuickNoteModal = ({ orderId, onClose, onSuccess }) => {
+export const QuickNoteModal = ({ orderId, resModel = 'sale.order', onClose, onSuccess }) => {
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -12,7 +12,7 @@ export const QuickNoteModal = ({ orderId, onClose, onSuccess }) => {
     if (!text.trim()) return alert("Please enter some text");
     setSubmitting(true);
     try {
-      const res = await odooService.addQuickNote(orderId, text);
+      const res = await odooService.addQuickNote(orderId, text, resModel);
       if (res.success || !res.error) onSuccess();
       else alert(JSON.stringify(res.error) || "Failed to add note");
     } finally {
@@ -87,7 +87,7 @@ export const QuickNoteModal = ({ orderId, onClose, onSuccess }) => {
   );
 };
 
-export const QuickTaskModal = ({ orderId, users = [], onClose, onSuccess }) => {
+export const QuickTaskModal = ({ orderId, resModel = 'sale.order', users = [], onClose, onSuccess }) => {
   const [vals, setVals] = useState({ summary: '', note: '', deadline: new Date().toISOString().split('T')[0], userId: '' });
   const [submitting, setSubmitting] = useState(false);
 
@@ -95,7 +95,7 @@ export const QuickTaskModal = ({ orderId, users = [], onClose, onSuccess }) => {
     setSubmitting(true);
     try {
       const finalSummary = vals.summary.trim() || 'Task';
-      const res = await odooService.addQuickActivity(orderId, finalSummary, vals.note, vals.deadline, vals.userId);
+      const res = await odooService.addQuickActivity(orderId, finalSummary, vals.note, vals.deadline, vals.userId, resModel);
       if (res.success || !res.error) onSuccess();
       else alert(JSON.stringify(res.error) || "Failed to create task");
     } finally {

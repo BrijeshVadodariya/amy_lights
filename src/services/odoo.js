@@ -209,6 +209,21 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },
+  getCRMLeadDetail: async (leadId) => {
+    const res = await api.post('/api/crm/detail', { params: { lead_id: leadId } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  createCRMLead: async (leadData) => {
+    const res = await api.post('/api/crm/create', { params: leadData });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  updateCRMLead: async (leadId, leadData) => {
+    const res = await api.post('/api/crm/update', { params: { id: leadId, ...leadData } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
   printQuotation: (orderId) => {
     const token = localStorage.getItem('odoo_session_id') || '';
     const db = import.meta.env.VITE_ODOO_DB || 'stage';
@@ -217,18 +232,19 @@ export const odooService = {
     const url = `${baseUrl}/report/pdf/amy_lights.action_report_lighting_quotation/${orderId}?token=${token}&db=${db}`;
     window.open(url, '_blank');
   },
-  addQuickNote: async (orderId, text) => {
-    const res = await api.post('/api/order/add_note', { params: { order_id: orderId, text } });
+  addQuickNote: async (resId, text, resModel = 'sale.order') => {
+    const res = await api.post('/api/order/add_note', { params: { res_id: resId, text, res_model: resModel } });
     return res.data.result || { success: false, error: res.data.error };
   },
-  addQuickActivity: async (orderId, summary, note, deadline, userId) => {
+  addQuickActivity: async (resId, summary, note, deadline, userId, resModel = 'sale.order') => {
     const res = await api.post('/api/order/add_activity', { 
       params: { 
-        order_id: orderId, 
+        res_id: resId, 
         summary, 
         note, 
-        date_deadline: deadline,
-        user_id: userId
+        date_deadline: deadline, 
+        user_id: userId,
+        res_model: resModel
       } 
     });
     return res.data.result || { success: false, error: res.data.error };
