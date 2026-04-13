@@ -112,151 +112,127 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
           </div>
         </div>
 
-        <section className="detail-section">
-          <div className="detail-section-header" style={{ padding: '12px 14px' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Target size={18} color="#3b82f6" />
-                <h1 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>{lead.name}</h1>
-             </div>
-          </div>
+        <section className="detail-section" style={{ borderBottom: '1px solid #f1f5f9' }}>
+          <div style={{ padding: '16px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <Target size={20} color="#3b82f6" />
+              <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>{lead.name}</h1>
+            </div>
 
-          <div style={{ padding: '0 14px 14px' }}>
-            <div className="detail-info-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-              <div className="detail-info-card">
-                <span className="dt-control-label">Status Pool</span>
-                <div className="field-value-box" style={{ padding: '10px' }}>
-                  <div style={{ fontWeight: 800, color: '#2563eb' }}>{Array.isArray(lead.stage) ? lead.stage[1] : (lead.stage || 'New')}</div>
+            <div className="detail-info-grid" style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
+              gap: '10px' 
+            }}>
+              <div className="detail-info-card" style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                <span className="dt-control-label" style={{ fontSize: '9px' }}>Status</span>
+                <div style={{ fontWeight: 800, color: '#2563eb', fontSize: '13px', marginTop: '4px' }}>
+                  {Array.isArray(lead.stage) ? lead.stage[1] : (lead.stage || 'New')}
                 </div>
               </div>
 
-              <div className="detail-info-card">
-                <span className="dt-control-label">Probability</span>
-                <div className="field-value-box" style={{ padding: '10px' }}>
-                  <div style={{ fontWeight: 800 }}>{lead.probability || 0}%</div>
+              <div className="detail-info-card" style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                <span className="dt-control-label" style={{ fontSize: '9px' }}>Expected Revenue</span>
+                <div style={{ fontWeight: 800, color: '#059669', fontSize: '13px', marginTop: '4px' }}>
+                  {formatCurrency(lead.expected_revenue)}
                 </div>
               </div>
 
-              <div className="detail-info-card">
-                <span className="dt-control-label">Expected Revenue</span>
-                <div className="field-value-box" style={{ padding: '10px' }}>
-                  <div style={{ fontWeight: 800, color: '#059669' }}>{formatCurrency(lead.expected_revenue)}</div>
+              <div className="detail-info-card" style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                <span className="dt-control-label" style={{ fontSize: '9px' }}>Probability</span>
+                <div style={{ fontWeight: 800, color: '#334155', fontSize: '13px', marginTop: '4px' }}>
+                  {lead.probability || 0}%
                 </div>
               </div>
 
-              <div className="detail-info-card">
-                <span className="dt-control-label">Expected Closing</span>
-                <div className="field-value-box" style={{ padding: '10px' }}>
-                  <div style={{ fontWeight: 800, color: '#f59e0b' }}>{lead.date_deadline || '—'}</div>
+              <div className="detail-info-card" style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                <span className="dt-control-label" style={{ fontSize: '9px' }}>Deadline</span>
+                <div style={{ fontWeight: 800, color: '#f59e0b', fontSize: '13px', marginTop: '4px' }}>
+                  {lead.date_deadline || '—'}
                 </div>
               </div>
 
-              <div className="detail-info-card">
-                <span className="dt-control-label">Priority</span>
-                <div className="field-value-box" style={{ padding: '10px' }}>
-                  <div style={{ fontSize: '14px' }}>{priorityStars(lead.priority)}</div>
-                </div>
+              <div className="detail-info-card" style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                <span className="dt-control-label" style={{ fontSize: '9px' }}>Priority</span>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>{priorityStars(lead.priority)}</div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="detail-section" style={{ borderTop: '1px solid #eee' }}>
-          <div className="detail-info-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '2px' }}>
-            <div style={{ padding: '14px', borderRight: '1px solid #eee' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <User size={16} color="#64748b" />
-                  <h2 style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', fontWeight: 800, color: '#64748b' }}>Assigned To</h2>
-               </div>
-               <div className="field-value-box" style={{ padding: '10px', background: '#f8fafc', borderRadius: '6px' }}>
-                  <div style={{ fontWeight: 700 }}>{Array.isArray(lead.user_id) ? lead.user_id[1] : 'Unassigned'}</div>
-               </div>
-            </div>
-            <div style={{ padding: '14px' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <Briefcase size={16} color="#64748b" />
-                  <h2 style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', fontWeight: 800, color: '#64748b' }}>Customer Link</h2>
-               </div>
-               <div className="field-value-box" style={{ padding: '10px', background: '#f8fafc', borderRadius: '6px' }}>
-                  <div style={{ fontWeight: 700, color: '#2563eb' }}>{Array.isArray(lead.partner_id) ? lead.partner_id[1] : 'Lead (No Link)'}</div>
-               </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="detail-section" style={{ borderTop: '1px solid #eee' }}>
-          <div className="detail-info-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '2px' }}>
-            {/* Contact Info */}
-            <div style={{ padding: '14px', borderRight: '1px solid #eee' }}>
+        <section className="detail-section" style={{ background: '#fff' }}>
+          <div className="detail-info-grid" style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+            gap: '1px',
+            background: '#f1f5f9' 
+          }}>
+            {/* Left Column: Stakeholders */}
+            <div style={{ padding: '14px', background: '#fff' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                 <User size={16} color="#64748b" />
-                 <h2 style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', fontWeight: 800, color: '#64748b' }}>Contact Info</h2>
+                 <User size={14} color="#64748b" />
+                 <h2 style={{ margin: 0, fontSize: '10px', textTransform: 'uppercase', fontWeight: 800, color: '#64748b' }}>Stakeholders</h2>
               </div>
-              <div className="field-value-box" style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', gap: '10px', flexDirection: 'column', alignItems: 'flex-start' }}>
-                 <div style={{ fontWeight: 700, fontSize: '15px' }}>{lead.contact_name || '—'}</div>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-                    {lead.phone && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#64748b' }}>
-                        <Phone size={14} /> {lead.phone}
-                      </div>
-                    )}
-                    {lead.email && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#64748b' }}>
-                        <Mail size={14} /> {lead.email}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'start', gap: '8px', fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
-                      <MapPin size={14} style={{ marginTop: '2px' }} /> 
-                      <span>{lead.address || 'No address provided'}</span>
-                    </div>
-                 </div>
-              </div>
-            </div>
-
-            {/* Project Info */}
-            <div style={{ padding: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                 <Star size={16} color="#64748b" />
-                 <h2 style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', fontWeight: 800, color: '#64748b' }}>Professional Involvement</h2>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div className="field-value-box" style={{ padding: '10px', gap: '12px', justifyContent: 'flex-start' }}>
-                   <div style={{ background: '#f1f5f9', p: '6px', borderRadius: '4px' }}><Star size={14} /></div>
-                   <div>
-                      <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Architect</div>
-                      <div style={{ fontWeight: 700 }}>{lead.architect_name || (Array.isArray(lead.architect_id) ? lead.architect_id[1] : '—')}</div>
-                   </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>Assigned To</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>{Array.isArray(lead.user_id) ? lead.user_id[1] : 'Unassigned'}</span>
                 </div>
-                {lead.architect_follow_up && (
-                  <div style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '6px', fontSize: '12px' }}>
-                    <span style={{ fontWeight: 800, color: '#92400e' }}>Status: </span>
-                    {lead.architect_follow_up}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>Customer Link</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563eb' }}>{Array.isArray(lead.partner_id) ? lead.partner_id[1] : 'Lead (No Link)'}</span>
+                </div>
+                <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '8px', marginTop: '4px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '4px' }}>{lead.contact_name || '—'}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {lead.phone && <div style={{ fontSize: '12px', color: '#64748b' }}><Phone size={10} /> {lead.phone}</div>}
+                    {lead.email && <div style={{ fontSize: '12px', color: '#64748b' }}><Mail size={10} /> {lead.email}</div>}
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}><MapPin size={10} /> {lead.address || 'No address'}</div>
                   </div>
-                )}
-                <div className="field-value-box" style={{ padding: '10px', gap: '12px', justifyContent: 'flex-start' }}>
-                   <div style={{ background: '#f1f5f9', p: '6px', borderRadius: '4px' }}><Activity size={14} /></div>
-                   <div>
-                      <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Electrician</div>
-                      <div style={{ fontWeight: 700 }}>{lead.electrician_name || (Array.isArray(lead.electrician_id) ? lead.electrician_id[1] : '—')}</div>
-                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Professionals */}
+            <div style={{ padding: '14px', background: '#fff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                 <Star size={14} color="#64748b" />
+                 <h2 style={{ margin: 0, fontSize: '10px', textTransform: 'uppercase', fontWeight: 800, color: '#64748b' }}>Professionals</h2>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div className="compact-pro-row" style={{ background: '#f8fafc', padding: '8px', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Architect</div>
+                  <div style={{ fontWeight: 700, fontSize: '13px' }}>{lead.architect_name || (Array.isArray(lead.architect_id) ? lead.architect_id[1] : '—')}</div>
+                  {lead.architect_follow_up && (
+                    <div style={{ fontSize: '11px', color: '#92400e', background: '#fffbeb', display: 'inline-block', padding: '2px 6px', borderRadius: '4px', marginTop: '4px' }}>
+                      {lead.architect_follow_up}
+                    </div>
+                  )}
+                </div>
+
+                <div className="compact-pro-row" style={{ background: '#f8fafc', padding: '8px', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Electrician</div>
+                  <div style={{ fontWeight: 700, fontSize: '13px' }}>{lead.electrician_name || (Array.isArray(lead.electrician_id) ? lead.electrician_id[1] : '—')}</div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="detail-section" style={{ padding: '14px', borderTop: '1px solid #eee' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-               <FileText size={16} color="#64748b" />
-               <h2 style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', fontWeight: 800, color: '#64748b' }}>Requirements & Description</h2>
+        <section className="detail-section" style={{ padding: '14px' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+               <FileText size={14} color="#64748b" />
+               <h2 style={{ margin: 0, fontSize: '10px', textTransform: 'uppercase', fontWeight: 800, color: '#64748b' }}>Requirements</h2>
            </div>
            <div style={{ 
-              padding: '16px', 
-              background: '#fff', 
-              border: '1px solid #eee', 
+              padding: '12px', 
+              background: '#fcfdfe', 
+              border: '1px solid #f1f5f9', 
               borderRadius: '8px', 
-              minHeight: '100px',
-              fontSize: '14px',
-              lineHeight: 1.6,
+              fontSize: '13px',
+              lineHeight: 1.5,
               color: '#334155',
               whiteSpace: 'pre-wrap'
            }}>

@@ -33,7 +33,11 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
     electrician_id: '',
     partner_id: '',
     user_id: '',
-    date_deadline: ''
+    date_deadline: '',
+    houseNo: '',
+    buildingName: '',
+    area: '',
+    state_name: ''
   });
 
   const [hasChanges, setHasChanges] = useState(false);
@@ -49,6 +53,20 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
             return val;
           };
 
+          let streetStr = res.street || '';
+          let parts = streetStr.split(',').map(s => s.trim());
+          let hNo = '', bName = '', aName = '';
+          if (parts.length === 1) {
+            bName = parts[0];
+          } else if (parts.length === 2) {
+            hNo = parts[0];
+            bName = parts[1];
+          } else if (parts.length >= 3) {
+            hNo = parts[0];
+            bName = parts[1];
+            aName = parts.slice(2).join(', ');
+          }
+
           setLead({
             id: res.id,
             name: res.name || '',
@@ -56,7 +74,10 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
             phone: res.phone || '',
             mobile: res.mobile || '',
             email: res.email || '',
-            street: res.street || '',
+            street: streetStr,
+            houseNo: hNo,
+            buildingName: bName,
+            area: aName,
             city: res.city || '',
             zip: res.zip || '',
             expected_revenue: res.expected_revenue || 0,
@@ -87,8 +108,8 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
       odooService.getCRMStages().catch(() => [])
     ]).then(([masterRes, stagesRes]) => {
       setMasterData({
-        architects: (masterRes?.architects || []).map(p => ({ value: p.id, label: p.name })),
-        electricians: (masterRes?.electricians || []).map(p => ({ value: p.id, label: p.name })),
+        architects: (masterRes?.architects || []).map(p => ({ value: p.id, label: p.name, phone: p.phone })),
+        electricians: (masterRes?.electricians || []).map(p => ({ value: p.id, label: p.name, phone: p.phone })),
         users: (masterRes?.users || []).map(u => ({ value: u.id, label: u.name })),
         partners: (masterRes?.partners || []).map(p => ({ value: p.id, label: p.name })),
         stages: stagesRes || []
@@ -103,10 +124,13 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
     setSaving(true);
     try {
       let res;
+      let finalStreet = [lead.houseNo, lead.buildingName, lead.area].filter(Boolean).join(', ');
+      const payloadToSend = { ...lead, street: finalStreet };
+
       if (editId) {
-        res = await odooService.updateCRMLead(editId, lead);
+        res = await odooService.updateCRMLead(editId, payloadToSend);
       } else {
-        res = await odooService.createCRMLead(lead);
+        res = await odooService.createCRMLead(payloadToSend);
       }
 
       if (res && (res.success || res.id)) {
@@ -136,7 +160,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
       });
       if (res) {
         const newId = res.id || (typeof res === 'number' ? res : res.data?.id);
-        const newItem = { value: newId, label: modalState.newName };
+        const newItem = { value: newId, label: modalState.newName, phone: modalState.newPhone };
         
         if (modalState.isArchitect) {
           setMasterData(prev => ({ ...prev, architects: [newItem, ...prev.architects] }));
@@ -349,36 +373,54 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               <h2>Site Address</h2>
             </div>
             <div className="co-input-stack">
-              <div className="co-input-group">
-                <label>Address Line</label>
-                <textarea 
-                   className="co-textarea-v2"
-                   style={{ height: '60px' }}
-                   placeholder="Flat/House No, Building..."
-                   value={lead.street}
-                   onChange={e => { setLead({...lead, street: e.target.value}); setHasChanges(true); }}
+              <div className="address-flex-row" style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
+                <div style={{ flex: '0 0 100px' }}>
+                  <input 
+                    className="clean-input w-full" 
+                    placeholder="H.No." 
+                    value={lead.houseNo} 
+                    onChange={(e) => { setLead({...lead, houseNo: e.target.value}); setHasChanges(true); }} 
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input 
+                    className="clean-input w-full" 
+                    placeholder="Building/Society Name" 
+                    value={lead.buildingName} 
+                    onChange={(e) => { setLead({...lead, buildingName: e.target.value}); setHasChanges(true); }} 
+                  />
+                </div>
+              </div>
+              
+              <input 
+                className="clean-input w-full mb-3" 
+                style={{ marginBottom: '8px' }}
+                placeholder="Area" 
+                value={lead.area} 
+                onChange={(e) => { setLead({...lead, area: e.target.value}); setHasChanges(true); }} 
+              />
+  
+              <div className="address-grid-2 mb-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                <input 
+                  className="clean-input" 
+                  placeholder="Pincode" 
+                  value={lead.zip} 
+                  onChange={(e) => { setLead({...lead, zip: e.target.value}); setHasChanges(true); }} 
+                />
+                <input 
+                  className="clean-input w-full" 
+                  placeholder="City" 
+                  value={lead.city} 
+                  onChange={(e) => { setLead({...lead, city: e.target.value}); setHasChanges(true); }} 
                 />
               </div>
-              <div className="co-grid-2">
-                <div className="co-input-group">
-                  <label>City</label>
-                  <input 
-                    type="text" 
-                    className="co-input-v2"
-                    value={lead.city}
-                    onChange={e => { setLead({...lead, city: e.target.value}); setHasChanges(true); }}
-                  />
-                </div>
-                <div className="co-input-group">
-                  <label>Pincode</label>
-                  <input 
-                    type="text" 
-                    className="co-input-v2"
-                    value={lead.zip}
-                    onChange={e => { setLead({...lead, zip: e.target.value}); setHasChanges(true); }}
-                  />
-                </div>
-              </div>
+              
+              <input 
+                className="clean-input w-full" 
+                placeholder="State" 
+                value={lead.state_name} 
+                onChange={(e) => { setLead({...lead, state_name: e.target.value}); setHasChanges(true); }} 
+              />
             </div>
           </section>
 
@@ -388,9 +430,9 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               <h2>Professionals</h2>
             </div>
             <div className="co-input-stack">
-              <div className="co-input-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label>Architect</label>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontWeight: 600, color: '#475569', fontSize: '13px' }}>Architect</label>
                   <button 
                     type="button"
                     className="selection-add-new" 
@@ -400,49 +442,35 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                     <Plus size={14} /> Add New
                   </button>
                 </div>
-                <SearchableSelect 
-                  options={masterData.architects}
-                  value={lead.architect_id}
-                  onChange={id => { setLead({...lead, architect_id: id}); setHasChanges(true); }}
-                  placeholder="Select Architect"
-                />
-              </div>
-              {lead.architect_id && (
-                <div className="co-input-stack" style={{ paddingLeft: '12px', borderLeft: '2px solid #f1f5f9', marginTop: '8px' }}>
-                  <div className="co-input-group">
-                    <label>Arch. Number</label>
-                    <input 
-                      type="text" 
-                      className="co-input-v2"
-                      value={lead.architect_number}
-                      onChange={e => setLead({...lead, architect_number: e.target.value})}
-                    />
-                  </div>
-                  <div className="co-input-group">
-                    <label>Arch. Remark</label>
-                    <input 
-                      type="text" 
-                      className="co-input-v2"
-                      value={lead.architect_remark}
-                      onChange={e => setLead({...lead, architect_remark: e.target.value})}
-                    />
-                  </div>
-                  <div className="co-input-group">
-                    <label>Follow-up Status</label>
-                    <input 
-                      type="text" 
-                      className="co-input-v2"
-                      placeholder="e.g. Called, Meeting fixed"
-                      value={lead.architect_follow_up}
-                      onChange={e => setLead({...lead, architect_follow_up: e.target.value})}
-                    />
+                <div className="selection-card-box">
+                  <div className="selection-card-content">
+                    <div className="selection-card-top p-input-field">
+                      <SearchableSelect 
+                        options={masterData.architects}
+                        value={lead.architect_id}
+                        onChange={id => { setLead({...lead, architect_id: id}); setHasChanges(true); }}
+                        placeholder="Select Architect"
+                        className="clean-select"
+                      />
+                    </div>
+                    {lead.architect_id && (
+                      <>
+                        <div className="selection-divider"></div>
+                        <div className="selection-card-bottom">
+                          <Phone size={14} className="text-slate-400" />
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
+                            {(masterData.architects?.find(a => a.value === lead.architect_id))?.phone || '-'}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
 
-              <div className="co-input-group" style={{ marginTop: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label>Electrician</label>
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontWeight: 600, color: '#475569', fontSize: '13px' }}>Electrician</label>
                   <button 
                     type="button"
                     className="selection-add-new" 
@@ -452,12 +480,30 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                     <Plus size={14} /> Add New
                   </button>
                 </div>
-                <SearchableSelect 
-                  options={masterData.electricians}
-                  value={lead.electrician_id}
-                  onChange={id => { setLead({...lead, electrician_id: id}); setHasChanges(true); }}
-                  placeholder="Select Electrician"
-                />
+                <div className="selection-card-box">
+                  <div className="selection-card-content">
+                    <div className="selection-card-top p-input-field">
+                      <SearchableSelect 
+                        options={masterData.electricians}
+                        value={lead.electrician_id}
+                        onChange={id => { setLead({...lead, electrician_id: id}); setHasChanges(true); }}
+                        placeholder="Select Electrician"
+                        className="clean-select"
+                      />
+                    </div>
+                    {lead.electrician_id && (
+                      <>
+                        <div className="selection-divider"></div>
+                        <div className="selection-card-bottom">
+                          <Phone size={14} className="text-slate-400" />
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
+                            {(masterData.electricians?.find(a => a.value === lead.electrician_id))?.phone || '-'}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </section>

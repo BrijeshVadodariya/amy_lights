@@ -161,14 +161,14 @@
 .selection-card-box {
   background: #fff;
   border: none;
-  border-radius: 20px;
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* Spread content top/bottom */
-  padding: 1.5rem 1.25rem 1.25rem 1.25rem;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 135px; /* Fixed height for uniformity */
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  min-height: 90px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.06);
 }
 
 .selection-card-box:hover {
@@ -189,14 +189,14 @@
 }
 
 .selection-card-top {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .selection-divider {
   height: 1px;
   background: #f1f5f9;
   width: 100%;
-  margin: 0.4rem 0;
+  margin: 0.25rem 0;
 }
 
 .selection-card-bottom {
@@ -357,6 +357,16 @@
 
 .clean-select .ss-chevron {
   right: 0 !important;
+}
+
+/* Ensure SearchableSelect inside selection cards is left aligned */
+.selection-card-box .clean-select .ss-value {
+  text-align: left !important;
+}
+
+.selection-card-box .clean-select .ss-control {
+  justify-content: flex-start !important;
+  text-align: left !important;
 }
 
 /* Side-by-Side Bottom Layout */
