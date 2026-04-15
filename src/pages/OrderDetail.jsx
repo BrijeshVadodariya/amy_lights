@@ -316,8 +316,8 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                 <table className="products-datatable" style={{ width: '100%', minWidth: '700px', tableLayout: 'auto' }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left', width: '120px' }}>Product</th>
-                      <th style={{ textAlign: 'left', minWidth: '80px' }}>Notes</th>
+                      <th style={{ textAlign: 'left', minWidth: '320px', width: '350px' }}>Product</th>
+                      <th style={{ textAlign: 'left', width: '150px' }}>Notes</th>
                       {showImg  && <th className="text-center" style={{ width: '60px' }}>Img</th>}
                       {showBeam && <th className="text-center" style={{ width: '80px' }}>Beam</th>}
                       <th className="text-center" style={{ width: '50px' }}>Qty</th>

@@ -9,7 +9,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [masterData, setMasterData] = useState({ architects: [], electricians: [], users: [], stages: [], partners: [] });
-  const [modalState, setModalState] = useState({ show: false, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
+  const [modalState, setModalState] = useState({ show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
   
   const [lead, setLead] = useState({
     name: '',
@@ -195,33 +195,75 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
     }
   };
 
-  const handleSaveProfessional = async () => {
-    if (!modalState.newName) return alert("Professional Name is required");
+  const handleEditProfessional = async (id, isArchitect) => {
+    setLoading(true);
     try {
-      const res = await odooService.createPartner({
-        name: modalState.newName,
-        phone: modalState.newPhone,
-        email: modalState.isArchitect ? modalState.newEmail : '',
-        street: modalState.newAddress,
-        comment: modalState.newNote,
-        is_architect: modalState.isArchitect,
-        is_electrician: modalState.isElectrician
-      });
+      const res = await odooService.getPartnerDetail(id);
       if (res) {
-        const newId = res.id || (typeof res === 'number' ? res : res.data?.id);
-        const newItem = { value: newId, label: modalState.newName, phone: modalState.newPhone };
-        
-        if (modalState.isArchitect) {
-          setMasterData(prev => ({ ...prev, architects: [newItem, ...prev.architects] }));
-          setLead(prev => ({ ...prev, architect_id: newId }));
-        } else {
-          setMasterData(prev => ({ ...prev, electricians: [newItem, ...prev.electricians] }));
-          setLead(prev => ({ ...prev, electrician_id: newId }));
-        }
-        setModalState({ ...modalState, show: false, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '' });
+        setModalState({
+          show: true,
+          editingId: id,
+          newName: res.name || '',
+          newPhone: res.phone || res.mobile || '',
+          newEmail: res.email || '',
+          newAddress: res.street || '',
+          newNote: res.comment || '',
+          isArchitect: isArchitect,
+          isElectrician: !isArchitect
+        });
       }
     } catch (err) {
-      alert("Failed to save professional");
+      alert("Failed to load professional details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveProfessional = async () => {
+    if (!modalState.newName) return alert("Professional Name is required");
+    const payload = {
+      name: modalState.newName,
+      phone: modalState.newPhone,
+      email: modalState.isArchitect ? modalState.newEmail : '',
+      street: modalState.newAddress,
+      comment: modalState.newNote,
+      is_architect: modalState.isArchitect,
+      is_electrician: modalState.isElectrician
+    };
+
+    try {
+      let res;
+      if (modalState.editingId) {
+        res = await odooService.updatePartner(modalState.editingId, payload);
+      } else {
+        res = await odooService.createPartner(payload);
+      }
+
+      if (res) {
+        const targetId = modalState.editingId || res.id || (typeof res === 'number' ? res : res.data?.id);
+        const newItem = { value: targetId, label: modalState.newName, phone: modalState.newPhone };
+        
+        if (modalState.isArchitect) {
+          setMasterData(prev => ({
+            ...prev,
+            architects: modalState.editingId 
+              ? prev.architects.map(a => String(a.value) === String(targetId) ? newItem : a)
+              : [newItem, ...prev.architects]
+          }));
+          setLead(prev => ({ ...prev, architect_id: targetId }));
+        } else {
+          setMasterData(prev => ({
+            ...prev,
+            electricians: modalState.editingId
+              ? prev.electricians.map(e => String(e.value) === String(targetId) ? newItem : e)
+              : [newItem, ...prev.electricians]
+          }));
+          setLead(prev => ({ ...prev, electrician_id: targetId }));
+        }
+        setModalState({ ...modalState, show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '' });
+      }
+    } catch (err) {
+      alert(`Failed to ${modalState.editingId ? 'update' : 'save'} professional`);
     }
   };
 
@@ -302,13 +344,22 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                         {masterData.partners.find(p => p.value === lead.partner_id)?.phone || 'No Phone Number'}
                       </div>
                     </div>
-                    <button 
-                      type="button"
-                      onClick={() => setLead({...lead, partner_id: ''})}
-                      style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
-                    >
-                      <X size={14} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button 
+                        type="button"
+                        onClick={() => onNavigate('create-customer', lead.partner_id, { returnRoute: 'create-crm' })}
+                        style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setLead({...lead, partner_id: ''})}
+                        style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <SearchableSelect 
@@ -507,13 +558,22 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                         {masterData.architects.find(a => String(a.value) === String(lead.architect_id))?.phone || 'No Phone Number'}
                       </div>
                     </div>
-                    <button 
-                      type="button"
-                      onClick={() => setLead({...lead, architect_id: ''})}
-                      style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
-                    >
-                      <X size={14} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button 
+                        type="button"
+                        onClick={() => handleEditProfessional(lead.architect_id, true)}
+                        style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setLead({...lead, architect_id: ''})}
+                        style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <SearchableSelect 
@@ -559,13 +619,22 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                         {masterData.electricians.find(e => String(e.value) === String(lead.electrician_id))?.phone || 'No Phone Number'}
                       </div>
                     </div>
-                    <button 
-                      type="button"
-                      onClick={() => setLead({...lead, electrician_id: ''})}
-                      style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
-                    >
-                      <X size={14} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button 
+                        type="button"
+                        onClick={() => handleEditProfessional(lead.electrician_id, false)}
+                        style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setLead({...lead, electrician_id: ''})}
+                        style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <SearchableSelect 
@@ -608,7 +677,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
-                Add {modalState.isArchitect ? 'Architect' : 'Electrician'}
+                {modalState.editingId ? 'Edit' : 'Add'} {modalState.isArchitect ? 'Architect' : 'Electrician'}
               </h3>
               <button 
                 type="button"
@@ -677,7 +746,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                 style={{ flex: 1 }}
                 onClick={handleSaveProfessional}
               >
-                Save {modalState.isArchitect ? 'Architect' : 'Electrician'}
+                {modalState.editingId ? 'Update' : 'Save'} {modalState.isArchitect ? 'Architect' : 'Electrician'}
               </button>
               <button 
                 type="button"

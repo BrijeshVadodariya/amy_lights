@@ -9,7 +9,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
   const returnRoute = extraData?.returnRoute || 'create-order';
   const [saving, setSaving] = useState(false);
   const [masterData, setMasterData] = useState({ partners: [], architects: [], electricians: [], users: [] });
-  const [modalState, setModalState] = useState({ show: false, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
+  const [modalState, setModalState] = useState({ show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
   const [customer, setCustomer] = useState({
     name: '',
     mobile: '',
@@ -208,10 +208,36 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
     }
   };
 
+  const handleEditProfessional = async (id, isArchitect) => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      const res = await odooService.getPartnerDetail(id);
+      if (res) {
+        setModalState({
+          show: true,
+          editingId: id,
+          newName: res.name || '',
+          newPhone: res.phone || res.mobile || '',
+          newEmail: res.email || '',
+          newAddress: res.street || '',
+          newNote: res.comment || '',
+          isArchitect: isArchitect,
+          isElectrician: !isArchitect
+        });
+      }
+    } catch (err) {
+      alert("Failed to load professional details");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSaveProfessional = async () => {
     if (!modalState.newName) return alert("Professional Name is required");
+    setSaving(true);
     try {
-      const res = await odooService.createPartner({
+      const payload = {
         name: modalState.newName,
         phone: modalState.newPhone,
         email: modalState.isArchitect ? modalState.newEmail : '',
@@ -219,12 +245,19 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
         comment: modalState.newNote,
         is_architect: modalState.isArchitect,
         is_electrician: modalState.isElectrician
-      });
+      };
+
+      let res;
+      if (modalState.editingId) {
+        res = await odooService.updatePartner(modalState.editingId, payload);
+      } else {
+        res = await odooService.createPartner(payload);
+      }
+
       if (res) {
-        // Construct full record from response ID and submitted data
-        const newId = res.id || (typeof res === 'number' ? res : res.data?.id);
+        const targetId = modalState.editingId || res.id || (typeof res === 'number' ? res : res.data?.id);
         const fullRecord = {
-          id: newId,
+          id: targetId,
           name: modalState.newName,
           phone: modalState.newPhone,
           mobile: modalState.newPhone,
@@ -235,20 +268,38 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
 
         setMasterData(prev => {
           const newData = { ...prev };
-          if (modalState.isArchitect) newData.architects = [...(newData.architects || []), fullRecord];
-          if (modalState.isElectrician) newData.electricians = [...(newData.electricians || []), fullRecord];
+          if (modalState.isArchitect) {
+            newData.architects = modalState.editingId
+              ? prev.architects.map(a => a.id === targetId ? fullRecord : a)
+              : [...(prev.architects || []), fullRecord];
+          }
+          if (modalState.isElectrician) {
+            newData.electricians = modalState.editingId
+              ? prev.electricians.map(e => e.id === targetId ? fullRecord : e)
+              : [...(prev.electricians || []), fullRecord];
+          }
           return newData;
         });
+
         setCustomer(prev => {
           const newCust = { ...prev };
-          if (modalState.isArchitect) newCust.architectId = newId;
-          if (modalState.isElectrician) newCust.electricianId = newId;
+          if (modalState.isArchitect) {
+            newCust.architectId = targetId;
+            newCust.architectName = modalState.newName;
+          }
+          if (modalState.isElectrician) {
+            newCust.electricianId = targetId;
+            newCust.electricianName = modalState.newName;
+          }
           return newCust;
         });
-        setModalState({ show: false, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
+
+        setModalState({ show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
       }
-    } catch {
-      alert("Creation failed");
+    } catch (err) {
+      alert(`Failed to ${modalState.editingId ? 'update' : 'save'} professional`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -300,13 +351,24 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             <div className="selection-item">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', marginTop: '12px' }}>
                 <label style={{ margin: 0 }}>Architect</label>
-                <button 
-                  className="btn-ui secondary mini" 
-                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
-                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: true, isElectrician: false })}
-                >
-                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
-                </button>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {customer.architectId && (
+                    <button 
+                      className="btn-ui secondary mini" 
+                      style={{ padding: '2px 8px', fontSize: '11px', height: '22px', color: '#3b82f6' }}
+                      onClick={() => handleEditProfessional(customer.architectId, true)}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  <button 
+                    className="btn-ui secondary mini" 
+                    style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
+                    onClick={() => setModalState({ show: true, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: true, isElectrician: false })}
+                  >
+                    <Plus size={10} style={{ marginRight: '4px' }} /> Add New
+                  </button>
+                </div>
               </div>
               <div className="selection-card-box">
                 <div className="selection-card-content">
@@ -335,13 +397,24 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             <div className="selection-item">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', marginTop: '12px' }}>
                 <label style={{ margin: 0 }}>Electrician</label>
-                <button 
-                  className="btn-ui secondary mini" 
-                  style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
-                  onClick={() => setModalState({ show: true, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: true })}
-                >
-                  <Plus size={10} style={{ marginRight: '4px' }} /> Add New
-                </button>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {customer.electricianId && (
+                    <button 
+                      className="btn-ui secondary mini" 
+                      style={{ padding: '2px 8px', fontSize: '11px', height: '22px', color: '#3b82f6' }}
+                      onClick={() => handleEditProfessional(customer.electricianId, false)}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  <button 
+                    className="btn-ui secondary mini" 
+                    style={{ padding: '2px 8px', fontSize: '11px', height: '22px' }}
+                    onClick={() => setModalState({ show: true, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: true })}
+                  >
+                    <Plus size={10} style={{ marginRight: '4px' }} /> Add New
+                  </button>
+                </div>
               </div>
               <div className="selection-card-box">
                 <div className="selection-card-content">
@@ -547,7 +620,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b' }}>
-                Add {modalState.isArchitect ? 'Architect' : 'Electrician'}
+                {modalState.editingId ? 'Edit' : 'Add'} {modalState.isArchitect ? 'Architect' : 'Electrician'}
               </h3>
               <button onClick={() => setModalState({ ...modalState, show: false })} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
                 <X size={20} />
@@ -617,7 +690,14 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
                 onClick={handleSaveProfessional}
                 disabled={!modalState.newName}
               >
-                Add {modalState.isArchitect ? 'Architect' : 'Electrician'}
+                {modalState.editingId ? 'Update' : 'Add'} {modalState.isArchitect ? 'Architect' : 'Electrician'}
+              </button>
+              <button 
+                className="btn-ui secondary w-full" 
+                style={{ flex: 1, height: '48px', borderRadius: '12px' }}
+                onClick={() => setModalState({ ...modalState, show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '' })}
+              >
+                Cancel
               </button>
             </div>
           </div>
