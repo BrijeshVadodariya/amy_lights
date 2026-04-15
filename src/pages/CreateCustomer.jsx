@@ -28,7 +28,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
     competitor: '',
     budget: '',
     gstNo: '',
-    registeredAddress: '',
+    registerAddress: '',
     operationPerson: '',
     architectId: '',
     architectName: '',
@@ -74,7 +74,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             competitor: res.competitor || '',
             budget: res.budget || '',
             gstNo: res.vat || '',
-            registeredAddress: res.registered_address || '',
+            registerAddress: res.register_address || '',
             operationPerson: extractId(res.operation_person),
             architectId: extractId(res.architect_id),
             architectName: res.architect_name || '',
@@ -88,6 +88,35 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
       }).catch(() => setSaving(false));
     }
   }, [editId]);
+
+  const handleGSTLookup = async () => {
+    if (!customer.gstNo || customer.gstNo.length < 15) return;
+    setSaving(true);
+    try {
+      const res = await odooService.gstLookup(customer.gstNo);
+      if (res && res.name) {
+        setCustomer(prev => ({
+          ...prev,
+          name: res.name || prev.name,
+          mobile: res.phone || prev.mobile,
+          email: res.email || prev.email,
+          houseNo: res.street?.split(',')[0]?.trim() || '',
+          buildingName: res.street?.split(',')[1]?.trim() || '',
+          area: res.street2 || (res.street?.split(',')[2]?.trim() || ''),
+          city: res.city || '',
+          pincode: res.zip || '',
+          state: res.state || '',
+          architectId: res.architect_id || prev.architectId,
+          electrician_id: res.electrician_id || prev.electricianId
+        }));
+        setHasChanges(true);
+      }
+    } catch (err) {
+      console.error("GST Lookup failed", err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const safeNavigate = (to, id = null, data = null) => {
     if (hasChanges) {
@@ -154,7 +183,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
         source_name: customer.source,
         emp_assigned: parseInt(customer.empAssigned) || false,
         operation_person: parseInt(customer.operationPerson) || false,
-        registered_address: customer.registeredAddress,
+        register_address: customer.registerAddress,
         vat: customer.gstNo
       };
 
@@ -464,8 +493,8 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
                 <span className="od-label">Registered Address</span>
                 <input 
                   className="od-input" 
-                  value={customer.registeredAddress} 
-                  onChange={(e) => setCustomer({ ...customer, registeredAddress: e.target.value })} 
+                  value={customer.registerAddress} 
+                  onChange={(e) => setCustomer({ ...customer, registerAddress: e.target.value })} 
                   placeholder="Enter Address" 
                 />
               </div>
@@ -475,6 +504,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
                   className="od-input" 
                   value={customer.gstNo} 
                   onChange={(e) => setCustomer({ ...customer, gstNo: e.target.value })} 
+                  onBlur={handleGSTLookup}
                   placeholder="GST Number" 
                 />
               </div>

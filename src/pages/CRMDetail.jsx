@@ -10,6 +10,7 @@ import {
   Star,
   Phone,
   Mail,
+  MessageSquare,
   FileText,
   Calendar,
   Clock,
@@ -34,6 +35,15 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [users, setUsers] = useState([]);
+  const [isMobile, setIsMobile] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
+  ));
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const fetchLead = React.useCallback(async () => {
     try {
@@ -240,70 +250,107 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
            </div>
         </section>
 
-        <section className="detail-section remarks-history-section" style={{ borderTop: '1px solid #eee' }}>
-          <div className="section-tabs-header">
-            <h3 className="section-title">Timeline & Activities</h3>
-            <div className="section-header-actions">
-              <button className="btn-ui compact" onClick={() => setShowTaskModal(true)}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', 
+          borderTop: '1px solid #10b981',
+          background: '#fff'
+        }}>
+          {/* Tasks Column */}
+          <div style={{ padding: '0', borderRight: isMobile ? 'none' : '1px solid #eee' }}>
+            <div className="detail-section-header" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f8fafc' }}>
+              <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Tasks</h2>
+              <button 
+                className="ghost-action-btn" 
+                onClick={() => setShowTaskModal(true)}
+                style={{ padding: '4px 10px', height: '28px', fontSize: '11px', color: '#3b82f6', fontWeight: 700 }}
+              >
                 <Plus size={14} />
-                <span>Next Activity</span>
-              </button>
-              <button className="btn-ui compact primary" onClick={() => setShowNoteModal(true)}>
-                <Plus size={14} />
-                <span>Log Note</span>
+                <span>Add Task</span>
               </button>
             </div>
-          </div>
-
-          <div className="timeline-container">
-            {/* Planned Activities */}
-            <div className="timeline-lane">
-              <h4 className="timeline-lane-title">Planned Activities</h4>
-              <div className="activity-stack">
-                {lead.activities?.length > 0 ? lead.activities.map(act => (
-                  <div key={act.id} className="timeline-item activity-item">
-                    <div className="timeline-item-header">
-                      <div className="timeline-item-type">
-                        <Calendar size={14} />
-                        <span>{act.activity_type_name}</span>
+            <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {lead.activities?.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
+                  No planned tasks found.
+                </div>
+              ) : (
+                lead.activities.map(act => (
+                  <div key={act.id} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontWeight: 800, fontSize: '13px', color: '#000' }}>
+                        {((act.summary || act.activity_type_name) === 'To Do') ? 'Task' : (act.summary || act.activity_type_name || 'Task')}
                       </div>
-                      <div className="timeline-item-date">{act.date_deadline}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', color: '#666', fontWeight: 600 }}>{act.date_deadline || 'No Date'}</span>
+                        <button
+                          onClick={() => {
+                            // Edit logic
+                            setShowTaskModal(true); 
+                          }}
+                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                        >
+                          <Edit size={13} />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm('Delete this task?')) return;
+                            try { await odooService.deleteActivity(act.id); fetchLead(); } 
+                            catch { alert('Delete failed'); }
+                          }}
+                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                        >
+                          <Trash size={13} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="timeline-item-content">
-                      <div className="timeline-item-summary">{act.summary}</div>
-                      {act.note && <div className="timeline-item-note" dangerouslySetInnerHTML={{ __html: act.note }} />}
-                    </div>
-                    <div className="timeline-item-footer">
-                        <span className="timeline-item-user">@{act.user_name}</span>
-                    </div>
+                    {act.note && (
+                      <div style={{ fontSize: '12px', color: '#000', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                    )}
                   </div>
-                )) : (
-                  <div className="empty-state-small">No planned activities.</div>
-                )}
-              </div>
-            </div>
-
-            {/* History / Log Notes */}
-            <div className="timeline-lane">
-              <h4 className="timeline-lane-title">History</h4>
-              <div className="history-stack">
-                {lead.history?.length > 0 ? lead.history.map(msg => (
-                  <div key={msg.id} className="timeline-item history-item">
-                    <div className="timeline-item-header">
-                       <span className="timeline-item-author">{msg.author}</span>
-                       <span className="timeline-item-date">{msg.date}</span>
-                    </div>
-                    <div className="timeline-item-content">
-                       <p>{msg.body}</p>
-                    </div>
-                  </div>
-                )) : (
-                  <div className="empty-state-small">No history yet.</div>
-                )}
-              </div>
+                ))
+              )}
             </div>
           </div>
-        </section>
+
+          {/* Remarks Column */}
+          <div style={{ background: '#fff' }}>
+            <div className="detail-section-header" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f8fafc' }}>
+              <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Remarks</h2>
+              <button 
+                className="ghost-action-btn" 
+                onClick={() => setShowNoteModal(true)}
+                style={{ padding: '4px 10px', height: '28px', fontSize: '11px', color: '#10b981', fontWeight: 700 }}
+              >
+                <Plus size={14} />
+                <span>Add Remark</span>
+              </button>
+            </div>
+            <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {lead.history?.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
+                  No remarks or history found.
+                </div>
+              ) : (
+                lead.history.map((msg, idx) => (
+                  <div key={msg.id} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, textTransform: 'uppercase' }}>
+                        [{msg.author} - {msg.date}]
+                      </span>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Edit size={13} /></button>
+                        <button style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Trash size={13} /></button>
+                      </div>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap', flex: 1 }}>{msg.body}</p>
+                    <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>History #{idx + 1}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="detail-footer-actions">
            <div style={{ fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>

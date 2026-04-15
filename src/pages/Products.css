@@ -237,9 +237,9 @@
 
 /* Premium Floating Action Menu - Row Centered */
 .action-dropdown-popover {
-  position: absolute !important;
-  right: 0 !important; /* Align exactly with the right edge of the trigger */
-  top: 100% !important; /* Starts exactly below the button */
+  position: absolute;
+  right: 0; /* Align exactly with the right edge of the trigger */
+  top: 100%; /* Starts exactly below the button */
   z-index: 9999 !important;
   background: white !important;
   border: 1px solid #e2e8f0 !important;

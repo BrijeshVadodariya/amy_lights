@@ -5,9 +5,17 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon,
-  Phone
+  Phone,
+  ChevronDown,
+  MessageSquare,
+  Calendar,
+  CheckCircle,
+  Layout,
+  RefreshCw
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { odooService } from '../services/odoo';
+import { QuickNoteModal, QuickTaskModal } from '../components/QuickActionModals';
 import './Orders.css'; // Shared table styles
 import './CRM.css';    // CRM-specific styles
 
@@ -21,6 +29,11 @@ const CRM = ({ onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+  const [quickNoteLeadId, setQuickNoteLeadId] = useState(null);
+  const [quickTaskLeadId, setQuickTaskLeadId] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const limit = 500; // fetch all, paginate client-side
 
   const fetchStages = async () => {
@@ -29,6 +42,26 @@ const CRM = ({ onNavigate }) => {
       setStages(res || []);
     } catch (err) {
       console.error("Failed to fetch stages", err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await odooService.getMasterData();
+      setUsers(res.users || []);
+    } catch (err) {
+       console.error("Failed to fetch users", err);
+    }
+  };
+
+  const handleStageChange = async (leadId, stageId) => {
+    if (!window.confirm("Change lead stage?")) return;
+    try {
+      await odooService.updateCRMLead(leadId, { stage_id: stageId });
+      fetchLeads();
+      setOpenDropdownId(null);
+    } catch (err) {
+      alert("Failed to update stage");
     }
   };
 
@@ -53,7 +86,7 @@ const CRM = ({ onNavigate }) => {
     }
   }, [selectedStage, fromDate, toDate]);
 
-  useEffect(() => { fetchStages(); }, []);
+  useEffect(() => { fetchStages(); fetchUsers(); }, []);
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
   const getPriorityStars = (p) => {
@@ -203,12 +236,13 @@ const CRM = ({ onNavigate }) => {
                   <th>Architect</th>
                   <th>Arch. Follow-Up</th>
                   <th>Note</th>
+                  <th className="text-center" style={{ width: '90px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
                       No leads found.
                     </td>
                   </tr>
@@ -277,6 +311,100 @@ const CRM = ({ onNavigate }) => {
                         {lead.notes || '—'}
                       </div>
                     </td>
+
+                    {/* Actions */}
+                    <td 
+                      className="text-center" 
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="action-cell">
+                        <button 
+                          className="action-trigger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            if (openDropdownId === lead.id) {
+                              setOpenDropdownId(null);
+                            } else {
+                              setDropdownPos({ 
+                                top: rect.bottom, 
+                                left: rect.right - 180 
+                              });
+                              setOpenDropdownId(lead.id);
+                            }
+                          }}
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+
+                        {openDropdownId === lead.id && createPortal(
+                          <div 
+                            className={`action-dropdown-popover portal-fix ${idx >= currentItems.length - 3 && currentItems.length > 5 ? 'open-up' : ''}`}
+                            style={{ 
+                              position: 'fixed',
+                              top: idx >= currentItems.length - 3 && currentItems.length > 5 
+                                ? `${dropdownPos.top - 200}px` 
+                                : `${dropdownPos.top + 5}px`, 
+                              left: `${dropdownPos.left}px`,
+                              right: 'auto',
+                              bottom: 'auto',
+                              zIndex: 9999,
+                              minWidth: '180px'
+                            }}
+                            onMouseLeave={() => setOpenDropdownId(null)}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div style={{ paddingBottom: '4px', borderBottom: '1px solid #f1f5f9' }}>
+                              <button 
+                                className="btn-action-soft"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                  setQuickNoteLeadId(lead.id);
+                                }}
+                              >
+                                <MessageSquare size={12} className="text-emerald-500" />
+                                <span>Add Remark</span>
+                              </button>
+
+                              <button 
+                                className="btn-action-soft"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                  setQuickTaskLeadId(lead.id);
+                                }}
+                              >
+                                <Calendar size={12} className="text-orange-500" />
+                                <span>Add Task</span>
+                              </button>
+                            </div>
+
+                            <div className="dropdown-section" style={{ marginTop: '4px' }}>
+                              <label style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', padding: '4px 12px', textTransform: 'uppercase' }}>Change Stage</label>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2px', padding: '4px' }}>
+                                {stages.map(s => (
+                                  <button 
+                                    key={s.id}
+                                    className="btn-action-soft"
+                                    style={{ 
+                                      justifyContent: 'flex-start', 
+                                      background: lead.stage === s.name ? '#f1f5f9' : 'transparent',
+                                      fontWeight: lead.stage === s.name ? 700 : 500
+                                    }}
+                                    onClick={() => handleStageChange(lead.id, s.id)}
+                                  >
+                                    <RefreshCw size={12} className={lead.stage === s.name ? 'text-blue-500' : 'text-slate-400'} />
+                                    <span>{s.name}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>,
+                          document.body
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -295,6 +423,25 @@ const CRM = ({ onNavigate }) => {
         </div>
 
       </div>
+
+      {quickNoteLeadId && (
+        <QuickNoteModal 
+          orderId={quickNoteLeadId}
+          resModel="crm.lead"
+          onClose={() => setQuickNoteLeadId(null)}
+          onSuccess={() => { fetchLeads(); setQuickNoteLeadId(null); }}
+        />
+      )}
+
+      {quickTaskLeadId && (
+        <QuickTaskModal 
+          orderId={quickTaskLeadId}
+          resModel="crm.lead"
+          users={users}
+          onClose={() => setQuickTaskLeadId(null)}
+          onSuccess={() => { fetchLeads(); setQuickTaskLeadId(null); }}
+        />
+      )}
     </div>
   );
 };

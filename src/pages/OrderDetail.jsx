@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Edit, CalendarDays, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Edit, CalendarDays,Calendar,MessageSquare, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import WhatsappModal from '../components/WhatsappModal';
@@ -368,6 +368,12 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                                 {line.remark}
                               </div>
                             )}
+                            {line.line_note && (
+                              <div style={{ marginTop: '4px', padding: '6px', fontSize: '11px', color: '#1e293b', background: '#f8fafc', borderRadius: '4px', borderLeft: '2px solid #3b82f6', whiteSpace: 'pre-wrap' }}>
+                                <div style={{ fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', color: '#64748b', marginBottom: '2px' }}>Note</div>
+                                {line.line_note}
+                              </div>
+                            )}
                           </td>
                           {showImg && (
                             <td className="py-2 px-4" style={{ verticalAlign: 'top' }}>
@@ -436,24 +442,28 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
           borderTop: '1px solid #eee'
         }}>
-          {order.activities && order.activities.length > 0 && (
-            <div style={{ borderRight: isMobile ? 'none' : '1px solid #eee', borderBottom: isMobile ? '1px solid #eee' : 'none' }}>
-              <div className="detail-section-header" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Tasks</h2>
-                <button 
-                  className="ghost-action-btn" 
-                  onClick={() => setShowTaskModal(true)}
-                  style={{ padding: '4px 10px', height: '28px', fontSize: '11px', color: '#4f46e5', fontWeight: 700 }}
-                >
-                  <Plus size={14} />
-                  <span>Add Task</span>
-                </button>
-              </div>
-              <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {order.activities.map((act, idx) => (
+          {/* Tasks Column */}
+          <div style={{ borderRight: isMobile ? 'none' : '1px solid #eee', borderBottom: isMobile ? '1px solid #eee' : '1px solid #eee' }}>
+            <div className="detail-section-header" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Tasks</h2>
+              <button 
+                className="ghost-action-btn" 
+                onClick={() => setShowTaskModal(true)}
+                style={{ padding: '4px 10px', height: '28px', fontSize: '11px', color: '#3b82f6', fontWeight: 700 }}
+              >
+                <Plus size={14} />
+                <span>Add Task</span>
+              </button>
+            </div>
+            <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {!order.activities || order.activities.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
+                  No planned tasks found.
+                </div>
+              ) : (
+                order.activities.map((act, idx) => (
                   <div key={act.id || idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
                     {editingActivityId === act.id ? (
-                      // Inline Edit Form
                       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <input
                           className="co-input-v2"
@@ -496,7 +506,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                         </div>
                       </div>
                     ) : (
-                      // Display Mode with Edit/Delete
                       <>
                         <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ fontWeight: 800, fontSize: '13px', color: '#000' }}>
@@ -505,7 +514,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontSize: '11px', color: '#666', fontWeight: 600 }}>{act.date_deadline || 'No Date'}</span>
                             <button
-                              title="Edit task"
                               onClick={() => {
                                 setEditingActivityId(act.id);
                                 setActivityEditVals({
@@ -514,20 +522,20 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                                   date_deadline: act.date_deadline || ''
                                 });
                               }}
-                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
                             >
                               <Edit2 size={13} />
                             </button>
                             <button
-                              title="Delete task"
                               onClick={async () => {
+                                if (!window.confirm('Delete this task?')) return;
                                 try {
                                   const res = await odooService.deleteActivity(act.id);
                                   if (res.success || !res.error) fetchOrder();
                                   else alert(res.error || 'Delete failed');
                                 } catch { alert('Network error'); }
                               }}
-                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
                             >
                               <Trash size={13} />
                             </button>
@@ -539,115 +547,89 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                       </>
                     )}
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          )}
+          </div>
 
-          <div>
+          {/* Remarks Column */}
+          <div style={{ background: '#fff' }}>
             <div className="detail-section-header" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Remarks</h2>
               <button 
                 className="ghost-action-btn" 
                 onClick={() => setShowNoteModal(true)}
-                style={{ padding: '4px 10px', height: '28px', fontSize: '11px', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}
+                style={{ padding: '4px 10px', height: '28px', fontSize: '11px', color: '#10b981', fontWeight: 700 }}
               >
                 <Plus size={14} />
                 <span>Add Remark</span>
               </button>
             </div>
-            {order.remark ? (() => {
-              // Split ONLY by the primary separator to preserve multi-line notes
-              const parts = order.remark.split(/\n---\n/);
-              const noteLines = parts
-                .map((t, rawIdx) => {
-                  const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
-                  const authorName = authorMatch ? authorMatch[1] : null;
-                  let cleanText = t.replace(/<[^>]*>/g, '').trim();
-                  if (authorName) {
-                    cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
-                    cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
-                  }
-                  return { author: authorName, text: cleanText.trim(), rawIdx };
-                })
-                .filter(o => o.text.length > 0);
+            <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {!order.remark ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
+                  No internal remarks found.
+                </div>
+              ) : (
+                (() => {
+                  const parts = order.remark.split(/\n---\n/);
+                  const noteLines = parts.map((t, idx) => {
+                    const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
+                    const authorName = authorMatch ? authorMatch[1] : null;
+                    let cleanText = t.replace(/<[^>]*>/g, '').trim();
+                    if (authorName) {
+                      cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
+                      cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
+                    }
+                    return { author: authorName, text: cleanText.trim(), idx };
+                  }).filter(o => o.text.length > 0);
 
-              if (noteLines.length === 0) return (
-                <div style={{ padding: '0 14px 14px', fontSize: '12px', color: '#999' }}>No remarks.</div>
-              );
+                  if (noteLines.length === 0) return <div style={{ textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '12px' }}>No remarks found.</div>;
 
-              return (
-                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {noteLines.map((n) => (
-                    <div key={n.rawIdx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
-                      {editingRemarkIdx === n.rawIdx ? (
-                        // Inline Edit Form
+                  return noteLines.map((n) => (
+                    <div key={n.idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                      {editingRemarkIdx === n.idx ? (
                         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <textarea
+                           <textarea
                             value={remarkEditText}
                             onChange={e => setRemarkEditText(e.target.value)}
-                            placeholder="Edit remark..."
-                            style={{ width: '100%', minHeight: '70px', padding: '8px', borderRadius: '6px', border: '1px solid #10b981', fontSize: '13px', resize: 'vertical', lineHeight: 1.5 }}
+                            style={{ width: '100%', minHeight: '70px', padding: '8px', borderRadius: '6px', border: '1px solid #10b981', fontSize: '13px' }}
                           />
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <button
                               onClick={async () => {
-                                try {
-                                  const res = await odooService.updateRemark(orderId, n.rawIdx, remarkEditText);
-                                  if (res.success || !res.error) { fetchOrder(); setEditingRemarkIdx(null); }
-                                  else alert(res.error || 'Update failed');
-                                } catch { alert('Network error'); }
+                                const res = await odooService.updateRemark(orderId, n.idx, remarkEditText);
+                                if (res.success || !res.error) { fetchOrder(); setEditingRemarkIdx(null); }
                               }}
-                              style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 14px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                              style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 12px', fontSize: '12px' }}
                             >
                               Save
                             </button>
-                            <button
-                              onClick={() => setEditingRemarkIdx(null)}
-                              style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '6px 14px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
-                            >
-                              Cancel
-                            </button>
+                            <button onClick={() => setEditingRemarkIdx(null)} style={{ background: '#eee', border: 'none', borderRadius: '6px', padding: '4px 12px', fontSize: '12px' }}>Cancel</button>
                           </div>
                         </div>
                       ) : (
-                        // Display Mode with Edit/Delete
                         <>
                           <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap', flex: 1, paddingRight: '8px' }}>{n.text}</p>
-                            <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginTop: '1px' }}>
-                              <button
-                                title="Edit remark"
-                                onClick={() => { setEditingRemarkIdx(n.rawIdx); setRemarkEditText(n.text); }}
-                                style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
-                              >
-                                <Edit2 size={13} />
-                              </button>
-                              <button
-                                title="Delete remark"
-                                onClick={async () => {
-                                  try {
-                                    const res = await odooService.deleteRemark(orderId, n.rawIdx);
-                                    if (res.success || !res.error) fetchOrder();
-                                    else alert(res.error || 'Delete failed');
-                                  } catch { alert('Network error'); }
-                                }}
-                                style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
-                              >
-                                <Trash size={13} />
-                              </button>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap', flex: 1 }}>{n.text}</p>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button onClick={() => { setEditingRemarkIdx(n.idx); setRemarkEditText(n.text); }} style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Edit2 size={13} /></button>
+                              <button onClick={async () => {
+                                if (window.confirm('Delete this remark?')) {
+                                  await odooService.deleteRemark(orderId, n.idx);
+                                  fetchOrder();
+                                }
+                              }} style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Trash size={13} /></button>
                             </div>
                           </div>
-                          <span style={{ fontSize: '10px', color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>{n.author ? `By ${n.author}` : `Note #${n.rawIdx + 1}`}</span>
+                          <span style={{ fontSize: '10px', color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>{n.author ? `By ${n.author}` : `Note #${n.idx + 1}`}</span>
                         </>
                       )}
                     </div>
-                  ))}
-                </div>
-              );
-            })() : (
-              <div style={{ padding: '0 14px 14px', fontSize: '12px', color: '#999' }}>No remarks.</div>
-            )}
+                  ));
+                })()
+              )}
+            </div>
           </div>
         </div>
 

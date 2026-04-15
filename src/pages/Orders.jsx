@@ -16,6 +16,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [openDropdownId, setOpenDropdownId] = useState(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const [isMobile, setIsMobile] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth <= 768 : false
   ));
@@ -300,13 +301,13 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
               <thead>
                 <tr>
                   <th className="text-center" style={{ width: '40px' }}>Sr.No</th>
-                  <th style={{ width: '75px', fontSize: '11px' }}>Date</th>
-                  <th style={{ width: '120px', fontSize: '11px' }}>Sale Person</th>
                   <th style={{ width: '230px' }}>Customer</th>
+                  <th style={{ width: '120px', fontSize: '11px' }}>Sale Person</th>
+                  <th style={{ width: '75px', fontSize: '11px' }}>Date</th>
                   {showProfessional && <th style={{ width: '150px' }}>Professional</th>}
                   <th style={{ minWidth: '160px' }}>Note</th>
-                  <th style={{ minWidth: '220px' }}>Task</th>
-                  <th className="text-center" style={{ width: '80px' }}>Actions</th>
+                  <th style={{ width: '220px' }}>Task</th>
+                  <th className="text-center" style={{ width: '90px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -319,15 +320,15 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                     <td className="text-center cell-light" data-label="Sr.No" style={{ fontSize: '12px' }}>
                       {indexOfFirstItem + idx + 1}
                     </td>
-                    <td className="cell-light" data-label="Date" style={{ fontSize: '11px', color: '#64748b' }}>
-                      {order.order_date || '-'}
+                    <td className="cell-highlight" data-label="Customer">
+                      <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>{order.customer || '-'}</div>
+                      {order.phone && <div className="cell-light" style={{ fontSize: '14px', marginTop: '2px', color: '#64748b' }}>{order.phone}</div>}
                     </td>
                     <td className="cell-light" data-label="Sale Person" style={{ fontSize: '11px', color: '#64748b', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {order.salesperson || '-'}
                     </td>
-                    <td className="cell-highlight" data-label="Customer">
-                      <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>{order.customer || '-'}</div>
-                      {order.phone && <div className="cell-light" style={{ fontSize: '14px', marginTop: '2px', color: '#64748b' }}>{order.phone}</div>}
+                    <td className="cell-light" data-label="Date" style={{ fontSize: '11px', color: '#64748b' }}>
+                      {order.order_date || '-'}
                     </td>
                     {showProfessional && (
                       <td className="cell-light" data-label="Professional">
@@ -391,77 +392,101 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                           className="action-trigger"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setOpenDropdownId(openDropdownId === order.id ? null : order.id);
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            if (openDropdownId === order.id) {
+                              setOpenDropdownId(null);
+                            } else {
+                              setDropdownPos({ 
+                                top: rect.bottom, 
+                                left: rect.right - 180 
+                              });
+                              setOpenDropdownId(order.id);
+                            }
                           }}
                         >
                           <ChevronDown size={14} />
                         </button>
 
-                        {openDropdownId === order.id && (
+                        {openDropdownId === order.id && createPortal(
                           <div 
-                            className="action-dropdown-popover"
-                            onMouseEnter={() => setOpenDropdownId(order.id)}
+                            className={`action-dropdown-popover portal-fix ${idx >= currentItems.length - 3 && currentItems.length > 5 ? 'open-up' : ''}`}
+                            style={{ 
+                              position: 'fixed',
+                              top: idx >= currentItems.length - 3 && currentItems.length > 5 
+                                ? `${dropdownPos.top - (stateType === 'selection' ? 240 : 180)}px` 
+                                : `${dropdownPos.top + 5}px`, 
+                              left: `${dropdownPos.left}px`,
+                              right: 'auto',
+                              bottom: 'auto',
+                              zIndex: 9999,
+                              minWidth: '180px'
+                            }}
                             onMouseLeave={() => setOpenDropdownId(null)}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {/* Smart actions based on stateType */}
-                            {stateType === 'selection' && (
-                              <>
-                                <button 
-                                  className="btn-action-soft"
-                                  style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
-                                  onClick={(e) => { e.stopPropagation(); handleConvertSelection(order.id, 'draft'); setOpenDropdownId(null); }}
-                                >
-                                  <CheckCircle size={12} style={{ color: '#6366f1' }} />
-                                  <span style={{ fontWeight: 700, color: '#6366f1' }}>Convert to Quotation</span>
-                                </button>
-                                <button 
-                                  className="btn-action-soft"
-                                  style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
-                                  onClick={(e) => { e.stopPropagation(); handleConvertSelection(order.id, 'sale'); setOpenDropdownId(null); }}
-                                >
-                                  <CheckCircle size={12} style={{ color: '#10b981' }} />
-                                  <span style={{ fontWeight: 700, color: '#10b981' }}>Convert to Order</span>
-                                </button>
-                              </>
-                            )}
-                            {stateType === 'quotation' && (
+                            <div style={{ paddingBottom: '4px', borderBottom: '1px solid #f1f5f9' }}>
                               <button 
                                 className="btn-action-soft"
-                                style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
-                                onClick={(e) => { e.stopPropagation(); handleConfirm(order.id); setOpenDropdownId(null); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                  setQuickNoteOrderId(order.id);
+                                }}
                               >
-                                <CheckCircle size={12} style={{ color: '#10b981' }} />
-                                <span style={{ fontWeight: 700, color: '#10b981' }}>Confirm Order</span>
+                                <MessageSquare size={12} className="text-emerald-500" />
+                                <span>Add Remark</span>
                               </button>
-                            )}
-                            {/* No confirm button for stateType === 'order' */}
 
+                              <button 
+                                className="btn-action-soft"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                  setQuickTaskOrderId(order.id);
+                                }}
+                              >
+                                <Calendar size={12} className="text-orange-500" />
+                                <span>Add Task</span>
+                              </button>
+                            </div>
 
-                            <button 
-                              className="btn-action-soft"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenDropdownId(null);
-                                setQuickNoteOrderId(order.id);
-                              }}
-                            >
-                              <MessageSquare size={12} className="text-emerald-500" />
-                              <span>Add Remark</span>
-                            </button>
+                            <div style={{ marginTop: '4px' }}>
+                              {/* Smart actions based on order.status and stateType */}
+                              {(order.status === 'selection' || stateType === 'selection') && (
+                                <>
+                                  <button 
+                                    className="btn-action-soft"
+                                    style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
+                                    onClick={(e) => { e.stopPropagation(); handleConvertSelection(order.id, 'draft'); setOpenDropdownId(null); }}
+                                  >
+                                    <CheckCircle size={12} style={{ color: '#6366f1' }} />
+                                    <span style={{ fontWeight: 700, color: '#6366f1' }}>Convert to Quotation</span>
+                                  </button>
+                                  <button 
+                                    className="btn-action-soft"
+                                    style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
+                                    onClick={(e) => { e.stopPropagation(); handleConvertSelection(order.id, 'sale'); setOpenDropdownId(null); }}
+                                  >
+                                    <CheckCircle size={12} style={{ color: '#10b981' }} />
+                                    <span style={{ fontWeight: 700, color: '#10b981' }}>Convert to Order</span>
+                                  </button>
+                                </>
+                              )}
+                              {(order.status === 'draft' || stateType === 'quotation') && (
+                                <button 
+                                  className="btn-action-soft"
+                                  style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
+                                  onClick={(e) => { e.stopPropagation(); handleConfirm(order.id); setOpenDropdownId(null); }}
+                                >
+                                  <CheckCircle size={12} style={{ color: '#10b981' }} />
+                                  <span style={{ fontWeight: 700, color: '#10b981' }}>Confirm Order</span>
+                                </button>
+                              )}
+                              
 
-                            <button 
-                              className="btn-action-soft"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenDropdownId(null);
-                                setQuickTaskOrderId(order.id);
-                              }}
-                            >
-                              <Calendar size={12} className="text-orange-500" />
-                              <span>Add Task</span>
-                            </button>
-                          </div>
+                            </div>
+                          </div>,
+                          document.body
                         )}
                       </div>
                     </td>

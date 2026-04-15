@@ -111,11 +111,60 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
         architects: (masterRes?.architects || []).map(p => ({ value: p.id, label: p.name, phone: p.phone })),
         electricians: (masterRes?.electricians || []).map(p => ({ value: p.id, label: p.name, phone: p.phone })),
         users: (masterRes?.users || []).map(u => ({ value: u.id, label: u.name })),
-        partners: (masterRes?.partners || []).map(p => ({ value: p.id, label: p.name })),
+        partners: (masterRes?.partners || []).map(p => ({ value: p.id, label: p.name, phone: p.phone || p.mobile || '' })),
         stages: stagesRes || []
       });
     });
   }, []);
+
+  const handlePartnerChange = async (partnerId) => {
+    if (!partnerId) {
+      setLead(prev => ({ ...prev, partner_id: '' }));
+      return;
+    }
+    
+    setLead(prev => ({ ...prev, partner_id: partnerId }));
+    setHasChanges(true);
+    setLoading(true);
+    
+    try {
+      const res = await odooService.getPartnerDetail(partnerId);
+      if (res) {
+        const extractId = (val) => {
+          if (!val) return '';
+          if (Array.isArray(val) && val.length > 0) return val[0];
+          return val;
+        };
+
+        setLead(prev => ({
+          ...prev,
+          partner_id: partnerId,
+          architect_id: extractId(res.architect_id),
+          electrician_id: extractId(res.electrician_id),
+          houseNo: res.street?.split(',')[0]?.trim() || '',
+          buildingName: res.street?.split(',')[1]?.trim() || '',
+          area: res.street2 || (res.street?.split(',')[2]?.trim() || ''),
+          zip: res.zip || '',
+          city: res.city || '',
+          state_name: res.state_name || '',
+          contact_name: '', 
+          mobile: '',
+          email: ''
+        }));
+      }
+    } catch (err) {
+      console.error("Partner details fetch failed", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle return from CreateCustomer with pre-filled data
+  useEffect(() => {
+    if (extraData?.preFilledPartnerId) {
+      handlePartnerChange(extraData.preFilledPartnerId);
+    }
+  }, [extraData]);
 
   const canSubmit = useMemo(() => lead.name.trim().length > 0, [lead.name]);
 
@@ -222,13 +271,53 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               </div>
 
               <div className="co-input-group">
-                <label>Customer</label>
-                <SearchableSelect 
-                  options={masterData.partners}
-                  value={lead.partner_id}
-                  onChange={id => { setLead({...lead, partner_id: id}); setHasChanges(true); }}
-                  placeholder="Link to customer record..."
-                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontWeight: 700, color: '#64748b', fontSize: '0.85rem' }}>Customer</label>
+                  <button 
+                    type="button"
+                    className="selection-add-new" 
+                    style={{ padding: 0 }}
+                    onClick={() => onNavigate('create-customer', null, { returnRoute: 'create-crm' })}
+                  >
+                    <Plus size={14} /> Add New
+                  </button>
+                </div>
+                
+                {lead.partner_id ? (
+                  <div style={{ 
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f172a' }}>
+                        {masterData.partners.find(p => p.value === lead.partner_id)?.label || 'Selected Customer'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Phone size={12} />
+                        {masterData.partners.find(p => p.value === lead.partner_id)?.phone || 'No Phone Number'}
+                      </div>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setLead({...lead, partner_id: ''})}
+                      style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <SearchableSelect 
+                    options={masterData.partners}
+                    value={lead.partner_id}
+                    onChange={handlePartnerChange}
+                    placeholder="Link to customer record..."
+                  />
+                )}
               </div>
 
               <div className="co-grid-2">
@@ -376,7 +465,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               <div className="address-flex-row" style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
                 <div style={{ flex: '0 0 100px' }}>
                   <input 
-                    className="clean-input w-full" 
+                    className="co-input-v2" 
                     placeholder="H.No." 
                     value={lead.houseNo} 
                     onChange={(e) => { setLead({...lead, houseNo: e.target.value}); setHasChanges(true); }} 
@@ -384,7 +473,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                 </div>
                 <div style={{ flex: 1 }}>
                   <input 
-                    className="clean-input w-full" 
+                    className="co-input-v2" 
                     placeholder="Building/Society Name" 
                     value={lead.buildingName} 
                     onChange={(e) => { setLead({...lead, buildingName: e.target.value}); setHasChanges(true); }} 
@@ -393,22 +482,21 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               </div>
               
               <input 
-                className="clean-input w-full mb-3" 
-                style={{ marginBottom: '8px' }}
+                className="co-input-v2" 
                 placeholder="Area" 
                 value={lead.area} 
                 onChange={(e) => { setLead({...lead, area: e.target.value}); setHasChanges(true); }} 
               />
   
-              <div className="address-grid-2 mb-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
+              <div className="co-grid-2">
                 <input 
-                  className="clean-input" 
+                  className="co-input-v2" 
                   placeholder="Pincode" 
                   value={lead.zip} 
                   onChange={(e) => { setLead({...lead, zip: e.target.value}); setHasChanges(true); }} 
                 />
                 <input 
-                  className="clean-input w-full" 
+                  className="co-input-v2" 
                   placeholder="City" 
                   value={lead.city} 
                   onChange={(e) => { setLead({...lead, city: e.target.value}); setHasChanges(true); }} 
@@ -416,7 +504,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               </div>
               
               <input 
-                className="clean-input w-full" 
+                className="co-input-v2" 
                 placeholder="State" 
                 value={lead.state_name} 
                 onChange={(e) => { setLead({...lead, state_name: e.target.value}); setHasChanges(true); }} 
@@ -430,9 +518,10 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               <h2>Professionals</h2>
             </div>
             <div className="co-input-stack">
-              <div style={{ marginBottom: '16px' }}>
+              {/* Architect selection */}
+              <div style={{ marginBottom: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontWeight: 600, color: '#475569', fontSize: '13px' }}>Architect</label>
+                  <label style={{ fontWeight: 700, color: '#64748b', fontSize: '0.85rem' }}>Architect</label>
                   <button 
                     type="button"
                     className="selection-add-new" 
@@ -442,35 +531,48 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                     <Plus size={14} /> Add New
                   </button>
                 </div>
-                <div className="selection-card-box">
-                  <div className="selection-card-content">
-                    <div className="selection-card-top p-input-field">
-                      <SearchableSelect 
-                        options={masterData.architects}
-                        value={lead.architect_id}
-                        onChange={id => { setLead({...lead, architect_id: id}); setHasChanges(true); }}
-                        placeholder="Select Architect"
-                        className="clean-select"
-                      />
+                {lead.architect_id ? (
+                  <div style={{ 
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f172a' }}>
+                        {masterData.architects.find(a => String(a.value) === String(lead.architect_id))?.label || 'Selected Architect'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Phone size={12} />
+                        {masterData.architects.find(a => String(a.value) === String(lead.architect_id))?.phone || 'No Phone Number'}
+                      </div>
                     </div>
-                    {lead.architect_id && (
-                      <>
-                        <div className="selection-divider"></div>
-                        <div className="selection-card-bottom">
-                          <Phone size={14} className="text-slate-400" />
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                            {(masterData.architects?.find(a => a.value === lead.architect_id))?.phone || '-'}
-                          </span>
-                        </div>
-                      </>
-                    )}
+                    <button 
+                      type="button"
+                      onClick={() => setLead({...lead, architect_id: ''})}
+                      style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <SearchableSelect 
+                    options={masterData.architects}
+                    value={lead.architect_id}
+                    onChange={id => { setLead({...lead, architect_id: id}); setHasChanges(true); }}
+                    placeholder="Search or select architect..."
+                    className="clean-select"
+                  />
+                )}
               </div>
 
-              <div style={{ marginBottom: '8px' }}>
+              {/* Electrician selection */}
+              <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontWeight: 600, color: '#475569', fontSize: '13px' }}>Electrician</label>
+                  <label style={{ fontWeight: 700, color: '#64748b', fontSize: '0.85rem' }}>Electrician</label>
                   <button 
                     type="button"
                     className="selection-add-new" 
@@ -480,30 +582,43 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                     <Plus size={14} /> Add New
                   </button>
                 </div>
-                <div className="selection-card-box">
-                  <div className="selection-card-content">
-                    <div className="selection-card-top p-input-field">
-                      <SearchableSelect 
-                        options={masterData.electricians}
-                        value={lead.electrician_id}
-                        onChange={id => { setLead({...lead, electrician_id: id}); setHasChanges(true); }}
-                        placeholder="Select Electrician"
-                        className="clean-select"
-                      />
+                
+                {lead.electrician_id ? (
+                  <div style={{ 
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f172a' }}>
+                        {masterData.electricians.find(e => String(e.value) === String(lead.electrician_id))?.label || 'Selected Electrician'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Phone size={12} />
+                        {masterData.electricians.find(e => String(e.value) === String(lead.electrician_id))?.phone || 'No Phone Number'}
+                      </div>
                     </div>
-                    {lead.electrician_id && (
-                      <>
-                        <div className="selection-divider"></div>
-                        <div className="selection-card-bottom">
-                          <Phone size={14} className="text-slate-400" />
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                            {(masterData.electricians?.find(a => a.value === lead.electrician_id))?.phone || '-'}
-                          </span>
-                        </div>
-                      </>
-                    )}
+                    <button 
+                      type="button"
+                      onClick={() => setLead({...lead, electrician_id: ''})}
+                      style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <SearchableSelect 
+                    options={masterData.electricians}
+                    value={lead.electrician_id}
+                    onChange={id => { setLead({...lead, electrician_id: id}); setHasChanges(true); }}
+                    placeholder="Search or select electrician..."
+                    className="clean-select"
+                  />
+                )}
               </div>
             </div>
           </section>

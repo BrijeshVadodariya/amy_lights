@@ -138,6 +138,11 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },
+  gstLookup: async (vat) => {
+    const res = await api.post('/api/gst/lookup', { params: { vat } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
   createPartner: async (partnerData) => {
     const res = await api.post('/api/partner/create', { params: partnerData });
     const result = res.data.result || { success: false, error: res.data.error };

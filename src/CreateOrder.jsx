@@ -38,7 +38,7 @@ import {
   Zap,
   GripVertical
 } from 'lucide-react';
-import { Reorder } from 'framer-motion';
+import { Reorder, useDragControls } from 'framer-motion';
 import './CreateOrder.css';
 
 const createProductRow = () => ({
@@ -48,6 +48,7 @@ const createProductRow = () => ({
   price: 0,
   discount: 0,
   remark: '',
+  line_note: '',
   uom: 'Units'
 });
 
@@ -59,6 +60,294 @@ const dataCache = {
   electricians: null
 };
 
+// Helper sub-component for product rows to handle drag controls independently
+const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterData, productOptions, orderHeader, handleRowChange, addRow, onNavigate }) => {
+  const dragControls = useDragControls();
+  const selectedProduct = masterData.products.find(p => String(p.id) === String(r.productId)) || {
+    id: r.productId,
+    name: r.productName,
+    beam: r.beam,
+    image_url: r.image_url,
+    description: r.description
+  };
+
+  return (
+    <Reorder.Item 
+      key={r.id} 
+      value={r}
+      dragListener={false}
+      dragControls={dragControls}
+      className={`product-item-card product-row ${r.display_type === 'line_section' ? 'is-section-row' : ''}`} 
+      style={{ 
+        position: 'relative',
+        padding: isMobile ? '1.25rem 1rem' : '0.25rem 0.5rem', 
+        border: isMobile ? '1px solid #e2e8f0' : 'none', 
+        borderBottom: isMobile ? '1px solid #e2e8f0' : '1px solid #f1f5f9', 
+        borderRadius: isMobile ? '12px' : 0,
+        marginBottom: isMobile ? '0.75rem' : 0,
+        backgroundColor: r.display_type === 'line_section' ? '#f8fafc' : '#fff',
+        boxShadow: isMobile ? '0 2px 4px rgba(0,0,0,0.02)' : 'none',
+        borderLeft: r.display_type === 'line_section' ? '4px solid #3b82f6' : 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      }}
+    >
+      <div 
+        className="drag-handle" 
+        onPointerDown={(e) => dragControls.start(e)}
+        style={{ cursor: 'grab', color: '#cbd5e1', padding: '12px 6px', touchAction: 'none' }}
+      >
+        <GripVertical size={16} />
+      </div>
+      
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {isMobile && (
+          <button 
+            className="pi-remove" 
+            onClick={() => {
+              if (isOrder && editId) {
+                handleRowChange(r.id, 'qty', 0);
+              } else {
+                setRows(prev => prev.filter(row => row.id !== r.id));
+              }
+            }} 
+            style={{ 
+              position: 'absolute', 
+              top: '0.75rem', 
+              right: '0.75rem',
+              backgroundColor: '#fee2e2', 
+              color: '#ef4444', 
+              borderRadius: '6px', 
+              padding: '6px',
+              border: 'none',
+              zIndex: 10
+            }}
+          >
+            <Trash size={14} />
+          </button>
+        )}
+        <div 
+          className={isMobile ? "" : "pi-grid-row"} 
+          style={{ 
+            marginTop: 0, 
+            display: isMobile ? 'flex' : 'grid', 
+            gridTemplateColumns: r.display_type === 'line_section' 
+              ? `1fr 40px` 
+              : isMobile ? 'none' : `1.2fr 1fr 300px ${orderHeader.is_image ? '120px' : ''} ${orderHeader.is_beam ? '180px' : ''} 40px`.trim().replace(/\s+/g, ' '),
+            alignItems: 'flex-start', 
+            gap: isMobile ? '4px' : '8px', 
+            flexWrap: isMobile ? 'wrap' : 'nowrap',
+            minHeight: '42px'
+          }}
+        >
+           {r.display_type === 'line_section' ? (
+             <div style={{ flex: 1, padding: '4px 8px' }}>
+               <input 
+                 type="text"
+                 placeholder="Section Name (e.g. Living Room)"
+                 value={r.productName}
+                 onChange={(e) => handleRowChange(r.id, 'productName', e.target.value)}
+                 onKeyDown={(e) => {
+                   if (e.key === 'Enter' && idx === rows.length - 1) {
+                     e.preventDefault();
+                     addRow();
+                   }
+                 }}
+                 style={{ 
+                   width: '100%', 
+                   border: 'none', 
+                   outline: 'none', 
+                   fontSize: '14px', 
+                   fontWeight: 800, 
+                   color: '#1e293b',
+                   backgroundColor: 'transparent',
+                   padding: '4px 0'
+                 }}
+               />
+             </div>
+           ) : (
+             <>
+               <div className="pi-main-info" style={{ width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                 <div className="pi-main-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                   <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: 0 }}>
+                     {isMobile && <label className="pi-small-label">Product</label>}
+                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                       <div style={{ flex: 1, minWidth: 0 }}>
+                         <SearchableSelect
+                           placeholder="Select Product"
+                           options={productOptions}
+                           value={r.productId}
+                           defaultValue={r.productName}
+                           onChange={(val) => handleRowChange(r.id, 'productId', val)}
+                            onSelect={() => {
+                              setTimeout(() => {
+                                const input = document.getElementById(`qty-input-${r.id}`);
+                                if (input) input.focus();
+                              }, 50);
+                            }}
+                           small
+                         />
+                       </div>
+                       <button 
+                         onClick={() => onNavigate('create-product')}
+                         style={{ flex: '0 0 24px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
+                         title="Create New Product"
+                       >
+                         <Plus size={14} />
+                       </button>
+                     </div>
+                   </div>
+                 </div>
+                 {orderHeader.is_desc && r.description && (
+                   <div className="pi-desc-box" style={{ padding: '0 4px 4px', fontSize: '11px', color: '#64748b', whiteSpace: 'pre-wrap', fontStyle: 'italic', lineHeight: '1.4' }}>
+                     {r.description}
+                   </div>
+                 )}
+               </div>
+               
+               <div className="pi-note-col" style={{ display: 'block', width: '100%' }}>
+                 {isMobile && <label className="pi-small-label">Note</label>}
+                 <textarea 
+                   className="co-textarea"
+                   placeholder="Add line note..."
+                   value={r.line_note || ''}
+                   onChange={(e) => handleRowChange(r.id, 'line_note', e.target.value)}
+                   style={{ 
+                     width: '100%', 
+                     minHeight: isMobile ? '40px' : '32px', 
+                     height: isMobile ? 'auto' : '32px',
+                     fontSize: '11px', 
+                     padding: '6px', 
+                     border: '1px solid #e2e8f0',
+                     borderRadius: '4px',
+                     background: '#fff',
+                     resize: 'vertical'
+                   }}
+                 />
+               </div>
+               <div className="pi-sub-grid" style={{ width: '100%', minWidth: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: isMobile ? '0.5rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
+                 <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                  {isMobile && <label className="pi-small-label">Qty</label>}
+                   <input 
+                     id={`qty-input-${r.id}`}
+                     type="number" 
+                     className="co-input-border" 
+                     value={r.qty} 
+                     onFocus={(e) => e.target.select()} 
+                     onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} 
+                     style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
+                   />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                  {isMobile && <label className="pi-small-label">Disc%</label>}
+                  <input 
+                     type="number" 
+                     className="co-input-border" 
+                     value={r.discount} 
+                     onFocus={(e) => e.target.select()} 
+                     onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} 
+                     onKeyDown={(e) => {
+                       if (e.key === 'Enter' && idx === rows.length - 1) {
+                         e.preventDefault();
+                         addRow();
+                       }
+                     }}
+                     style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
+                   />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+                  {isMobile && <label className="pi-small-label">Price</label>}
+                  <input 
+                     type="number" 
+                     className="co-input-border" 
+                     value={r.price} 
+                     onFocus={(e) => e.target.select()} 
+                     onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} 
+                     onKeyDown={(e) => {
+                       if (e.key === 'Enter' && idx === rows.length - 1) {
+                         e.preventDefault();
+                         addRow();
+                       }
+                     }}
+                     style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
+                   />
+                </div>
+              </div>
+
+               <div style={{ 
+                 display: orderHeader.is_image ? 'flex' : 'none', 
+                 justifyContent: 'center',
+                 minWidth: 0,
+                 overflow: 'hidden',
+                 marginTop: isMobile ? '8px' : '0'
+               }}>
+                 <div className="h-[70px] w-full bg-slate-50 border border-slate-100 rounded overflow-hidden relative">
+                   {selectedProduct?.id && (
+                     <img 
+                       src={(() => {
+                         const token = localStorage.getItem('odoo_session_id') || '';
+                         const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                         let path = selectedProduct.image_url;
+                         if (!path) path = `/web/image/product.template/${selectedProduct.id}/image_256`;
+                         return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
+                       })()} 
+                       alt="p" className="h-full w-full object-contain"
+                       onError={(e) => { e.target.style.display='none'; }}
+                     />
+                   )}
+                 </div>
+               </div>
+
+                <div style={{ 
+                  display: orderHeader.is_beam ? 'block' : 'none', 
+                  paddingTop: isMobile ? '0' : '4px' 
+                }}>
+                  <input 
+                    type="text" 
+                    className="co-input-border"
+                    value={r.beam || '-'} 
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => handleRowChange(r.id, 'beam', e.target.value)}
+                    style={{ 
+                      width: '100%', 
+                      height: '32px', 
+                      fontSize: '11px', 
+                      textAlign: 'center', 
+                      border: '1px solid #e2e8f0', 
+                      borderRadius: '4px',
+                      backgroundColor: '#fff' 
+                    }}
+                  />
+                </div>
+             </>
+           )}
+
+           {!isMobile && (
+             <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button 
+                  className="pi-remove-row" 
+                  onClick={() => {
+                    if (isOrder && editId) {
+                      handleRowChange(r.id, 'qty', 0);
+                    } else {
+                      setRows(prev => prev.filter(row => row.id !== r.id));
+                    }
+                  }}
+                  style={{ width: '40px', height: '32px', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  title="Delete Row"
+                >
+                  <Trash size={15} />
+                </button>
+              </div>
+           )}
+        </div>
+      </div>
+    </Reorder.Item>
+  );
+};
+
+// ... existing code ...
 const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) => {
   const [loading, setLoading] = useState(false);
   const [masterData, setMasterData] = useState({
@@ -406,6 +695,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             price: l.price_unit ?? l.price ?? 0,
             discount: l.discount || 0,
             remark: l.remark || l.name || '',
+            line_note: l.line_note || '',
             display_type: l.display_type || false,
             description: l.description || l.remark || ''
           };
@@ -773,6 +1063,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       price: 0, 
       discount: 0,
       remark: '', 
+      line_note: '',
       beam: '-',
       description: '',
       image_url: '',
@@ -920,6 +1211,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           price_unit: parseFloat(r.price) || 0,
           discount: parseFloat(r.discount) || 0,
           name: r.remark || '', 
+          line_note: r.line_note || '',
           architect_id: parseInt(orderHeader.architectId) || false,
           electrician_id: parseInt(orderHeader.electricianId) || false
         }];
@@ -1241,7 +1533,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             </div>
           </div>
           {showProducts && (
-            <div className="co-card-body product-cards-list" style={{ paddingTop: '0.75rem' }}>
+            <div className="co-card-body product-cards-list" style={{ paddingTop: '0.75rem', paddingLeft: '0.75rem' }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center', marginBottom: '0.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid #f1f5f9' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
                   <input type="checkbox" checked={orderHeader.is_desc} onChange={(e) => setOrderHeader({...orderHeader, is_desc: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
@@ -1284,11 +1576,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                         padding: '0.25rem 0.5rem', 
                         borderBottom: '2px solid #f8fafc', 
                         display: 'grid',
-                        gridTemplateColumns: `1fr 300px ${orderHeader.is_image ? '120px' : ''} ${orderHeader.is_beam ? '180px' : ''} 40px`.trim().replace(/\s+/g, ' '),
+                        gridTemplateColumns: `1.2fr 1fr 300px ${orderHeader.is_image ? '120px' : ''} ${orderHeader.is_beam ? '180px' : ''} 40px`.trim().replace(/\s+/g, ' '),
                         gap: '8px',
                         alignItems: 'center'
                     }}>
                       <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Product</div>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Note</div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Qty</div>
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Disc</div>
@@ -1311,264 +1604,24 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                     className="product-rows-container" 
                     style={{ display: 'flex', flexDirection: 'column', gap: '0' }}
                   >
-                    {rows.map((r, idx) => {
-                      const selectedProduct = masterData.products.find(p => String(p.id) === String(r.productId)) || {
-                        id: r.productId,
-                        name: r.productName,
-                        beam: r.beam,
-                        image_url: r.image_url,
-                        description: r.description
-                      };
-
-                      return (
-                        <Reorder.Item 
-                          key={r.id} 
-                          value={r}
-                          className={`product-item-card product-row ${r.display_type === 'line_section' ? 'is-section-row' : ''}`} 
-                          style={{ 
-                            position: 'relative',
-                            padding: isMobile ? '1.25rem 1rem' : '0.25rem 0.5rem', 
-                            border: isMobile ? '1px solid #e2e8f0' : 'none', 
-                            borderLeft: isMobile ? 'none' : 'none',
-                            borderRight: isMobile ? 'none' : 'none',
-                            borderBottom: isMobile ? '1px solid #e2e8f0' : '1px solid #f1f5f9', 
-                            borderRadius: isMobile ? '12px' : 0,
-                            marginBottom: isMobile ? '0.75rem' : 0,
-                            backgroundColor: r.display_type === 'line_section' ? '#f8fafc' : '#fff',
-                            boxShadow: isMobile ? '0 2px 4px rgba(0,0,0,0.02)' : 'none',
-                            borderLeft: r.display_type === 'line_section' ? '4px solid #3b82f6' : 'none',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px'
-                          }}
-                        >
-                          <div className="drag-handle" style={{ cursor: 'grab', color: '#cbd5e1', padding: '4px 2px' }}>
-                            <GripVertical size={16} />
-                          </div>
-                          
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            {isMobile && (
-                              <button 
-                                className="pi-remove" 
-                                onClick={() => {
-                                  if (isOrder && editId) {
-                                    handleRowChange(r.id, 'qty', 0);
-                                  } else {
-                                    setRows(prev => prev.filter(row => row.id !== r.id));
-                                  }
-                                }} 
-                                style={{ 
-                                  position: 'absolute', 
-                                  top: '0.75rem', 
-                                  right: '0.75rem',
-                                  backgroundColor: '#fee2e2', 
-                                  color: '#ef4444', 
-                                  borderRadius: '6px', 
-                                  padding: '6px',
-                                  border: 'none',
-                                  zIndex: 10
-                                }}
-                              >
-                                <Trash size={14} />
-                              </button>
-                            )}
-                            <div 
-                              className={isMobile ? "" : "pi-grid-row"} 
-                              style={{ 
-                                marginTop: 0, 
-                                display: isMobile ? 'flex' : 'grid', 
-                                gridTemplateColumns: r.display_type === 'line_section' 
-                                  ? `1fr 40px` 
-                                  : isMobile ? 'none' : `1fr 300px ${orderHeader.is_image ? '120px' : ''} ${orderHeader.is_beam ? '180px' : ''} 40px`.trim().replace(/\s+/g, ' '),
-                                alignItems: 'flex-start', 
-                                gap: isMobile ? '4px' : '8px', 
-                                flexWrap: isMobile ? 'wrap' : 'nowrap',
-                                minHeight: '42px'
-                              }}
-                            >
-                               {r.display_type === 'line_section' ? (
-                                 <div style={{ flex: 1, padding: '4px 8px' }}>
-                                   <input 
-                                     type="text"
-                                     placeholder="Section Name (e.g. Living Room)"
-                                     value={r.productName}
-                                     onChange={(e) => handleRowChange(r.id, 'productName', e.target.value)}
-                                     onKeyDown={(e) => {
-                                       if (e.key === 'Enter' && idx === rows.length - 1) {
-                                         e.preventDefault();
-                                         addRow();
-                                       }
-                                     }}
-                                     style={{ 
-                                       width: '100%', 
-                                       border: 'none', 
-                                       outline: 'none', 
-                                       fontSize: '14px', 
-                                       fontWeight: 800, 
-                                       color: '#1e293b',
-                                       backgroundColor: 'transparent',
-                                       padding: '4px 0'
-                                     }}
-                                   />
-                                 </div>
-                               ) : (
-                                 <>
-                                   <div className="pi-main-info" style={{ width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                     <div className="pi-main-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                                       <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: 0 }}>
-                                         {isMobile && <label className="pi-small-label">Product</label>}
-                                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                           <div style={{ flex: 1, minWidth: 0 }}>
-                                             <SearchableSelect
-                                               placeholder="Select Product"
-                                               options={productOptions}
-                                               value={r.productId}
-                                               defaultValue={r.productName}
-                                               onChange={(val) => handleRowChange(r.id, 'productId', val)}
-                                                onSelect={() => {
-                                                  setTimeout(() => {
-                                                    const input = document.getElementById(`qty-input-${r.id}`);
-                                                    if (input) input.focus();
-                                                  }, 50);
-                                                }}
-                                               small
-                                             />
-                                           </div>
-                                           <button 
-                                             onClick={() => onNavigate('create-product')}
-                                             style={{ flex: '0 0 24px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}
-                                             title="Create New Product"
-                                           >
-                                             <Plus size={14} />
-                                           </button>
-                                         </div>
-                                       </div>
-                                     </div>
-                                     {orderHeader.is_desc && r.description && (
-                                       <div className="pi-desc-box" style={{ padding: '0 4px 4px', fontSize: '11px', color: '#64748b', whiteSpace: 'pre-wrap', fontStyle: 'italic', lineHeight: '1.4' }}>
-                                         {r.description}
-                                       </div>
-                                     )}
-                                   </div>
-                                  <div className="pi-sub-grid" style={{ width: '100%', minWidth: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: isMobile ? '0.5rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
-                                     <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
-                                      {isMobile && <label className="pi-small-label">Qty</label>}
-                                       <input 
-                                         id={`qty-input-${r.id}`}
-                                         type="number" 
-                                         className="co-input-border" 
-                                         value={r.qty} 
-                                         onFocus={(e) => e.target.select()} 
-                                         onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} 
-                                         style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
-                                       />
-                                    </div>
-                                    <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
-                                      {isMobile && <label className="pi-small-label">Disc%</label>}
-                                      <input 
-                                         type="number" 
-                                         className="co-input-border" 
-                                         value={r.discount} 
-                                         onFocus={(e) => e.target.select()} 
-                                         onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} 
-                                         onKeyDown={(e) => {
-                                           if (e.key === 'Enter' && idx === rows.length - 1) {
-                                             e.preventDefault();
-                                             addRow();
-                                           }
-                                         }}
-                                         style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
-                                       />
-                                    </div>
-                                    <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
-                                      {isMobile && <label className="pi-small-label">Price</label>}
-                                      <input 
-                                         type="number" 
-                                         className="co-input-border" 
-                                         value={r.price} 
-                                         onFocus={(e) => e.target.select()} 
-                                         onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} 
-                                         onKeyDown={(e) => {
-                                           if (e.key === 'Enter' && idx === rows.length - 1) {
-                                             e.preventDefault();
-                                             addRow();
-                                           }
-                                         }}
-                                         style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
-                                       />
-                                    </div>
-                                  </div>
-      
-                                   <div style={{ 
-                                     display: orderHeader.is_image ? 'flex' : 'none', 
-                                     justifyContent: 'center',
-                                     minWidth: 0,
-                                     overflow: 'hidden'
-                                   }}>
-                                     <div className="h-[70px] w-full bg-slate-50 border border-slate-100 rounded overflow-hidden relative">
-                                       {selectedProduct?.id && (
-                                         <img 
-                                           src={(() => {
-                                             const token = localStorage.getItem('odoo_session_id') || '';
-                                             const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                                             let path = selectedProduct.image_url;
-                                             if (!path) path = `/web/image/product.template/${selectedProduct.id}/image_256`;
-                                             return `${path}${path.includes('?') ? '&' : '?'}token=${token}&db=${db}`;
-                                           })()} 
-                                           alt="p" className="h-full w-full object-contain"
-                                           onError={(e) => { e.target.style.display='none'; }}
-                                         />
-                                       )}
-                                     </div>
-                                   </div>
-      
-                                    <div style={{ 
-                                      display: orderHeader.is_beam ? 'block' : 'none', 
-                                      paddingTop: isMobile ? '0' : '4px' 
-                                    }}>
-                                      <input 
-                                        type="text" 
-                                        className="co-input-border"
-                                        value={r.beam || '-'} 
-                                        onFocus={(e) => e.target.select()}
-                                        onChange={(e) => handleRowChange(r.id, 'beam', e.target.value)}
-                                        style={{ 
-                                          width: '100%', 
-                                          height: '32px', 
-                                          fontSize: '11px', 
-                                          textAlign: 'center', 
-                                          border: '1px solid #e2e8f0', 
-                                          borderRadius: '4px',
-                                          backgroundColor: '#fff' 
-                                        }}
-                                      />
-                                    </div>
-                                 </>
-                               )}
-      
-                               {!isMobile && (
-                                 <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                    <button 
-                                      className="pi-remove-row" 
-                                      onClick={() => {
-                                        if (isOrder && editId) {
-                                          handleRowChange(r.id, 'qty', 0);
-                                        } else {
-                                          setRows(prev => prev.filter(row => row.id !== r.id));
-                                        }
-                                      }}
-                                      style={{ width: '40px', height: '32px', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                      title="Delete Row"
-                                    >
-                                      <Trash size={15} />
-                                    </button>
-                                  </div>
-                               )}
-                            </div>
-                          </div>
-                        </Reorder.Item>
-                      );
-                    })}
+                    {rows.map((r, idx) => (
+                      <ProductRow 
+                        key={r.id}
+                        r={r} 
+                        idx={idx} 
+                        rows={rows} 
+                        setRows={setRows}
+                        isMobile={isMobile}
+                        isOrder={isOrder}
+                        editId={editId}
+                        masterData={masterData}
+                        productOptions={productOptions}
+                        orderHeader={orderHeader}
+                        handleRowChange={handleRowChange}
+                        addRow={addRow}
+                        onNavigate={onNavigate}
+                      />
+                    ))}
                   </Reorder.Group>
                 </div>
               </div>
