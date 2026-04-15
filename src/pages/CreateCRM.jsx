@@ -409,49 +409,6 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
             </div>
           </section>
 
-          <section className="co-form-section">
-            <div className="co-section-header">
-              <User size={18} />
-              <h2>Contact Person</h2>
-            </div>
-            <div className="co-input-stack">
-              <div className="co-input-group">
-                <label>Contact Name</label>
-                <input 
-                  type="text" 
-                  className="co-input-v2"
-                  placeholder="Person Name"
-                  value={lead.contact_name}
-                  onChange={e => { setLead({...lead, contact_name: e.target.value}); setHasChanges(true); }}
-                />
-              </div>
-              <div className="co-grid-2">
-                <div className="co-input-group">
-                  <label>Mobile</label>
-                  <div className="co-input-icon-wrapper">
-                    <Phone size={14} />
-                    <input 
-                      type="text" 
-                      className="co-input-v2 with-icon"
-                      placeholder="9XXXX XXXXX"
-                      value={lead.mobile}
-                      onChange={e => { setLead({...lead, mobile: e.target.value}); setHasChanges(true); }}
-                    />
-                  </div>
-                </div>
-                <div className="co-input-group">
-                  <label>Email</label>
-                  <input 
-                    type="email" 
-                    className="co-input-v2"
-                    placeholder="email@example.com"
-                    value={lead.email}
-                    onChange={e => { setLead({...lead, email: e.target.value}); setHasChanges(true); }}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
 
         {/* Right Span: Other Details (Professionals & Address) */}
