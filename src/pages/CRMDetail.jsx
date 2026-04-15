@@ -294,7 +294,6 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                         </button>
                         <button
                           onClick={async () => {
-                            if (!window.confirm('Delete this task?')) return;
                             try { await odooService.deleteActivity(act.id); fetchLead(); } 
                             catch { alert('Delete failed'); }
                           }}

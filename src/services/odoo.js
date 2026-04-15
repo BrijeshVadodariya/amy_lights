@@ -295,5 +295,17 @@ export const odooService = {
       params: { res_model: resModel, res_id: resId, mobile: mobile, message: message }
     });
     return res.data.result || { success: false, error: res.data.error };
-  }
+  },
+  deleteLead: async (leadId) => {
+  const res = await api.post('/api/crm/delete_lead', {
+    lead_id: leadId
+  });
+  return res.data.result || { success: false, error: res.data.error };
+  },
+  deleteOrder: async (orderId) => {
+  const res = await api.post('/api/order/delete_order', {
+    order_id: orderId
+  });
+  return res.data.result || { success: false, error: res.data.error };
+  },
 };

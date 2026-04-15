@@ -470,9 +470,24 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                                     <CheckCircle size={12} style={{ color: '#10b981' }} />
                                     <span style={{ fontWeight: 700, color: '#10b981' }}>Convert to Order</span>
                                   </button>
+                                  <button 
+                                    className="btn-action-soft"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      setOpenDropdownId(null);
+                                      try { await odooService.deleteOrder(order.id); fetchOrders();
+                                      }catch(err){
+                                        console.error('Error deleting selection', err);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 size={12} className="text-orange-500" />
+                                    <span>delete</span>
+                                  </button>
                                 </>
                               )}
                               {(order.status === 'draft' || stateType === 'quotation') && (
+                                <>
                                 <button 
                                   className="btn-action-soft"
                                   style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
@@ -480,6 +495,38 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                                 >
                                   <CheckCircle size={12} style={{ color: '#10b981' }} />
                                   <span style={{ fontWeight: 700, color: '#10b981' }}>Confirm Order</span>
+                                </button>
+                                <button 
+                                  className="btn-action-soft"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownId(null);
+                                    try { await odooService.deleteOrder(order.id); fetchOrders();
+                                    }catch(err){
+                                      console.error('Error deleting quotation', err);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 size={12} className="text-orange-500" />
+                                  <span>delete</span>
+                                </button>
+                                </>
+                                
+                              )}
+                              {(order.status === 'cancel' || stateType === 'cancel') && (
+                                <button 
+                                  className="btn-action-soft"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownId(null);
+                                    try { await odooService.deleteOrder(order.id); fetchOrders();
+                                    }catch(err){
+                                      console.error('Error deleting order', err);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 size={12} className="text-orange-500" />
+                                  <span>delete</span>
                                 </button>
                               )}
                               

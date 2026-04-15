@@ -11,7 +11,8 @@ import {
   Calendar,
   CheckCircle,
   Layout,
-  RefreshCw
+  RefreshCw,
+  Trash
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { odooService } from '../services/odoo';
@@ -378,6 +379,21 @@ const CRM = ({ onNavigate }) => {
                                 <Calendar size={12} className="text-orange-500" />
                                 <span>Add Task</span>
                               </button>
+                              <button 
+                                className="btn-action-soft"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                  try { await odooService.deleteLead(lead.id); fetchLeads();
+                                  }catch(err){
+                                    console.error('Error deleting lead', err);
+                                  }
+                                }}
+                              >
+                                <Trash size={12} className="text-orange-500" />
+                                <span>delete</span>
+                              </button>
+
                             </div>
 
                             <div className="dropdown-section" style={{ marginTop: '4px' }}>

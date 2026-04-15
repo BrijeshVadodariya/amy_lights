@@ -317,6 +317,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left', width: '120px' }}>Product</th>
+                      <th style={{ textAlign: 'left', minWidth: '80px' }}>Notes</th>
                       {showImg  && <th className="text-center" style={{ width: '60px' }}>Img</th>}
                       {showBeam && <th className="text-center" style={{ width: '80px' }}>Beam</th>}
                       <th className="text-center" style={{ width: '50px' }}>Qty</th>
@@ -326,7 +327,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {orderLines.map((line, idx) => {
-                      const colCount = 4 + (showImg ? 1 : 0) + (showBeam ? 1 : 0);
+                      const colCount = 5 + (showImg ? 1 : 0) + (showBeam ? 1 : 0);
                       const isSection = line.display_type === 'line_section' || (!line.product_id && line.product_name && line.qty === 0);
                       const isNote    = line.display_type === 'line_note';
 
@@ -368,9 +369,10 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                                 {line.remark}
                               </div>
                             )}
+                          </td>
+                          <td className="py-2 px-4" style={{ verticalAlign: 'top', textAlign: 'left' }}>
                             {line.line_note && (
-                              <div style={{ marginTop: '4px', padding: '6px', fontSize: '11px', color: '#1e293b', background: '#f8fafc', borderRadius: '4px', borderLeft: '2px solid #3b82f6', whiteSpace: 'pre-wrap' }}>
-                                <div style={{ fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', color: '#64748b', marginBottom: '2px' }}>Note</div>
+                              <div style={{ padding: '6px', fontSize: '11px', color: '#1e293b', background: '#f8fafc', borderRadius: '4px', borderLeft: '2px solid #3b82f6', whiteSpace: 'pre-wrap' }}>
                                 {line.line_note}
                               </div>
                             )}
@@ -507,12 +509,28 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                       </div>
                     ) : (
                       <>
+                        <div style={{ width: '100%', marginBottom: '4px' }}>
+                          {act.summary && !['task', 'to do', 'todo'].includes(act.summary.toLowerCase()) && (
+                            <div style={{ fontWeight: 800, fontSize: '13px', color: '#000', marginBottom: '2px' }}>
+                               {act.summary}
+                            </div>
+                          )}
+                          <div 
+                            style={{ 
+                              fontSize: '13px', 
+                              color: '#334155', 
+                              lineHeight: '1.5',
+                              fontWeight: 400
+                            }} 
+                            dangerouslySetInnerHTML={{ __html: act.note }} 
+                          />
+                        </div>
                         <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontWeight: 800, fontSize: '13px', color: '#000' }}>
-                            {((act.summary || act.activity_type_name) === 'To Do') ? 'Task' : (act.summary || act.activity_type_name || 'Task')}
+                          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>
+                            Assigned to: <span style={{ fontWeight: 700, color: '#475569' }}>{act.user_name || 'Unassigned'}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '11px', color: '#666', fontWeight: 600 }}>{act.date_deadline || 'No Date'}</span>
+                            <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>{act.date_deadline || 'No Date'}</span>
                             <button
                               onClick={() => {
                                 setEditingActivityId(act.id);
@@ -522,7 +540,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                                   date_deadline: act.date_deadline || ''
                                 });
                               }}
-                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                              style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer' }}
                             >
                               <Edit2 size={13} />
                             </button>
@@ -535,15 +553,12 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                                   else alert(res.error || 'Delete failed');
                                 } catch { alert('Network error'); }
                               }}
-                              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                              style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer' }}
                             >
                               <Trash size={13} />
                             </button>
                           </div>
                         </div>
-                        {act.note && (
-                          <div style={{ fontSize: '12px', color: '#000', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
-                        )}
                       </>
                     )}
                   </div>
@@ -574,11 +589,11 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                 (() => {
                   const parts = order.remark.split(/\n---\n/);
                   const noteLines = parts.map((t, idx) => {
-                    const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
+                    const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/) || t.match(/^([^:]+):\s*/);
                     const authorName = authorMatch ? authorMatch[1] : null;
                     let cleanText = t.replace(/<[^>]*>/g, '').trim();
                     if (authorName) {
-                      cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
+                      cleanText = cleanText.replace(new RegExp(`^${authorName}[:\s\-]+`, 'i'), '');
                       cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
                     }
                     return { author: authorName, text: cleanText.trim(), idx };
@@ -622,7 +637,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                               }} style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Trash size={13} /></button>
                             </div>
                           </div>
-                          <span style={{ fontSize: '10px', color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>{n.author ? `By ${n.author}` : `Note #${n.idx + 1}`}</span>
+                          <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>{n.author ? `By ${n.author}` : `Internal Note`}</span>
                         </>
                       )}
                     </div>

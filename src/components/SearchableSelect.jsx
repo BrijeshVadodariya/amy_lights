@@ -20,10 +20,15 @@ const SearchableSelect = ({ placeholder, options = [], value, onChange, onSelect
   }, [options, value, defaultValue]);
 
   const filtered = useMemo(() => {
-    const lower = query.toLowerCase();
-    const results = options.filter((opt) => 
-      opt && opt.label && String(opt.label).toLowerCase().includes(lower)
-    );
+    if (!query) return options;
+    const searchWords = query.toLowerCase().split(/\s+/).filter(Boolean);
+    
+    const results = options.filter((opt) => {
+      if (!opt || !opt.label) return false;
+      const label = String(opt.label).toLowerCase();
+      // Every search word MUST be found in the label
+      return searchWords.every(word => label.includes(word));
+    });
     return results;
   }, [options, query]);
 

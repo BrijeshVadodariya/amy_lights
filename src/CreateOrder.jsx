@@ -927,6 +927,24 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     }
   };
 
+  const handleNotePaste = async (e, id) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    const imageFiles = [];
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      handleImageUpload(id, imageFiles);
+    }
+  };
+
   const handleRemoveImageInput = (actId, imgIdx) => {
     setActivityInputs(prev => {
       const current = prev[actId];
@@ -2200,6 +2218,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                       <div className="note-half right-half">
                         <label 
                           className={`v2-upload-zone ${dragActiveId === act.id ? 'dragging' : ''}`}
+                          tabIndex="0"
+                          onPaste={(e) => handleNotePaste(e, act.id)}
                           onDragOver={(e) => {
                             e.preventDefault();
                             setDragActiveId(act.id);
@@ -2212,14 +2232,16 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                               handleImageUpload(act.id, e.dataTransfer.files);
                             }
                           }}
+                          style={{ outline: 'none' }}
                         >
                           <Paperclip size={20} />
                           <span className="upload-text">
-                            {dragActiveId === act.id ? 'Drop images here' : 'Upload Images'}
+                            {dragActiveId === act.id ? 'Drop images here' : 'Upload or Paste Images'}
                           </span>
                           {!isMobile && <span className="upload-hint">or Drag & Drop</span>}
                           <input type="file" multiple accept="image/*" className="hidden-file-input" onChange={e => handleImageUpload(act.id, e.target.files)} />
                         </label>
+
                         {activityInputs[act.id]?.images?.length > 0 && (
                           <div className="v2-image-previews">
                             {activityInputs[act.id].images.map((img, i) => (
