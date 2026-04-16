@@ -368,7 +368,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     is_desc: false,
     is_image: false,
     is_beam: false,
-    is_beam: false,
     is_automate: false,
     opportunity_id: ''
   });
@@ -391,6 +390,20 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const [generalNotes, setGeneralNotes] = useState([]);
   const [generalNoteInput, setGeneralNoteInput] = useState('');
   const [deletedActivityIds, setDeletedActivityIds] = useState([]);
+
+  // Modal & Form States (Restored to fix lint errors)
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ 
+    name: '', billing_name: '', contact_person: '', mobile: '', 
+    billing_address: '', delivery_address: '', electrician: '', 
+    electrician_number: '', architect: '', architect_number: '', 
+    office_contact_person: '' 
+  });
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [newProduct, setNewProduct] = useState({ 
+    name: '', product_code: '', unit: '', price: 0, note: '' 
+  });
+
   const safeNavigate = (to) => {
     onNavigate(to);
   };
@@ -1120,6 +1133,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     }, 50);
   };
 
+
+
   const handleSaveCustomer = async () => {
     if (!newCustomer.name) return alert("Party Name is required");
     try {
@@ -1228,7 +1243,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           product_uom_qty: parseFloat(r.qty) || 0,
           price_unit: parseFloat(r.price) || 0,
           discount: parseFloat(r.discount) || 0,
-          name: r.remark || '', 
+          name: r.description || r.productName || r.remark || '', 
           line_note: r.line_note || '',
           architect_id: parseInt(orderHeader.architectId) || false,
           electrician_id: parseInt(orderHeader.electricianId) || false

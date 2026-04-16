@@ -486,7 +486,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                                     }}
                                   >
                                     <Trash2 size={12} className="text-orange-500" />
-                                    <span>delete</span>
+                                    <span>Delete</span>
                                   </button>
                                 </>
                               )}
@@ -515,7 +515,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                                     }}
                                   >
                                     <Trash2 size={12} className="text-orange-500" />
-                                    <span>delete</span>
+                                    <span>Delete</span>
                                   </button>
                                 </>
                               )}
@@ -542,7 +542,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                                   }}
                                 >
                                   <Trash2 size={12} className="text-orange-500" />
-                                  <span>delete</span>
+                                  <span>Delete</span>
                                 </button>
                               )}
                               {(order.status === 'cancel' || stateType === 'cancel') && (
@@ -561,7 +561,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                                   }}
                                 >
                                   <Trash2 size={12} className="text-orange-500" />
-                                  <span>delete</span>
+                                  <span>Delete</span>
                                 </button>
                               )}
                               

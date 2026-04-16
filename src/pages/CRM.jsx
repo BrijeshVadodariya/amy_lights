@@ -437,7 +437,7 @@ const CRM = ({ onNavigate }) => {
                                 }}
                               >
                                 <Trash size={12} className="text-orange-500" />
-                                <span>delete</span>
+                                <span>Delete</span>
                               </button>
 
                             </div>

@@ -15,6 +15,7 @@ import Customers from './pages/Customers';
 import CRM from './pages/CRM';
 import CRMDetail from './pages/CRMDetail';
 import CreateCRM from './pages/CreateCRM';
+import Catalog from './pages/Catalog';
 import { Menu } from 'lucide-react';
 import './App.css';
 
