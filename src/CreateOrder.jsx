@@ -1725,12 +1725,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
               {scheduledActivities.length > 0 && (
                 <div className="planned-activities" style={{ marginTop: '0.4rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.4rem' }}>
                   <h3 style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', marginBottom: '0.4rem' }}>Planned Activities</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px', borderBottom: '8px solid transparent' }}>
                     {scheduledActivities.map(act => {
                       const typeName = masterData.activity_types?.find(t => t.id === act.activity_type_id)?.name || 'Activity';
                       const userName = masterData.users?.find(u => u.id === parseInt(act.user_id))?.name || 'Self';
                       return (
-                        <div key={act.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                        <div key={act.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', flexShrink: 0 }}>
                           <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                             <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0', marginTop: '2px' }}>
                               <Clock size={16} className="text-blue-500" />
@@ -1932,14 +1932,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           
           {showNotes && (
             <div className="co-card-body">
-              <div className="gn-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="gn-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px', borderBottom: '8px solid transparent', minHeight: '0' }}>
                 {generalNotes.map(note => (
                   <div key={note.id} className="gn-note-card" style={{ 
                     background: '#fff', 
                     border: '1px solid #e2e8f0', 
                     borderRadius: '12px', 
                     padding: '1rem',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                    flexShrink: 0
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>

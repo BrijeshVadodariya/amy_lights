@@ -269,14 +269,14 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                 <span>Add Task</span>
               </button>
             </div>
-            <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ padding: '14px 14px 0 14px', borderBottom: '14px solid transparent', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', minHeight: '0', boxSizing: 'border-box' }}>
               {lead.activities?.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
                   No planned tasks found.
                 </div>
               ) : (
                 lead.activities.map(act => (
-                  <div key={act.id} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                  <div key={act.id} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
                     <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontWeight: 800, fontSize: '13px', color: '#000' }}>
                         {((act.summary || act.activity_type_name) === 'To Do') ? 'Task' : (act.summary || act.activity_type_name || 'Task')}
@@ -325,14 +325,14 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                 <span>Add Remark</span>
               </button>
             </div>
-            <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ padding: '14px 14px 0 14px', borderBottom: '14px solid transparent', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', minHeight: '0', boxSizing: 'border-box' }}>
               {lead.history?.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
                   No remarks or history found.
                 </div>
               ) : (
                 lead.history.map((msg, idx) => (
-                  <div key={msg.id} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                  <div key={msg.id} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
                     <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, textTransform: 'uppercase' }}>
                         [{msg.author} - {msg.date}]

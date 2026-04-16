@@ -490,14 +490,14 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                 <span>Add Task</span>
               </button>
             </div>
-            <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ padding: '0 14px', borderBottom: '14px solid transparent', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', minHeight: '0', boxSizing: 'border-box' }}>
               {!order.activities || order.activities.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
                   No planned tasks found.
                 </div>
               ) : (
                 order.activities.map((act, idx) => (
-                  <div key={act.id || idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                  <div key={act.id || idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
                     {editingActivityId === act.id ? (
                       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <input
@@ -613,7 +613,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                 <span>Add Remark</span>
               </button>
             </div>
-            <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ padding: '0 14px', borderBottom: '14px solid transparent', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', minHeight: '0', boxSizing: 'border-box' }}>
               {!order.remark ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
                   No internal remarks found.
@@ -636,7 +636,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                   if (noteLines.length === 0) return <div style={{ textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '12px' }}>No remarks found.</div>;
 
                   return noteLines.map((n) => (
-                    <div key={n.idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                    <div key={n.idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
                       {editingRemarkIdx === n.idx ? (
                         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                            <textarea
