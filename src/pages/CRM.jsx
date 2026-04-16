@@ -35,6 +35,7 @@ const CRM = ({ onNavigate }) => {
   const [quickTaskLeadId, setQuickTaskLeadId] = useState(null);
   const [users, setUsers] = useState([]);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+  const [showFollowups, setShowFollowups] = useState(false);
   const limit = 500; // fetch all, paginate client-side
 
   const fetchStages = async () => {
@@ -108,7 +109,10 @@ const CRM = ({ onNavigate }) => {
       String(l.architect_number || '').toLowerCase().includes(q)    ||  
       String(l.architect_remark || '').toLowerCase().includes(q)    ||  
       String(l.architect_follow_up || '').toLowerCase().includes(q) ||  
-      String(l.notes || '').toLowerCase().includes(q)
+      String(l.partner_follow_up || '').toLowerCase().includes(q)   ||
+      String(l.partner_remark || '').toLowerCase().includes(q)      ||
+      String(l.notes || '').toLowerCase().includes(q)               ||
+      String(l.last_activity || '').toLowerCase().includes(q)
     );
   });
 
@@ -179,9 +183,20 @@ const CRM = ({ onNavigate }) => {
                 type="text"
                 className="search-input"
                 value={searchTerm}
-                placeholder="Search client, architect, notes..."
+                placeholder="Search CRM, Task, Note, Followup..."
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               />
+            </div>
+            <div className="dt-flex" style={{ marginLeft: '12px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: '#64748b', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={showFollowups} 
+                  onChange={(e) => setShowFollowups(e.target.checked)} 
+                  style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                />
+                Show Followups
+              </label>
             </div>
           </div>
 
@@ -233,9 +248,11 @@ const CRM = ({ onNavigate }) => {
                 <tr>
                   <th className="text-center">Sr.No</th>
                   <th>Client</th>
+                  {showFollowups && <th>Client Follow-Up</th>}
                   <th>Address</th>
                   <th>Architect</th>
-                  <th>Arch. Follow-Up</th>
+                  {showFollowups && <th>Arch. Follow-Up</th>}
+                  <th>Task</th>
                   <th>Note</th>
                   <th className="text-center" style={{ width: '90px' }}>Action</th>
                 </tr>
@@ -243,7 +260,7 @@ const CRM = ({ onNavigate }) => {
               <tbody>
                 {currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
+                    <td colSpan={showFollowups ? "9" : "7"} style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
                       No leads found.
                     </td>
                   </tr>
@@ -261,26 +278,40 @@ const CRM = ({ onNavigate }) => {
 
                     {/* Client */}
                     <td className="cell-highlight">
-                      <div className="customer-main">{lead.contact_name || lead.name || '—'}</div>
+                      <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
+                        {lead.contact_name || lead.name || '—'}
+                      </div>
                       {lead.phone && (
-                        <div style={{ fontSize: '10px', color: '#555', marginTop: '2px' }}>
+                        <div style={{ fontSize: '14px', color: '#64748b', marginTop: '2px' }}>
                           {lead.phone}
                         </div>
                       )}
-                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
                          {lead.priority !== undefined && (
-                          <div className="priority-stars">
+                          <div className="priority-stars" style={{ fontSize: '12px' }}>
                             {getPriorityStars(lead.priority)}
                           </div>
                         )}
-                        <span className={`crm-stage-badge stage-default`} style={{ fontSize: '8px', padding: '1px 5px' }}>
+                        <span className={`crm-stage-badge stage-default`} style={{ fontSize: '9px', padding: '2px 6px', fontWeight: 600 }}>
                           {lead.stage}
                         </span>
                       </div>
                     </td>
 
+                    {/* Client Follow-Up (Conditional) */}
+                    {showFollowups && (
+                      <td className="cell-light" style={{ minWidth: '150px' }}>
+                        {lead.partner_follow_up && (
+                           <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '14px' }}>{lead.partner_follow_up}</div>
+                        )}
+                        <div className="note-truncate" title={lead.partner_remark} style={{ color: '#64748b', fontStyle: 'italic', fontSize: '12px', marginTop: '2px' }}>
+                           {lead.partner_remark || '—'}
+                        </div>
+                      </td>
+                    )}
+
                     {/* Address */}
-                    <td className="cell-light">
+                    <td className="cell-light" style={{ fontSize: '13px', color: '#64748b' }}>
                       <div className="note-truncate" title={lead.address}>
                         {lead.address || '—'}
                       </div>
@@ -288,28 +319,39 @@ const CRM = ({ onNavigate }) => {
 
                     {/* Architect */}
                     <td className="cell-highlight">
-                      <div className="customer-main">{lead.architect_name || '—'}</div>
+                      <div className="customer-main" style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+                        {lead.architect_name || '—'}
+                      </div>
                       {lead.architect_number && (
-                        <div style={{ fontSize: '10px', color: '#555', marginTop: '2px' }}>
+                        <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
                           {lead.architect_number}
                         </div>
                       )}
                     </td>
 
-                    {/* Arch. Follow-Up */}
-                    <td className="cell-light">
-                      {lead.architect_follow_up && (
-                        <div style={{ fontWeight: 600, color: '#000', fontSize: '11px' }}>{lead.architect_follow_up}</div>
-                      )}
-                      <div className="note-truncate" title={lead.architect_remark} style={{ color: '#555', fontStyle: 'italic' }}>
-                        {lead.architect_remark || '—'}
+                    {/* Arch. Follow-Up (Conditional) */}
+                    {showFollowups && (
+                      <td className="cell-light" style={{ minWidth: '150px' }}>
+                         {lead.architect_follow_up && (
+                           <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '14px' }}>{lead.architect_follow_up}</div>
+                         )}
+                         <div className="note-truncate" title={lead.architect_remark} style={{ color: '#64748b', fontStyle: 'italic', fontSize: '12px', marginTop: '2px' }}>
+                           {lead.architect_remark || '—'}
+                         </div>
+                      </td>
+                    )}
+
+                    {/* Task Column - Matches Orders list styling */}
+                    <td className="cell-highlight" style={{ padding: '12px' }}>
+                      <div className="note-truncate" title={lead.last_activity} style={{ fontSize: '14px', fontWeight: 500, color: '#475569', lineHeight: '1.4' }}>
+                        {lead.last_activity || <span style={{ color: '#cbd5e1' }}>-</span>}
                       </div>
                     </td>
 
                     {/* Note */}
-                    <td className="cell-highlight">
-                      <div className="note-truncate" title={lead.notes}>
-                        {lead.notes || '—'}
+                    <td className="cell-highlight" style={{ padding: '12px' }}>
+                      <div className="note-truncate" title={lead.notes} style={{ fontSize: '14px', fontWeight: 500, color: '#475569', lineHeight: '1.4' }}>
+                        {lead.notes || <span style={{ color: '#cbd5e1' }}>-</span>}
                       </div>
                     </td>
 

@@ -297,15 +297,15 @@ export const odooService = {
     return res.data.result || { success: false, error: res.data.error };
   },
   deleteLead: async (leadId) => {
-  const res = await api.post('/api/crm/delete_lead', {
-    lead_id: leadId
-  });
-  return res.data.result || { success: false, error: res.data.error };
+    const res = await api.post('/api/crm/delete_lead', {
+      params: { lead_id: leadId }
+    });
+    return res.data.result || { success: false, error: res.data.error };
   },
   deleteOrder: async (orderId) => {
-  const res = await api.post('/api/order/delete_order', {
-    order_id: orderId
-  });
-  return res.data.result || { success: false, error: res.data.error };
+    const res = await api.post('/api/order/delete_order', {
+      params: { order_id: orderId }
+    });
+    return res.data.result || { success: false, error: res.data.error };
   },
 };

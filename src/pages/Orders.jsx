@@ -474,9 +474,12 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                                     className="btn-action-soft"
                                     onClick={async (e) => {
                                       e.stopPropagation();
+                                      if (!window.confirm("Are you sure you want to delete this selection?")) return;
                                       setOpenDropdownId(null);
-                                      try { await odooService.deleteOrder(order.id); fetchOrders();
-                                      }catch(err){
+                                      try { 
+                                        await odooService.deleteOrder(order.id); 
+                                        fetchOrders();
+                                      } catch(err) {
                                         console.error('Error deleting selection', err);
                                       }
                                     }}
@@ -488,39 +491,70 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                               )}
                               {(order.status === 'draft' || stateType === 'quotation') && (
                                 <>
-                                <button 
-                                  className="btn-action-soft"
-                                  style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
-                                  onClick={(e) => { e.stopPropagation(); handleConfirm(order.id); setOpenDropdownId(null); }}
-                                >
-                                  <CheckCircle size={12} style={{ color: '#10b981' }} />
-                                  <span style={{ fontWeight: 700, color: '#10b981' }}>Confirm Order</span>
-                                </button>
+                                  <button 
+                                    className="btn-action-soft"
+                                    style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '4px' }}
+                                    onClick={(e) => { e.stopPropagation(); handleConfirm(order.id); setOpenDropdownId(null); }}
+                                  >
+                                    <CheckCircle size={12} style={{ color: '#10b981' }} />
+                                    <span style={{ fontWeight: 700, color: '#10b981' }}>Confirm Order</span>
+                                  </button>
+                                  <button 
+                                    className="btn-action-soft"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (!window.confirm("Are you sure you want to delete this quotation?")) return;
+                                      setOpenDropdownId(null);
+                                      try { 
+                                        await odooService.deleteOrder(order.id); 
+                                        fetchOrders();
+                                      } catch(err) {
+                                        console.error('Error deleting quotation', err);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 size={12} className="text-orange-500" />
+                                    <span>delete</span>
+                                  </button>
+                                </>
+                              )}
+                              {(order.status === 'sale' || stateType === 'order') && (
                                 <button 
                                   className="btn-action-soft"
                                   onClick={async (e) => {
                                     e.stopPropagation();
+                                    if (!window.confirm("This order is confirmed. Are you sure you want to cancel and delete it?")) return;
                                     setOpenDropdownId(null);
-                                    try { await odooService.deleteOrder(order.id); fetchOrders();
-                                    }catch(err){
-                                      console.error('Error deleting quotation', err);
+                                    try {
+                                      // Cancel (Decline) first as Odoo might not allow deleting a confirmed order
+                                      const res = await odooService.declineOrder(order.id, "Cancelled before intentional deletion");
+                                      if (res.success || !res.error) {
+                                        await odooService.deleteOrder(order.id);
+                                        fetchOrders();
+                                      } else {
+                                        alert(res.error?.message || "Failed to cancel order before deletion");
+                                      }
+                                    } catch(err) {
+                                      console.error('Error deleting sale order', err);
+                                      alert("Error during order deletion process");
                                     }
                                   }}
                                 >
                                   <Trash2 size={12} className="text-orange-500" />
                                   <span>delete</span>
                                 </button>
-                                </>
-                                
                               )}
                               {(order.status === 'cancel' || stateType === 'cancel') && (
                                 <button 
                                   className="btn-action-soft"
                                   onClick={async (e) => {
                                     e.stopPropagation();
+                                    if (!window.confirm("Are you sure you want to delete this cancelled order?")) return;
                                     setOpenDropdownId(null);
-                                    try { await odooService.deleteOrder(order.id); fetchOrders();
-                                    }catch(err){
+                                    try { 
+                                      await odooService.deleteOrder(order.id); 
+                                      fetchOrders();
+                                    } catch(err) {
                                       console.error('Error deleting order', err);
                                     }
                                   }}

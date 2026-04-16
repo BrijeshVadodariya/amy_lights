@@ -126,6 +126,31 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete this ${order.state === 'sale' ? 'Confirmed Order' : order.state === 'selection' ? 'Selection' : 'Quotation'}?`)) return;
+    try {
+      setLoading(true);
+      if (order.state === 'sale') {
+        const cancelRes = await odooService.declineOrder(orderId, "Cancelled before deletion");
+        if (!cancelRes.success && cancelRes.error) {
+          alert(cancelRes.error.message || "Failed to cancel before deletion");
+          setLoading(false);
+          return;
+        }
+      }
+      const res = await odooService.deleteOrder(orderId);
+      if (res.success || !res.error) {
+        onBack();
+      } else {
+        alert(res.error?.message || "Deletion failed");
+        setLoading(false);
+      }
+    } catch {
+      alert("Network error");
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="order-detail-page detail-page-shell flex flex-col items-center justify-center min-vh-70">
@@ -208,6 +233,14 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             <button className="btn-ui" onClick={() => odooService.printQuotation(order.id)} style={{ height: '32px', borderRadius: '4px' }}>
               <Printer size={14} />
               <span>Print</span>
+            </button>
+            <button 
+              className="btn-ui hover:bg-red-50 hover:text-red-500 hover:border-red-200" 
+              onClick={handleDelete}
+              style={{ height: '32px', borderRadius: '4px', transition: 'all 0.2s' }}
+            >
+              <Trash size={14} />
+              <span className="hidden sm:inline">Delete</span>
             </button>
             {(order.state === 'draft' || order.state === 'sent' || order.state === 'selection') && (
               <button 
@@ -593,8 +626,9 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                     const authorName = authorMatch ? authorMatch[1] : null;
                     let cleanText = t.replace(/<[^>]*>/g, '').trim();
                     if (authorName) {
-                      cleanText = cleanText.replace(new RegExp(`^${authorName}[:\s\-]+`, 'i'), '');
-                      cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
+                      const escapedName = authorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                      cleanText = cleanText.replace(new RegExp(`^${escapedName}[:\s\-]+`, 'i'), '');
+                      cleanText = cleanText.replace(new RegExp(`^\\[${escapedName}.*?\\].*?(\\n|$)`, 'i'), '');
                     }
                     return { author: authorName, text: cleanText.trim(), idx };
                   }).filter(o => o.text.length > 0);
@@ -727,22 +761,44 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               </button>
           )}
 
-          {(order.state === 'draft' || order.state === 'sent' || order.state === 'sale') && (
-              <button className="btn-ui" onClick={handleDecline} style={{ height: '36px' }}>
-                <XCircle size={16} />
-                <span>{order.state === 'sale' ? 'Cancel Order' : 'Cancel Quotation'}</span>
+          {(order.state === 'draft' || order.state === 'sent' || order.state === 'sale' || order.state === 'cancel') && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {order.state !== 'cancel' && (
+                <button className="btn-ui" onClick={handleDecline} style={{ height: '36px', flex: 1 }}>
+                  <XCircle size={16} />
+                  <span>{order.state === 'sale' ? 'Cancel Order' : 'Cancel Quotation'}</span>
+                </button>
+              )}
+              <button 
+                className="btn-ui hover:bg-red-50 hover:text-red-500" 
+                onClick={handleDelete} 
+                style={{ height: '36px', flex: 1, borderColor: 'transparent' }}
+              >
+                <Trash size={16} color="#ef4444" />
+                <span style={{ color: '#ef4444' }}>Delete {order.state === 'sale' ? 'Order' : 'Quotation'}</span>
               </button>
+            </div>
           )}
 
           {order.state === 'selection' && (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn-ui primary" onClick={() => handleConvertSelection('draft')} style={{ height: '36px', flex: 1 }}>
-                <FileText size={16} />
-                <span>Draft Quotation</span>
-              </button>
-              <button className="btn-ui primary" onClick={() => handleConvertSelection('sale')} style={{ height: '36px', flex: 1, background: '#000' }}>
-                <CheckCircle size={16} />
-                <span>Confirm Order</span>
+            <div style={{ display: 'flex', gap: '8px', flexDirection: 'column', width: '1000px', maxWidth: '100%' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn-ui primary" onClick={() => handleConvertSelection('draft')} style={{ height: '36px', flex: 1 }}>
+                  <FileText size={16} />
+                  <span>Draft Quotation</span>
+                </button>
+                <button className="btn-ui primary" onClick={() => handleConvertSelection('sale')} style={{ height: '36px', flex: 1, background: '#000' }}>
+                  <CheckCircle size={16} />
+                  <span>Confirm Order</span>
+                </button>
+              </div>
+              <button 
+                className="btn-ui hover:bg-red-50 hover:text-red-500" 
+                onClick={handleDelete} 
+                style={{ height: '36px', width: '100%', borderColor: 'transparent' }}
+              >
+                <Trash size={16} color="#ef4444" />
+                <span style={{ color: '#ef4444' }}>Delete Selection</span>
               </button>
             </div>
           )}
