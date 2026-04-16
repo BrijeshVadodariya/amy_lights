@@ -97,17 +97,18 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
     if (!searchTerm.trim()) return true;
     const q = searchTerm.toLowerCase();
     return (
-      o.name?.toLowerCase().includes(q)           ||  // Sale Order Number (e.g. S00012)
-      o.customer?.toLowerCase().includes(q)        ||  // Customer Name
-      o.phone?.toLowerCase().includes(q)           ||  // Customer Phone / Mobile
-      o.salesperson?.toLowerCase().includes(q)     ||  // Salesperson Name
-      o.architect?.toLowerCase().includes(q)       ||  // Architect Name
-      o.architect_phone?.toLowerCase().includes(q) ||  // Architect Phone
-      o.electrician?.toLowerCase().includes(q)     ||  // Electrician Name
-      o.electrician_phone?.toLowerCase().includes(q)|| // Electrician Phone
-      o.remark?.toLowerCase().includes(q)          ||  // Last Remark / Note
-      o.last_activity?.toLowerCase().includes(q)   ||  // Last Planned Activity / Task
-      o.products?.toLowerCase().includes(q)            // Product names
+      String(o.name || '').toLowerCase().includes(q)           ||  // Sale Order Number (e.g. S00012)
+      String(o.customer || '').toLowerCase().includes(q)        ||  // Customer Name
+      String(o.phone || '').toLowerCase().includes(q)           ||  // Customer Phone / Mobile
+      String(o.salesperson || '').toLowerCase().includes(q)     ||  // Salesperson Name
+      String(o.architect || '').toLowerCase().includes(q)       ||  // Architect Name
+      String(o.architect_phone || '').toLowerCase().includes(q) ||  // Architect Phone
+      String(o.electrician || '').toLowerCase().includes(q)     ||  // Electrician Name
+      String(o.electrician_phone || '').toLowerCase().includes(q)|| // Electrician Phone
+      String(o.remark || '').toLowerCase().includes(q)          ||  // Last Remark / Note
+      String(o.last_activity || '').toLowerCase().includes(q)   ||  // Last Planned Activity / Task
+      String(o.products || '').toLowerCase().includes(q)        ||  // Product names
+      String(o.creator_name || '').toLowerCase().includes(q)        // Creator Name
     );
   });
 

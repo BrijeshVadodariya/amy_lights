@@ -111,6 +111,10 @@ const CRM = ({ onNavigate }) => {
       String(l.architect_follow_up || '').toLowerCase().includes(q) ||  
       String(l.partner_follow_up || '').toLowerCase().includes(q)   ||
       String(l.partner_remark || '').toLowerCase().includes(q)      ||
+      String(l.electrician_name || '').toLowerCase().includes(q)    ||
+      String(l.electrician_number || '').toLowerCase().includes(q)  ||
+      String(l.electrician_remark || '').toLowerCase().includes(q)  ||
+      String(l.creator_name || '').toLowerCase().includes(q)        ||
       String(l.notes || '').toLowerCase().includes(q)               ||
       String(l.last_activity || '').toLowerCase().includes(q)
     );
