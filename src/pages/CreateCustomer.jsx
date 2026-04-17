@@ -6,35 +6,63 @@ import './FormPages.css';
 
 const CreateCustomer = ({ editId, onNavigate, extraData }) => {
   // Where to go back after creating — set by the calling form (create-order / create-selection / create-direct-order)
-  const returnRoute = extraData?.returnRoute || 'create-order';
+  const returnRoute = extraData?.returnRoute || 'customers';
   const [saving, setSaving] = useState(false);
   const [masterData, setMasterData] = useState({ partners: [], architects: [], electricians: [], users: [] });
   const [modalState, setModalState] = useState({ show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
-  const [customer, setCustomer] = useState({
-    name: '',
-    mobile: '',
-    email: '',
-    otherName: '',
-    otherNumber: '',
-    houseNo: '',
-    buildingName: '',
-    area: '',
-    pincode: '',
-    city: '',
-    state: '',
-    empAssigned: '',
-    sourceType: '',
-    source: '',
-    competitor: '',
-    budget: '',
-    gstNo: '',
-    registerAddress: '',
-    operationPerson: '',
-    architectId: '',
-    architectName: '',
-    electricianId: '',
-    electricianName: ''
+  const [customer, setCustomer] = useState(() => {
+    // 1. Check if we have state passed from previous form (return logic)
+    if (extraData?.formState) return extraData.formState;
+
+    // 2. If not editing, check localStorage for a saved draft
+    if (!editId) {
+      const savedDraft = localStorage.getItem('amy_customer_form_draft');
+      if (savedDraft) {
+        try {
+          return JSON.parse(savedDraft);
+        } catch (e) {
+          console.error("Failed to parse Customer draft", e);
+        }
+      }
+    }
+
+    // 3. Fallback to default empty state
+    return {
+      name: '',
+      mobile: '',
+      email: '',
+      otherName: '',
+      otherNumber: '',
+      houseNo: '',
+      buildingName: '',
+      area: '',
+      pincode: '',
+      city: '',
+      state: '',
+      empAssigned: '',
+      sourceType: '',
+      source: '',
+      competitor: '',
+      budget: '',
+      gstNo: '',
+      registerAddress: '',
+      operationPerson: '',
+      architectId: '',
+      architectName: '',
+      electricianId: '',
+      electricianName: ''
+    };
   });
+
+  // Handle auto-saving to localStorage
+  useEffect(() => {
+    if (!editId) {
+      const timeoutId = setTimeout(() => {
+        localStorage.setItem('amy_customer_form_draft', JSON.stringify(customer));
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [customer, editId]);
 
   const [hasChanges, setHasChanges] = useState(false);
   
@@ -190,7 +218,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasChanges]);
 
-  const canSubmit = useMemo(() => customer.name.trim().length > 0, [customer.name]);
+  const canSubmit = useMemo(() => (customer?.name || '').trim().length > 0, [customer?.name]);
 
   const handleSubmit = async () => {
     if (!canSubmit || saving) return;
@@ -232,6 +260,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
         return;
       }
       // Navigate back to the originating form with the partner pre-selected and previous state restored
+      localStorage.removeItem('amy_customer_form_draft');
       setHasChanges(false);
       onNavigate(returnRoute, null, { 
         preFilledPartnerId: res.id || res.data?.id || editId,

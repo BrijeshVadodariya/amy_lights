@@ -337,23 +337,23 @@ const CRM = ({ onNavigate }) => {
                       title="Select all on this page"
                     />
                   </th>
-                  <th style={{ width: '40px' }} className="text-center">Sr.No</th>
-                  <th style={{ width: '85px', fontSize: '11px' }}>Date</th>
-                  <th style={{ minWidth: showFollowups ? '115px' : '120px', fontSize: '11px' }}>Salesperson</th>
-                  <th style={{ minWidth: showFollowups ? '180px' : '230px' }}>Client</th>
-                  <th style={{ minWidth: showFollowups ? '130px' : '180px' }}>Address</th>
+                  <th className="text-center" style={{ width: '40px' }}>Sr</th>
+                  <th style={{ width: '90px' }}>Date</th>
+                  <th style={{ width: '100px' }}>Salesperson</th>
+                  <th style={{ minWidth: '220px' }}>Customer</th>
+                  <th style={{ minWidth: '140px' }}>Address</th>
                   {showFollowups && (
                     <>
-                      <th style={{ minWidth: '160px' }}>Architect</th>
-                      <th style={{ minWidth: '190px' }}>Arch. Follow-Up</th>
-                      <th style={{ minWidth: '190px' }}>Note</th>
+                      <th style={{ minWidth: '180px' }}>Architect</th>
+                      <th style={{ minWidth: '200px' }}>Arch Follow-up</th>
+                      <th style={{ minWidth: '220px' }}>Remarks</th>
                     </>
                   )}
-                  <th style={{ minWidth: showFollowups ? '140px' : '200px' }}>Task</th>
+                  <th style={{ minWidth: showFollowups ? '120px' : '180px' }}>Task</th>
                   <th className="text-center" style={{ width: '90px' }}>Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody> 
                 {currentItems.length === 0 ? (
                   <tr>
                     <td colSpan={showFollowups ? "11" : "8"} style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>

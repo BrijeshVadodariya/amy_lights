@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { X, Plus, Phone, User, MapPin, Activity, DollarSign, Target, Star, FileText } from 'lucide-react';
+import { X, Plus, Phone, User, MapPin, Activity,MessageSquare,Trash, DollarSign, Target, Star, FileText } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import SearchableSelect from '../components/SearchableSelect';
 import './FormPages.css';
@@ -12,8 +12,22 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
   const [modalState, setModalState] = useState({ show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
   
   const [lead, setLead] = useState(() => {
-    // Restore from extraData if available (when coming back from CreateCustomer)
+    // 1. Check if we have state passed directly (return logic)
     if (extraData?.formState) return extraData.formState;
+    
+    // 2. If not editing, check localStorage for a saved draft
+    if (!editId) {
+      const savedDraft = localStorage.getItem('amy_crm_form_draft');
+      if (savedDraft) {
+        try {
+          return JSON.parse(savedDraft);
+        } catch (e) {
+          console.error("Failed to parse CRM draft", e);
+        }
+      }
+    }
+
+    // 3. Fallback to default empty state
     return {
       name: '',
       contact_name: '',
@@ -40,9 +54,63 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
       houseNo: '',
       buildingName: '',
       area: '',
-      state_name: ''
+      state_name: '',
+      remarks: []
     };
   });
+
+  // Persist to localStorage whenever lead changes (only for new records)
+  useEffect(() => {
+    if (!editId) {
+      const timeoutId = setTimeout(() => {
+        localStorage.setItem('amy_crm_form_draft', JSON.stringify(lead));
+      }, 500); // 500ms debounce
+      return () => clearTimeout(timeoutId);
+    }
+  }, [lead, editId]);
+
+  const [newRemark, setNewRemark] = useState('');
+  const [editingRemarkId, setEditingRemarkId] = useState(null);
+  const [editingRemarkText, setEditingRemarkText] = useState('');
+
+  const handleAddRemark = async () => {
+    if (!newRemark.trim() || !editId) return;
+    try {
+      await odooService.addQuickNote(editId, newRemark, 'crm.lead');
+      const updated = await odooService.getCRMLeadDetail(editId);
+      if (updated) setLead(prev => ({ ...prev, remarks: updated.remarks || [] }));
+      setNewRemark('');
+    } catch (err) {
+      alert("Failed to add remark");
+    }
+  };
+
+  const handleEditRemark = (remark) => {
+    setEditingRemarkId(remark.id);
+    setEditingRemarkText(remark.remark);
+  };
+
+  const handleUpdateRemark = async (remarkId) => {
+    try {
+      await odooService.updateRemark(remarkId, editingRemarkText);
+      setEditingRemarkId(null);
+      const updated = await odooService.getCRMLeadDetail(editId);
+      if (updated) setLead(prev => ({ ...prev, remarks: updated.remarks || [] }));
+    } catch (err) {
+      alert("Failed to update remark");
+    }
+  };
+
+  const handleDeleteRemark = async (remarkId) => {
+    if (!window.confirm("Delete this remark?")) return;
+    try {
+      await odooService.deleteRemark(remarkId);
+      const updated = await odooService.getCRMLeadDetail(editId);
+      if (updated) setLead(prev => ({ ...prev, remarks: updated.remarks || [] }));
+    } catch (err) {
+      alert("Failed to delete remark");
+    }
+  };
 
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -93,6 +161,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
             probability: res.probability || 0,
             priority: String(res.priority || '0'),
             description: res.description || '',
+            remarks: res.remarks || [],
             type: res.type || 'opportunity',
             stage_id: extractId(res.stage),
             architect_id: extractId(res.architect_id),
@@ -190,7 +259,14 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
   // Handle return from CreateCustomer with pre-filled data
   useEffect(() => {
     if (extraData?.preFilledPartnerId) {
-      handlePartnerChange(extraData.preFilledPartnerId);
+      const pId = extraData.preFilledPartnerId;
+      // Re-fetch master data to ensure the new partner is in the list
+      odooService.getPartners().then(partners => {
+        if (partners) {
+          setMasterData(prev => ({ ...prev, partners }));
+          handlePartnerChange(pId);
+        }
+      });
     }
   }, [extraData]);
 
@@ -225,6 +301,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
 
       if (res && (res.success || res.id)) {
         setHasChanges(false);
+        localStorage.removeItem('amy_crm_form_draft');
         onNavigate(returnRoute);
       } else {
         alert(`${editId ? 'Update' : 'Creation'} failed`);
@@ -428,9 +505,6 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                     />
                   </div>
                 </div>
-              </div>
-
-              <div className="co-grid-2">
                 <div className="co-input-group">
                   <label>Stage</label>
                   <select 
@@ -470,20 +544,101 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                   />
                 </div>
               </div>
-
-              <div className="co-input-group">
-                <label>Notes / Description</label>
-                <textarea 
-                  className="co-textarea-v2"
-                  placeholder="Detail about the requirement..."
-                  value={lead.description}
-                  onChange={e => { setLead({...lead, description: e.target.value}); setHasChanges(true); }}
-                />
-              </div>
             </div>
           </section>
 
+          <section className="co-form-section" style={{ marginTop: '24px' }}>
+            <div className="co-section-header">
+              <MessageSquare size={18} />
+              <h2>Notes & Remarks</h2>
+            </div>
+            <div className="co-input-stack">
+
+              {editId && (
+                <div className="remarks-section" style={{ marginTop: '20px' }}>
+                  <div className="add-remark-box" style={{ marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input 
+                        className="co-input-v2" 
+                        placeholder="Add a new remark..." 
+                        value={newRemark}
+                        onChange={e => setNewRemark(e.target.value)}
+                        onKeyPress={e => e.key === 'Enter' && handleAddRemark()}
+                      />
+                      <button 
+                        type="button" 
+                        className="co-save-btn" 
+                        style={{ padding: '0 20px', height: '44px' }}
+                        onClick={handleAddRemark}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="remarks-timeline" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {lead.remarks && lead.remarks.length > 0 ? (
+                      lead.remarks.map((r) => (
+                        <div key={r.id} style={{ 
+                          background: '#f8fafc', 
+                          border: '1px solid #e2e8f0', 
+                          borderRadius: '12px', 
+                          padding: '12px' 
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontWeight: 800, fontSize: '13px', color: '#0f172a' }}>{r.salesperson}</span>
+                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>{r.date}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button 
+                                type="button" 
+                                onClick={() => handleEditRemark(r)}
+                                style={{ border: 'none', background: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                              >
+                                Edit
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => handleDeleteRemark(r.id)}
+                                style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer' }}
+                              >
+                                <Trash size={12} />
+                              </button>
+                            </div>
+                          </div>
+                          {editingRemarkId === r.id ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <textarea 
+                                className="co-textarea-v2" 
+                                style={{ minHeight: '60px', padding: '8px' }}
+                                value={editingRemarkText}
+                                onChange={e => setEditingRemarkText(e.target.value)}
+                              />
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button type="button" className="co-save-btn" style={{ padding: '4px 12px', fontSize: '11px' }} onClick={() => handleUpdateRemark(r.id)}>Save</button>
+                                <button type="button" className="co-back-btn" style={{ padding: '4px 12px', fontSize: '11px' }} onClick={() => setEditingRemarkId(null)}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p style={{ margin: 0, fontSize: '14px', color: '#475569', lineHeight: '1.5' }}>{r.remark}</p>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '12px' }}>
+                        No remarks history.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
+
+
+
 
         {/* Right Span: Other Details (Professionals & Address) */}
         <div className="co-form-side">
@@ -671,6 +826,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               </div>
             </div>
           </section>
+
         </div>
       </div>
 

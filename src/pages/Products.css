@@ -121,7 +121,7 @@
 }
 
 .products-datatable th:after {
-  content: '↕';
+  /* content: '↕'; */
   float: right;
   opacity: 0.3;
   font-size: 10px;

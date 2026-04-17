@@ -308,4 +308,16 @@ export const odooService = {
     });
     return res.data.result || { success: false, error: res.data.error };
   },
+  updateRemark: async (remarkId, newText) => {
+    const res = await api.post('/api/order/update_remark', {
+      params: { remark_id: remarkId, new_text: newText }
+    });
+    return res.data.result || { success: false, error: res.data.error };
+  },
+  deleteRemark: async (remarkId) => {
+    const res = await api.post('/api/order/delete_remark', {
+      params: { remark_id: remarkId }
+    });
+    return res.data.result || { success: false, error: res.data.error };
+  },
 };

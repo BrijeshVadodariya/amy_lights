@@ -361,6 +361,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
   const [orderHeader, setOrderHeader] = useState(() => {
     if (extraData?.formState?.orderHeader) return extraData.formState.orderHeader;
+    
+    // Check localStorage for a saved draft
+    if (!editId) {
+      const savedDraft = localStorage.getItem('amy_order_draft_header');
+      if (savedDraft) {
+        try { return JSON.parse(savedDraft); } catch (e) { console.error("Failed to parse Order Header draft", e); }
+      }
+    }
+
     return {
       partnerId: '',
       date: new Date().toISOString().split('T')[0],
@@ -388,10 +397,27 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
   const [rows, setRows] = useState(() => {
     if (extraData?.formState?.rows) return extraData.formState.rows;
+    
+    // Check localStorage for a saved draft
+    if (!editId) {
+      const savedDraft = localStorage.getItem('amy_order_draft_rows');
+      if (savedDraft) {
+        try { return JSON.parse(savedDraft); } catch (e) { console.error("Failed to parse Order Rows draft", e); }
+      }
+    }
+
     return [createProductRow()];
   });
 
-  const [generalNotes, setGeneralNotes] = useState([]);
+  const [generalNotes, setGeneralNotes] = useState(() => {
+    if (!editId) {
+      const savedDraft = localStorage.getItem('amy_order_draft_notes');
+      if (savedDraft) {
+        try { return JSON.parse(savedDraft); } catch (e) { console.error("Failed to parse Order Notes draft", e); }
+      }
+    }
+    return [];
+  });
   const [generalNoteInput, setGeneralNoteInput] = useState('');
   const [deletedActivityIds, setDeletedActivityIds] = useState([]);
 
@@ -433,6 +459,24 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const userOptions = useMemo(() => {
     return (masterData.users || []).map(u => ({ value: u.id, label: u.name }));
   }, [masterData.users]);
+
+  // Handle auto-saving to localStorage
+  useEffect(() => {
+    if (!editId) {
+      const timeoutId = setTimeout(() => {
+        localStorage.setItem('amy_order_draft_header', JSON.stringify(orderHeader));
+        localStorage.setItem('amy_order_draft_rows', JSON.stringify(rows));
+        localStorage.setItem('amy_order_draft_notes', JSON.stringify(generalNotes));
+      }, 800);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [orderHeader, rows, generalNotes, editId]);
+
+  const clearDraft = () => {
+    localStorage.removeItem('amy_order_draft_header');
+    localStorage.removeItem('amy_order_draft_rows');
+    localStorage.removeItem('amy_order_draft_notes');
+  };
   // --- HELPER FUNCTIONS (Moved up to avoid "before initialization" errors) ---
 
   const fetchMasterData = React.useCallback(async () => {
@@ -740,32 +784,40 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
          // --- NEW: Sync Notes and Activities from Backend ---
          // 1. Sync General Notes (Remark field)
-         const remark = data.remark || data.note || '';
-         if (remark) {
-            // Try splitting by common separators used in the backend
-            const parts = remark.split(/\n---\n|<br\s*\/?>/).filter(Boolean);
-            setGeneralNotes(parts.map(t => {
-               const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
-               const authorName = authorMatch ? authorMatch[1] : 'Odoo';
-               let cleanText = t.replace(/<[^>]*>?/gm, '').trim();
-               
-               if (authorName !== 'Odoo') {
-                  // Strip "Name: " prefix
-                  cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
-                  // Strip "[Name - Date]\n" prefix
-                  cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
-               }
-               
-               return {
-                 id: `hist-${Math.random()}`,
-                 text: cleanText.trim(),
-                 date: data.date_order || '',
-                 by: authorName,
-                 is_new: false
-               };
-            }));
-            setShowNotes(true);
-         }
+          if (data.remarks && Array.isArray(data.remarks)) {
+             setGeneralNotes(data.remarks.map(r => ({
+               id: r.id,
+               text: r.remark,
+               date: r.date,
+               by: r.salesperson,
+               is_new: false,
+               is_structured: true
+             })));
+             setShowNotes(true);
+          } else if (data.remark || data.note) {
+             // Fallback for old orders without structured remarks
+             const remark = data.remark || data.note || '';
+             const parts = remark.split(/\n---\n|<br\s*\/?>/).filter(Boolean);
+             setGeneralNotes(parts.map(t => {
+                const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/);
+                const authorName = authorMatch ? authorMatch[1] : 'Odoo';
+                let cleanText = t.replace(/<[^>]*>?/gm, '').trim();
+                
+                if (authorName !== 'Odoo') {
+                   cleanText = cleanText.replace(new RegExp(`^${authorName}:\\s*`, 'i'), '');
+                   cleanText = cleanText.replace(new RegExp(`^\\[${authorName}.*?\\].*?(\\n|$)`, 'i'), '');
+                }
+                
+                return {
+                  id: `hist-${Math.random()}`,
+                  text: cleanText.trim(),
+                  date: data.date_order || '',
+                  by: authorName,
+                  is_new: false
+                };
+             }));
+             setShowNotes(true);
+          }
  
          // 3. Sync Scheduled Activities (Tasks)
          if (data.activities && Array.isArray(data.activities) && data.activities.length > 0) {
@@ -814,21 +866,23 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           electricianId: p.electrician_id || p.electrician || ''
         }));
       } else if (targetPartnerId) {
+        // Ensure master data is refreshed so the new partner appears in the dropdown list
         fetchMasterData().then(() => {
-          odooService.getPartners().then(partners => {
-            const partner = partners?.find(p => String(p.id) === String(targetPartnerId));
-            if (partner) {
-              setOrderHeader(prev => ({ 
-                ...prev, 
-                partnerId: targetPartnerId,
-                partnerName: partner.name,
-                architectId: partner.architect_id || '',
-                electricianId: partner.electrician_id || ''
-              }));
-            } else {
-              setOrderHeader(prev => ({ ...prev, partnerId: targetPartnerId }));
-            }
-          });
+           // We explicitly update orderHeader with the ID. 
+           // The dropdown Options will now include the new partner from fetchMasterData.
+           setOrderHeader(prev => ({ ...prev, partnerId: targetPartnerId }));
+           
+           // Fetch full partner details to auto-fill address etc.
+           odooService.getPartnerDetail(targetPartnerId).then(res => {
+             if (res) {
+               setOrderHeader(prev => ({
+                 ...prev,
+                 partnerName: res.name || prev.partnerName,
+                 architectId: (res.architect_id && Array.isArray(res.architect_id)) ? res.architect_id[0] : (res.architect_id || prev.architectId),
+                 electricianId: (res.electrician_id && Array.isArray(res.electrician_id)) ? res.electrician_id[0] : (res.electrician_id || prev.electricianId)
+               }));
+             }
+           });
         });
       }
       
@@ -865,8 +919,31 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   });
   const [showActivitySection, setShowActivitySection] = useState(false);
 
-  const handleAddGeneralNote = () => {
+  const handleAddGeneralNote = async () => {
     if (!generalNoteInput.trim()) return;
+    
+    if (editId) {
+      try {
+        await odooService.addQuickNote(editId, generalNoteInput, 'sale.order');
+        const res = await odooService.getOrderDetail(editId);
+        if (res && res.remarks) {
+          setGeneralNotes(res.remarks.map(r => ({
+            id: r.id,
+            text: r.remark,
+            date: r.date,
+            by: r.salesperson,
+            is_new: false,
+            is_structured: true
+          })));
+        }
+        setGeneralNoteInput("");
+        return;
+      } catch (err) {
+        console.error("Failed to add structured remark", err);
+      }
+    }
+
+    // Fallback for new orders
     const newNote = {
       id: `new-${Date.now()}`,
       text: generalNoteInput,
@@ -884,13 +961,56 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     setNoteEditText(currentText);
   };
 
-  const saveEditNote = (id) => {
+  const saveEditNote = async (id) => {
+    const note = generalNotes.find(n => n.id === id);
+    if (note && note.is_structured && editId) {
+      try {
+        await odooService.updateRemark(id, noteEditText);
+        const res = await odooService.getOrderDetail(editId);
+        if (res && res.remarks) {
+          setGeneralNotes(res.remarks.map(r => ({
+            id: r.id,
+            text: r.remark,
+            date: r.date,
+            by: r.salesperson,
+            is_new: false,
+            is_structured: true
+          })));
+        }
+        setEditingNoteId(null);
+        return;
+      } catch (err) {
+        alert("Failed to update remark");
+      }
+    }
+    
     setGeneralNotes(prev => prev.map(n => n.id === id ? { ...n, text: noteEditText } : n));
     setEditingNoteId(null);
     setNoteEditText("");
   };
 
-  const handleDeleteNote = (id) => {
+  const handleDeleteNote = async (id) => {
+    const note = generalNotes.find(n => n.id === id);
+    if (note && note.is_structured && editId) {
+      if (!window.confirm("Delete this remark?")) return;
+      try {
+        await odooService.deleteRemark(id);
+        const res = await odooService.getOrderDetail(editId);
+        if (res && res.remarks) {
+          setGeneralNotes(res.remarks.map(r => ({
+            id: r.id,
+            text: r.remark,
+            date: r.date,
+            by: r.salesperson,
+            is_new: false,
+            is_structured: true
+          })));
+        }
+        return;
+      } catch (err) {
+        alert("Failed to delete remark");
+      }
+    }
     setGeneralNotes(prev => prev.filter(n => n.id !== id));
   };
 
@@ -1210,15 +1330,19 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     setLoading(true);
     try {
       const finalProductLines = productLines.map((r, idx) => {
-        // If it's a section, we send it without product_id and with display_type
+        const isExisting = typeof r.id === 'number' && String(r.id).length < 12;
+        const cmd = isExisting ? 1 : 0;
+        const lineId = isExisting ? r.id : 0;
+
         if (r.display_type === 'line_section') {
-          return [0, 0, {
+          return [cmd, lineId, {
             display_type: 'line_section',
-            name: r.productName || 'Section',
+            name: r.productName || r.remark || 'Section',
             product_id: false,
             product_uom_qty: 0,
             price_unit: 0,
-            discount: 0
+            discount: 0,
+            sequence: idx * 10
           }];
         }
 
@@ -1238,10 +1362,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           finalProdId = numericProdId;
         }
 
-        const isExisting = typeof r.id === 'number' && String(r.id).length < 12; // Odoo IDs are typically shorter than timestamps
-        const cmd = isExisting ? 1 : 0;
-        const lineId = isExisting ? r.id : 0;
-
         return [cmd, lineId, {
           product_id: parseInt(finalProdId),
           product_uom_qty: parseFloat(r.qty) || 0,
@@ -1250,7 +1370,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           name: r.description || r.productName || r.remark || '', 
           line_note: r.line_note || '',
           architect_id: parseInt(orderHeader.architectId) || false,
-          electrician_id: parseInt(orderHeader.electricianId) || false
+          electrician_id: parseInt(orderHeader.electricianId) || false,
+          sequence: idx * 10
         }];
       }).filter(Boolean);
 
@@ -1384,9 +1505,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         ? await odooService.updateQuotation(editId, resPartnerId, finalProductLines, finalExtraData)
         : await odooService.createQuotation(resPartnerId, finalProductLines, finalExtraData);
         
-      if (res.success) {
-        setActivityHistory({});
-        onNavigate((targetState === 'sale' || isOrder) ? 'orders' : (targetState === 'draft' || isSelection ? (targetState === 'draft' ? 'quotations' : 'selection') : 'quotations'));
+      if (res && (res.success || res.id)) {
+        clearDraft();
+        const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder || targetState === 'sale' ? 'orders' : 'quotations'));
+        onNavigate(finalReturn);
       } else {
         alert(res.error?.message || "Error processing order");
       }
@@ -2327,7 +2449,13 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             
             <button 
               className="co-btn co-btn-secondary" 
-              onClick={() => onNavigate(isSelection ? 'selection' : isOrder ? 'orders' : 'quotations')}
+              onClick={() => {
+                if (confirm("Any unsaved changes will be lost. Continue?")) {
+                  clearDraft();
+                  const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder ? 'orders' : 'quotations'));
+                  onNavigate(finalReturn);
+                }
+              }}
               style={{
                 height: '52px',
                 padding: '0 1.75rem',

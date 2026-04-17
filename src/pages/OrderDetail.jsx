@@ -614,69 +614,25 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               </button>
             </div>
             <div style={{ padding: '0 14px', borderBottom: '14px solid transparent', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', minHeight: '0', boxSizing: 'border-box' }}>
-              {!order.remark ? (
+              {!order.remarks || order.remarks.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
                   No internal remarks found.
                 </div>
               ) : (
-                (() => {
-                  const parts = order.remark.split(/\n---\n/);
-                  const noteLines = parts.map((t, idx) => {
-                    const authorMatch = t.match(/<b>(.*?)<\/b>/) || t.match(/^\[(.*?) - .*?\]/) || t.match(/^([^:]+):\s*/);
-                    const authorName = authorMatch ? authorMatch[1] : null;
-                    let cleanText = t.replace(/<[^>]*>/g, '').trim();
-                    if (authorName) {
-                      const escapedName = authorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                      cleanText = cleanText.replace(new RegExp(`^${escapedName}[:\s\-]+`, 'i'), '');
-                      cleanText = cleanText.replace(new RegExp(`^\\[${escapedName}.*?\\].*?(\\n|$)`, 'i'), '');
-                    }
-                    return { author: authorName, text: cleanText.trim(), idx };
-                  }).filter(o => o.text.length > 0);
-
-                  if (noteLines.length === 0) return <div style={{ textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '12px' }}>No remarks found.</div>;
-
-                  return noteLines.map((n) => (
-                    <div key={n.idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
-                      {editingRemarkIdx === n.idx ? (
-                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                           <textarea
-                            value={remarkEditText}
-                            onChange={e => setRemarkEditText(e.target.value)}
-                            style={{ width: '100%', minHeight: '70px', padding: '8px', borderRadius: '6px', border: '1px solid #10b981', fontSize: '13px' }}
-                          />
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={async () => {
-                                const res = await odooService.updateRemark(orderId, n.idx, remarkEditText);
-                                if (res.success || !res.error) { fetchOrder(); setEditingRemarkIdx(null); }
-                              }}
-                              style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 12px', fontSize: '12px' }}
-                            >
-                              Save
-                            </button>
-                            <button onClick={() => setEditingRemarkIdx(null)} style={{ background: '#eee', border: 'none', borderRadius: '6px', padding: '4px 12px', fontSize: '12px' }}>Cancel</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap', flex: 1 }}>{n.text}</p>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              <button onClick={() => { setEditingRemarkIdx(n.idx); setRemarkEditText(n.text); }} style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Edit2 size={13} /></button>
-                              <button onClick={async () => {
-                                if (window.confirm('Delete this remark?')) {
-                                  await odooService.deleteRemark(orderId, n.idx);
-                                  fetchOrder();
-                                }
-                              }} style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Trash size={13} /></button>
-                            </div>
-                          </div>
-                          <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>{n.author ? `By ${n.author}` : `Internal Note`}</span>
-                        </>
-                      )}
+                order.remarks.map((r, idx) => (
+                  <div key={r.id} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, textTransform: 'uppercase' }}>
+                        [{r.salesperson} - {r.date}]
+                      </span>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Edit size={13} /></button>
+                        <button style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Trash size={13} /></button>
+                      </div>
                     </div>
-                  ));
-                })()
+                    <p style={{ margin: 0, fontSize: '13px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap', flex: 1 }}>{r.remark}</p>
+                  </div>
+                ))
               )}
             </div>
           </div>
