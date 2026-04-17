@@ -8,7 +8,6 @@ import {
   Phone,
   ChevronDown,
   MessageSquare,
-  Calendar,
   CheckCircle,
   Layout,
   RefreshCw,
@@ -36,6 +35,14 @@ const CRM = ({ onNavigate }) => {
   const [users, setUsers] = useState([]);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const [showFollowups, setShowFollowups] = useState(false);
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Today's task filter
+  const [filterToday, setFilterToday] = useState(false);
+
   const limit = 500; // fetch all, paginate client-side
 
   const fetchStages = async () => {
@@ -96,19 +103,39 @@ const CRM = ({ onNavigate }) => {
     return '⭐'.repeat(priority + 1);
   };
 
+  const stripHtml = (html) => {
+    if (!html) return '';
+    return html.replace(/<[^>]*>/g, '')
+               .replace(/&nbsp;/g, ' ')
+               .replace(/&amp;/g, '&')
+               .replace(/&lt;/g, '<')
+               .replace(/&gt;/g, '>')
+               .trim();
+  };
+
+  // Today helper — ISO YYYY-MM-DD to match backend activity_date format
+  const todayISO = new Date().toISOString().split('T')[0];
+
   // Wide search across all relevant CRM fields
   const filtered = leads.filter(l => {
+    // 1. Today's Task Filter — activity_date is YYYY-MM-DD from backend
+    if (filterToday) {
+      if (!l.activity_date) return false;
+      if (l.activity_date !== todayISO) return false;
+    }
+
+    // 2. Search filter
     if (!searchTerm.trim()) return true;
     const q = searchTerm.toLowerCase();
     return (
-      String(l.name || '').toLowerCase().includes(q)               ||  
-      String(l.contact_name || '').toLowerCase().includes(q)        ||  
-      String(l.phone || '').toLowerCase().includes(q)               ||  
-      String(l.address || '').toLowerCase().includes(q)             ||  
-      String(l.architect_name || '').toLowerCase().includes(q)      ||  
-      String(l.architect_number || '').toLowerCase().includes(q)    ||  
-      String(l.architect_remark || '').toLowerCase().includes(q)    ||  
-      String(l.architect_follow_up || '').toLowerCase().includes(q) ||  
+      String(l.name || '').toLowerCase().includes(q)               ||
+      String(l.contact_name || '').toLowerCase().includes(q)        ||
+      String(l.phone || '').toLowerCase().includes(q)               ||
+      String(l.address || '').toLowerCase().includes(q)             ||
+      String(l.architect_name || '').toLowerCase().includes(q)      ||
+      String(l.architect_number || '').toLowerCase().includes(q)    ||
+      String(l.architect_remark || '').toLowerCase().includes(q)    ||
+      String(l.architect_follow_up || '').toLowerCase().includes(q) ||
       String(l.partner_follow_up || '').toLowerCase().includes(q)   ||
       String(l.partner_remark || '').toLowerCase().includes(q)      ||
       String(l.electrician_name || '').toLowerCase().includes(q)    ||
@@ -125,6 +152,35 @@ const CRM = ({ onNavigate }) => {
   const indexOfFirstItem = (currentPage - 1) * entriesPerPage;
   const indexOfLastItem = indexOfFirstItem + entriesPerPage;
   const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Multi-select helpers (defined AFTER currentItems)
+  const allCurrentSelected = currentItems.length > 0 && currentItems.every(l => selectedIds.has(l.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allCurrentSelected) {
+      setSelectedIds(prev => { const next = new Set(prev); currentItems.forEach(l => next.delete(l.id)); return next; });
+    } else {
+      setSelectedIds(prev => { const next = new Set(prev); currentItems.forEach(l => next.add(l.id)); return next; });
+    }
+  };
+
+  const toggleSelectOne = (id) => {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} selected lead(s)? This cannot be undone.`)) return;
+    setIsBulkDeleting(true);
+    try {
+      await Promise.all([...selectedIds].map(id => odooService.deleteLead(id).catch(() => {})));
+      setSelectedIds(new Set());
+      fetchLeads();
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   const handlePageChange = (p) => {
     if (p >= 1 && p <= totalPages) setCurrentPage(p);
@@ -205,6 +261,16 @@ const CRM = ({ onNavigate }) => {
           </div>
 
           <div className="dt-toolbar-right">
+            {/* Today's Tasks filter */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, color: filterToday ? '#3b82f6' : '#64748b', background: filterToday ? '#eff6ff' : '#f8fafc', border: `1px solid ${filterToday ? '#bfdbfe' : '#e2e8f0'}`, borderRadius: '8px', padding: '5px 10px', transition: 'all 0.2s', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={filterToday}
+                onChange={(e) => { setFilterToday(e.target.checked); setCurrentPage(1); }}
+                style={{ width: '14px', height: '14px', accentColor: '#3b82f6', cursor: 'pointer' }}
+              />
+              Today's Tasks
+            </label>
             {/* Stage filter */}
             <div className="dt-flex crm-filter-inline">
               <select
@@ -232,10 +298,22 @@ const CRM = ({ onNavigate }) => {
               </button>
             )}
             <div className="btn-group-wrap">
-              <button className="btn-ui primary" onClick={() => onNavigate('create-crm')}>
-                <Plus size={14} />
-                <span>New Lead</span>
-              </button>
+              {someSelected ? (
+                <button
+                  className="btn-ui"
+                  style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', fontWeight: 700 }}
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                >
+                  <Trash size={14} />
+                  <span>{isBulkDeleting ? 'Deleting...' : `Delete (${selectedIds.size})`}</span>
+                </button>
+              ) : (
+                <button className="btn-ui primary" onClick={() => onNavigate('create-crm')}>
+                  <Plus size={14} />
+                  <span>New Lead</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -250,21 +328,35 @@ const CRM = ({ onNavigate }) => {
             <table className="products-datatable crm-table">
               <thead>
                 <tr>
-                  <th className="text-center">Sr.No</th>
-                  <th>Client</th>
-                  {showFollowups && <th>Client Follow-Up</th>}
-                  <th>Address</th>
-                  <th>Architect</th>
-                  {showFollowups && <th>Arch. Follow-Up</th>}
-                  <th>Task</th>
-                  <th>Note</th>
+                  <th style={{ width: '36px', padding: '8px 6px' }} className="text-center">
+                    <input
+                      type="checkbox"
+                      checked={allCurrentSelected}
+                      onChange={toggleSelectAll}
+                      style={{ width: '15px', height: '15px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                      title="Select all on this page"
+                    />
+                  </th>
+                  <th style={{ width: '40px' }} className="text-center">Sr.No</th>
+                  <th style={{ width: '85px', fontSize: '11px' }}>Date</th>
+                  <th style={{ minWidth: showFollowups ? '115px' : '120px', fontSize: '11px' }}>Salesperson</th>
+                  <th style={{ minWidth: showFollowups ? '180px' : '230px' }}>Client</th>
+                  <th style={{ minWidth: showFollowups ? '130px' : '180px' }}>Address</th>
+                  {showFollowups && (
+                    <>
+                      <th style={{ minWidth: '160px' }}>Architect</th>
+                      <th style={{ minWidth: '190px' }}>Arch. Follow-Up</th>
+                      <th style={{ minWidth: '190px' }}>Note</th>
+                    </>
+                  )}
+                  <th style={{ minWidth: showFollowups ? '140px' : '200px' }}>Task</th>
                   <th className="text-center" style={{ width: '90px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan={showFollowups ? "9" : "7"} style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
+                    <td colSpan={showFollowups ? "11" : "8"} style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
                       No leads found.
                     </td>
                   </tr>
@@ -273,15 +365,32 @@ const CRM = ({ onNavigate }) => {
                     key={lead.id} 
                     className="row-hover" 
                     onClick={() => onNavigate('crm-detail', lead.id)}
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: 'pointer', background: selectedIds.has(lead.id) ? '#eff6ff' : undefined }}
                   >
-                    {/* Sr.No */}
-                    <td className="text-center cell-light" style={{ fontWeight: 600, color: '#000' }}>
+                    <td style={{ padding: '8px 6px', width: '36px' }} className="text-center" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(lead.id)}
+                        onChange={() => toggleSelectOne(lead.id)}
+                        style={{ width: '15px', height: '15px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                      />
+                    </td>
+                    <td className="text-center cell-light" style={{ width: '40px', fontSize: '12px', fontWeight: 600, color: '#000' }}>
                       {indexOfFirstItem + idx + 1}
                     </td>
-
-                    {/* Client */}
-                    <td className="cell-highlight">
+                    <td className="cell-light" style={{ width: '85px', fontSize: '11px' }}>
+                      {lead.activity_date ? (
+                        <span style={{ color: lead.activity_date === todayISO ? '#3b82f6' : '#64748b', fontWeight: lead.activity_date === todayISO ? 700 : 400 }}>
+                          {lead.activity_date}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#cbd5e1' }}>{lead.create_date ? String(lead.create_date).substring(0, 10) : '—'}</span>
+                      )}
+                    </td>
+                    <td className="cell-light" style={{ width: '110px', fontSize: '11px', color: '#64748b' }}>
+                      <div className="note-truncate" title={lead.salesperson}>{lead.salesperson || '—'}</div>
+                    </td>
+                    <td className="cell-highlight" style={{ minWidth: '200px' }}>
                       <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
                         {lead.contact_name || lead.name || '—'}
                       </div>
@@ -301,69 +410,42 @@ const CRM = ({ onNavigate }) => {
                         </span>
                       </div>
                     </td>
-
-                    {/* Client Follow-Up (Conditional) */}
-                    {showFollowups && (
-                      <td className="cell-light" style={{ minWidth: '150px' }}>
-                        {lead.partner_follow_up && (
-                           <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '14px' }}>{lead.partner_follow_up}</div>
-                        )}
-                        <div className="note-truncate" title={lead.partner_remark} style={{ color: '#64748b', fontStyle: 'italic', fontSize: '12px', marginTop: '2px' }}>
-                           {lead.partner_remark || '—'}
-                        </div>
-                      </td>
-                    )}
-
-                    {/* Address */}
-                    <td className="cell-light" style={{ fontSize: '13px', color: '#64748b' }}>
+                    <td className="cell-light" style={{ minWidth: '150px', fontSize: '13px', color: '#64748b' }}>
                       <div className="note-truncate" title={lead.address}>
                         {lead.address || '—'}
                       </div>
                     </td>
-
-                    {/* Architect */}
-                    <td className="cell-highlight">
-                      <div className="customer-main" style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-                        {lead.architect_name || '—'}
-                      </div>
-                      {lead.architect_number && (
-                        <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
-                          {lead.architect_number}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Arch. Follow-Up (Conditional) */}
                     {showFollowups && (
-                      <td className="cell-light" style={{ minWidth: '150px' }}>
-                         {lead.architect_follow_up && (
-                           <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '14px' }}>{lead.architect_follow_up}</div>
-                         )}
-                         <div className="note-truncate" title={lead.architect_remark} style={{ color: '#64748b', fontStyle: 'italic', fontSize: '12px', marginTop: '2px' }}>
-                           {lead.architect_remark || '—'}
-                         </div>
-                      </td>
+                      <>
+                        <td className="cell-highlight" style={{ minWidth: '150px' }}>
+                          <div className="customer-main" style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+                            {lead.architect_name || '—'}
+                          </div>
+                          {lead.architect_number && (
+                            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{lead.architect_number}</div>
+                          )}
+                        </td>
+                        <td className="cell-light" style={{ minWidth: '180px' }}>
+                           {lead.architect_follow_up && (
+                             <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '14px' }}>{lead.architect_follow_up}</div>
+                           )}
+                           <div className="note-truncate" title={stripHtml(lead.architect_remark)} style={{ color: '#64748b', fontStyle: 'italic', fontSize: '12px', marginTop: '2px' }}>
+                             {stripHtml(lead.architect_remark) || '—'}
+                           </div>
+                        </td>
+                        <td className="cell-highlight" style={{ minWidth: '180px', padding: '12px' }}>
+                          <div className="note-truncate" title={stripHtml(lead.notes)} style={{ fontSize: '14px', fontWeight: 500, color: '#475569', lineHeight: '1.4' }}>
+                            {stripHtml(lead.notes) || <span style={{ color: '#cbd5e1' }}>-</span>}
+                          </div>
+                        </td>
+                      </>
                     )}
-
-                    {/* Task Column - Matches Orders list styling */}
-                    <td className="cell-highlight" style={{ padding: '12px' }}>
+                    <td className="cell-highlight" style={{ minWidth: '180px', padding: '12px' }}>
                       <div className="note-truncate" title={lead.last_activity} style={{ fontSize: '14px', fontWeight: 500, color: '#475569', lineHeight: '1.4' }}>
                         {lead.last_activity || <span style={{ color: '#cbd5e1' }}>-</span>}
                       </div>
                     </td>
-
-                    {/* Note */}
-                    <td className="cell-highlight" style={{ padding: '12px' }}>
-                      <div className="note-truncate" title={lead.notes} style={{ fontSize: '14px', fontWeight: 500, color: '#475569', lineHeight: '1.4' }}>
-                        {lead.notes || <span style={{ color: '#cbd5e1' }}>-</span>}
-                      </div>
-                    </td>
-
-                    {/* Actions */}
-                    <td 
-                      className="text-center" 
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <td className="text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="action-cell">
                         <button 
                           className="action-trigger"
@@ -373,28 +455,20 @@ const CRM = ({ onNavigate }) => {
                             if (openDropdownId === lead.id) {
                               setOpenDropdownId(null);
                             } else {
-                              setDropdownPos({ 
-                                top: rect.bottom, 
-                                left: rect.right - 180 
-                              });
+                              setDropdownPos({ top: rect.bottom, left: rect.right - 180 });
                               setOpenDropdownId(lead.id);
                             }
                           }}
                         >
                           <ChevronDown size={14} />
                         </button>
-
                         {openDropdownId === lead.id && createPortal(
                           <div 
                             className={`action-dropdown-popover portal-fix ${idx >= currentItems.length - 3 && currentItems.length > 5 ? 'open-up' : ''}`}
                             style={{ 
                               position: 'fixed',
-                              top: idx >= currentItems.length - 3 && currentItems.length > 5 
-                                ? `${dropdownPos.top - 200}px` 
-                                : `${dropdownPos.top + 5}px`, 
+                              top: idx >= currentItems.length - 3 && currentItems.length > 5 ? `${dropdownPos.top - 200}px` : `${dropdownPos.top + 5}px`, 
                               left: `${dropdownPos.left}px`,
-                              right: 'auto',
-                              bottom: 'auto',
                               zIndex: 9999,
                               minWidth: '180px'
                             }}
@@ -402,46 +476,23 @@ const CRM = ({ onNavigate }) => {
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div style={{ paddingBottom: '4px', borderBottom: '1px solid #f1f5f9' }}>
-                              <button 
-                                className="btn-action-soft"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownId(null);
-                                  setQuickNoteLeadId(lead.id);
-                                }}
-                              >
+                              <button className="btn-action-soft" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); setQuickNoteLeadId(lead.id); }}>
                                 <MessageSquare size={12} className="text-emerald-500" />
                                 <span>Add Remark</span>
                               </button>
-
-                              <button 
-                                className="btn-action-soft"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownId(null);
-                                  setQuickTaskLeadId(lead.id);
-                                }}
-                              >
-                                <Calendar size={12} className="text-orange-500" />
+                              <button className="btn-action-soft" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); setQuickTaskLeadId(lead.id); }}>
+                                <CalendarIcon size={12} className="text-orange-500" />
                                 <span>Add Task</span>
                               </button>
-                              <button 
-                                className="btn-action-soft"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownId(null);
-                                  try { await odooService.deleteLead(lead.id); fetchLeads();
-                                  }catch(err){
-                                    console.error('Error deleting lead', err);
-                                  }
-                                }}
-                              >
+                              <button className="btn-action-soft" onClick={async (e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                try { await odooService.deleteLead(lead.id); fetchLeads(); } catch(err) { console.error('Error deleting lead', err); }
+                              }}>
                                 <Trash size={12} className="text-orange-500" />
                                 <span>Delete</span>
                               </button>
-
                             </div>
-
                             <div className="dropdown-section" style={{ marginTop: '4px' }}>
                               <label style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', padding: '4px 12px', textTransform: 'uppercase' }}>Change Stage</label>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2px', padding: '4px' }}>
@@ -449,11 +500,7 @@ const CRM = ({ onNavigate }) => {
                                   <button 
                                     key={s.id}
                                     className="btn-action-soft"
-                                    style={{ 
-                                      justifyContent: 'flex-start', 
-                                      background: lead.stage === s.name ? '#f1f5f9' : 'transparent',
-                                      fontWeight: lead.stage === s.name ? 700 : 500
-                                    }}
+                                    style={{ justifyContent: 'flex-start', background: lead.stage === s.name ? '#f1f5f9' : 'transparent', fontWeight: lead.stage === s.name ? 700 : 500 }}
                                     onClick={() => handleStageChange(lead.id, s.id)}
                                   >
                                     <RefreshCw size={12} className={lead.stage === s.name ? 'text-blue-500' : 'text-slate-400'} />

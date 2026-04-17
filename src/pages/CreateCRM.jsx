@@ -11,33 +11,37 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
   const [masterData, setMasterData] = useState({ architects: [], electricians: [], users: [], stages: [], partners: [] });
   const [modalState, setModalState] = useState({ show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
   
-  const [lead, setLead] = useState({
-    name: '',
-    contact_name: '',
-    phone: '',
-    mobile: '',
-    email: '',
-    street: '',
-    city: '',
-    zip: '',
-    expected_revenue: 0,
-    probability: 0,
-    priority: '0',
-    description: '',
-    type: 'opportunity',
-    stage_id: '',
-    architect_id: '',
-    architect_number: '',
-    architect_remark: '',
-    architect_follow_up: '',
-    electrician_id: '',
-    partner_id: '',
-    user_id: '',
-    date_deadline: '',
-    houseNo: '',
-    buildingName: '',
-    area: '',
-    state_name: ''
+  const [lead, setLead] = useState(() => {
+    // Restore from extraData if available (when coming back from CreateCustomer)
+    if (extraData?.formState) return extraData.formState;
+    return {
+      name: '',
+      contact_name: '',
+      phone: '',
+      mobile: '',
+      email: '',
+      street: '',
+      city: '',
+      zip: '',
+      expected_revenue: 0,
+      probability: 0,
+      priority: '0',
+      description: '',
+      type: 'opportunity',
+      stage_id: '',
+      architect_id: '',
+      architect_number: '',
+      architect_remark: '',
+      architect_follow_up: '',
+      electrician_id: '',
+      partner_id: '',
+      user_id: '',
+      date_deadline: '',
+      houseNo: '',
+      buildingName: '',
+      area: '',
+      state_name: ''
+    };
   });
 
   const [hasChanges, setHasChanges] = useState(false);
@@ -57,7 +61,12 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
           let parts = streetStr.split(',').map(s => s.trim());
           let hNo = '', bName = '', aName = '';
           if (parts.length === 1) {
-            bName = parts[0];
+            // Smart split: Heuristic for single items
+            if (parts[0].includes(' ') || parts[0].length > 6) {
+              bName = parts[0];
+            } else {
+              hNo = parts[0];
+            }
           } else if (parts.length === 2) {
             hNo = parts[0];
             bName = parts[1];
@@ -136,14 +145,33 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
           return val;
         };
 
+        let streetStr = res.street || '';
+        let parts = streetStr.split(',').map(s => s.trim());
+        let hNo = '', bName = '', aName = '';
+        if (parts.length === 1) {
+          if (parts[0].includes(' ') || parts[0].length > 6) {
+            bName = parts[0];
+          } else {
+            hNo = parts[0];
+          }
+        } else if (parts.length === 2) {
+          hNo = parts[0];
+          bName = parts[1];
+        } else if (parts.length >= 3) {
+          hNo = parts[0];
+          bName = parts[1];
+          aName = parts.slice(2).join(', ');
+        }
+
         setLead(prev => ({
           ...prev,
           partner_id: partnerId,
+          name: res.name || prev.name, // Auto-fill lead name from customer name
           architect_id: extractId(res.architect_id),
           electrician_id: extractId(res.electrician_id),
-          houseNo: res.street?.split(',')[0]?.trim() || '',
-          buildingName: res.street?.split(',')[1]?.trim() || '',
-          area: res.street2 || (res.street?.split(',')[2]?.trim() || ''),
+          houseNo: hNo,
+          buildingName: bName,
+          area: res.street2 || aName,
           zip: res.zip || '',
           city: res.city || '',
           state_name: res.state_name || '',
@@ -166,15 +194,28 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
     }
   }, [extraData]);
 
-  const canSubmit = useMemo(() => lead.name.trim().length > 0, [lead.name]);
+  const canSubmit = useMemo(() => lead.partner_id !== '', [lead.partner_id]);
 
   const handleSubmit = async () => {
     if (!canSubmit || saving) return;
     setSaving(true);
     try {
       let res;
-      let finalStreet = [lead.houseNo, lead.buildingName, lead.area].filter(Boolean).join(', ');
-      const payloadToSend = { ...lead, street: finalStreet };
+      let finalStreet = [lead.houseNo, lead.buildingName].filter(Boolean).join(', ');
+      let finalStreet2 = lead.area || '';
+      
+      // Fallback name if somehow empty
+      let finalName = lead.name;
+      if (!finalName && lead.partner_id) {
+        finalName = masterData.partners.find(p => p.value === lead.partner_id)?.label || 'New Opportunity';
+      }
+
+      const payloadToSend = { 
+        ...lead, 
+        street: finalStreet, 
+        street2: finalStreet2,
+        name: finalName 
+      };
 
       if (editId) {
         res = await odooService.updateCRMLead(editId, payloadToSend);
@@ -302,7 +343,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
             </div>
             <div className="co-input-stack">
               <div className="co-input-group">
-                <label>Opportunity Name</label>
+                <label>Opportunity Name (Optional)</label>
                 <input 
                   type="text" 
                   className="co-input-v2"
@@ -319,7 +360,10 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                     type="button"
                     className="selection-add-new" 
                     style={{ padding: 0 }}
-                    onClick={() => onNavigate('create-customer', null, { returnRoute: 'create-crm' })}
+                    onClick={() => onNavigate('create-customer', null, { 
+                      returnRoute: 'create-crm',
+                      formState: lead // Preserve existing form work
+                    })}
                   >
                     <Plus size={14} /> Add New
                   </button>
@@ -384,18 +428,6 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                     />
                   </div>
                 </div>
-                <div className="co-input-group">
-                  <label>Expected Revenue</label>
-                  <div className="co-input-icon-wrapper">
-                    <DollarSign size={14} />
-                    <input 
-                      type="number" 
-                      className="co-input-v2 with-icon"
-                      value={lead.expected_revenue}
-                      onChange={e => { setLead({...lead, expected_revenue: e.target.value}); setHasChanges(true); }}
-                    />
-                  </div>
-                </div>
               </div>
 
               <div className="co-grid-2">
@@ -411,15 +443,6 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
-                </div>
-                <div className="co-input-group">
-                  <label>Expected Closing</label>
-                  <input 
-                    type="date" 
-                    className="co-input-v2"
-                    value={lead.date_deadline}
-                    onChange={e => { setLead({...lead, date_deadline: e.target.value}); setHasChanges(true); }}
-                  />
                 </div>
               </div>
 

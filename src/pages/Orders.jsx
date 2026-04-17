@@ -28,6 +28,13 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Today's task filter
+  const [filterToday, setFilterToday] = useState(false);
+
   // Quick Actions State
   const [quickDetailOrderId, setQuickDetailOrderId] = useState(null);
   const [quickNoteOrderId, setQuickNoteOrderId] = useState(null);
@@ -73,14 +80,21 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
     fetchPartners();
   }, [fetchOrders]);
 
+  // Today's task filter — uses ISO YYYY-MM-DD to match backend activity_date format
+  const todayISO = new Date().toISOString().split('T')[0]; // e.g. "2026-04-17"
+
   const filtered = orders.filter(o => {
-    // 1. Date Filter
+    // 1. Today's Task Filter — activity_date is YYYY-MM-DD from backend
+    if (filterToday) {
+      if (!o.activity_date) return false;
+      if (o.activity_date !== todayISO) return false;
+    }
+
+    // 2. Date Range Filter
     if (dateFrom || dateTo) {
       if (!o.order_date) return false;
-      // Parse DD-MM-YYYY to Date
       const [day, month, year] = o.order_date.split('-').map(Number);
       const orderDate = new Date(year, month - 1, day);
-      
       if (dateFrom) {
         const fromDate = new Date(dateFrom);
         fromDate.setHours(0,0,0,0);
@@ -93,22 +107,22 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
       }
     }
 
-    // 2. Search Filter
+    // 3. Search Filter
     if (!searchTerm.trim()) return true;
     const q = searchTerm.toLowerCase();
     return (
-      String(o.name || '').toLowerCase().includes(q)           ||  // Sale Order Number (e.g. S00012)
-      String(o.customer || '').toLowerCase().includes(q)        ||  // Customer Name
-      String(o.phone || '').toLowerCase().includes(q)           ||  // Customer Phone / Mobile
-      String(o.salesperson || '').toLowerCase().includes(q)     ||  // Salesperson Name
-      String(o.architect || '').toLowerCase().includes(q)       ||  // Architect Name
-      String(o.architect_phone || '').toLowerCase().includes(q) ||  // Architect Phone
-      String(o.electrician || '').toLowerCase().includes(q)     ||  // Electrician Name
-      String(o.electrician_phone || '').toLowerCase().includes(q)|| // Electrician Phone
-      String(o.remark || '').toLowerCase().includes(q)          ||  // Last Remark / Note
-      String(o.last_activity || '').toLowerCase().includes(q)   ||  // Last Planned Activity / Task
-      String(o.products || '').toLowerCase().includes(q)        ||  // Product names
-      String(o.creator_name || '').toLowerCase().includes(q)        // Creator Name
+      String(o.name || '').toLowerCase().includes(q)           ||
+      String(o.customer || '').toLowerCase().includes(q)        ||
+      String(o.phone || '').toLowerCase().includes(q)           ||
+      String(o.salesperson || '').toLowerCase().includes(q)     ||
+      String(o.architect || '').toLowerCase().includes(q)       ||
+      String(o.architect_phone || '').toLowerCase().includes(q) ||
+      String(o.electrician || '').toLowerCase().includes(q)     ||
+      String(o.electrician_phone || '').toLowerCase().includes(q)||
+      String(o.remark || '').toLowerCase().includes(q)          ||
+      String(o.last_activity || '').toLowerCase().includes(q)   ||
+      String(o.products || '').toLowerCase().includes(q)        ||
+      String(o.creator_name || '').toLowerCase().includes(q)
     );
   });
 
@@ -117,6 +131,35 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   const indexOfLastItem = currentPage * entriesPerPage;
   const indexOfFirstItem = indexOfLastItem - entriesPerPage;
   const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Multi-select helpers (defined AFTER currentItems)
+  const allCurrentSelected = currentItems.length > 0 && currentItems.every(o => selectedIds.has(o.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allCurrentSelected) {
+      setSelectedIds(prev => { const next = new Set(prev); currentItems.forEach(o => next.delete(o.id)); return next; });
+    } else {
+      setSelectedIds(prev => { const next = new Set(prev); currentItems.forEach(o => next.add(o.id)); return next; });
+    }
+  };
+
+  const toggleSelectOne = (id) => {
+    setSelectedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} selected record(s)? This cannot be undone.`)) return;
+    setIsBulkDeleting(true);
+    try {
+      await Promise.all([...selectedIds].map(id => odooService.deleteOrder(id).catch(() => {})));
+      setSelectedIds(new Set());
+      fetchOrders();
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   const handlePageChange = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -255,6 +298,17 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
           </div>
 
           <div className="dt-toolbar-right">
+            {/* Today's Tasks filter */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, color: filterToday ? '#3b82f6' : '#64748b', background: filterToday ? '#eff6ff' : '#f8fafc', border: `1px solid ${filterToday ? '#bfdbfe' : '#e2e8f0'}`, borderRadius: '8px', padding: '5px 10px', transition: 'all 0.2s', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={filterToday}
+                onChange={(e) => { setFilterToday(e.target.checked); setCurrentPage(1); }}
+                style={{ width: '14px', height: '14px', accentColor: '#3b82f6', cursor: 'pointer' }}
+              />
+              Today's Tasks
+            </label>
+
             <div className="pro-toggle-wrap">
               <input 
                 type="checkbox" 
@@ -266,23 +320,37 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
               <label htmlFor="toggle-pro" className="pro-toggle-label">Show Professional</label>
             </div>
             <div className="btn-group-wrap">
-              <button 
-                ref={catalogBtnRef}
-                className={`btn-ui secondary ${catalogAnchor ? 'active-popover' : ''}`} 
-                onClick={() => setCatalogAnchor(catalogAnchor ? null : catalogBtnRef.current)}
-              >
-                <ShoppingCart size={14} />
-                <span>Catalog</span>
-              </button>
-              <button 
-                className="btn-ui primary" 
-                onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : stateType === 'order' ? 'create-direct-order' : 'create-order')}
-              >
-                <Plus size={14} />
-                <span>
-                  {stateType === 'selection' ? 'Selection' : stateType === 'order' ? 'Order' : 'Quotation'}
-                </span>
-              </button>
+              {someSelected ? (
+                <button
+                  className="btn-ui"
+                  style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', fontWeight: 700 }}
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                >
+                  <Trash2 size={14} />
+                  <span>{isBulkDeleting ? 'Deleting...' : `Delete (${selectedIds.size})`}</span>
+                </button>
+              ) : (
+                <>
+                  <button 
+                    ref={catalogBtnRef}
+                    className={`btn-ui secondary ${catalogAnchor ? 'active-popover' : ''}`} 
+                    onClick={() => setCatalogAnchor(catalogAnchor ? null : catalogBtnRef.current)}
+                  >
+                    <ShoppingCart size={14} />
+                    <span>Catalog</span>
+                  </button>
+                  <button 
+                    className="btn-ui primary" 
+                    onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : stateType === 'order' ? 'create-direct-order' : 'create-order')}
+                  >
+                    <Plus size={14} />
+                    <span>
+                      {stateType === 'selection' ? 'Selection' : stateType === 'order' ? 'Order' : 'Quotation'}
+                    </span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -301,13 +369,22 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
             <table className="products-datatable">
               <thead>
                 <tr>
+                  <th style={{ width: '36px', padding: '8px 6px' }} className="text-center">
+                    <input
+                      type="checkbox"
+                      checked={allCurrentSelected}
+                      onChange={toggleSelectAll}
+                      style={{ width: '15px', height: '15px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                      title="Select all on this page"
+                    />
+                  </th>
                   <th className="text-center" style={{ width: '40px' }}>Sr.No</th>
                   <th style={{ width: '230px' }}>Customer</th>
                   <th style={{ width: '120px', fontSize: '11px' }}>Sale Person</th>
-                  <th style={{ width: '75px', fontSize: '11px' }}>Date</th>
-                  {showProfessional && <th style={{ width: '150px' }}>Professional</th>}
-                  <th style={{ minWidth: '160px' }}>Note</th>
-                  <th style={{ width: '220px' }}>Task</th>
+                  <th style={{ width: '80px', fontSize: '11px' }}>Date</th>
+                  {showProfessional && <th style={{ width: '250px' }}>Professional</th>}
+                  <th style={{ minWidth: showProfessional ? '120px' : '160px' }}>Note</th>
+                  <th style={{ width: showProfessional ? '120px' : '220px' }}>Task</th>
                   <th className="text-center" style={{ width: '90px' }}>Action</th>
                 </tr>
               </thead>
@@ -317,7 +394,16 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                     key={order.id} 
                     onClick={() => onNavigate('order-detail', order.id)}
                     className="hover:bg-slate-50 transition-colors"
+                    style={{ background: selectedIds.has(order.id) ? '#eff6ff' : undefined }}
                   >
+                    <td style={{ padding: '8px 6px', width: '36px' }} className="text-center" onClick={(e) => e.stopPropagation()} data-label="">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(order.id)}
+                        onChange={() => toggleSelectOne(order.id)}
+                        style={{ width: '15px', height: '15px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                      />
+                    </td>
                     <td className="text-center cell-light" data-label="Sr.No" style={{ fontSize: '12px' }}>
                       {indexOfFirstItem + idx + 1}
                     </td>
@@ -328,8 +414,11 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                     <td className="cell-light" data-label="Sale Person" style={{ fontSize: '11px', color: '#64748b', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {order.salesperson || '-'}
                     </td>
-                    <td className="cell-light" data-label="Date" style={{ fontSize: '11px', color: '#64748b' }}>
-                      {order.order_date || '-'}
+                    <td className="cell-light" data-label="Date" style={{ fontSize: '11px' }}>
+                      {order.activity_date
+                        ? <span style={{ color: order.activity_date === todayISO ? '#3b82f6' : '#64748b', fontWeight: order.activity_date === todayISO ? 700 : 400 }}>{order.activity_date}</span>
+                        : <span style={{ color: '#cbd5e1' }}>{order.order_date || '-'}</span>
+                      }
                     </td>
                     {showProfessional && (
                       <td className="cell-light" data-label="Professional">

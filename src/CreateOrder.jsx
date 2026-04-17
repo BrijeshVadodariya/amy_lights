@@ -359,17 +359,20 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     electricians: []
   });
 
-  const [orderHeader, setOrderHeader] = useState({
-    partnerId: '',
-    date: new Date().toISOString().split('T')[0],
-    remark: '',
-    architectId: '',
-    electricianId: '',
-    is_desc: false,
-    is_image: false,
-    is_beam: false,
-    is_automate: false,
-    opportunity_id: ''
+  const [orderHeader, setOrderHeader] = useState(() => {
+    if (extraData?.formState?.orderHeader) return extraData.formState.orderHeader;
+    return {
+      partnerId: '',
+      date: new Date().toISOString().split('T')[0],
+      remark: '',
+      architectId: '',
+      electricianId: '',
+      is_desc: false,
+      is_image: false,
+      is_beam: false,
+      is_automate: false,
+      opportunity_id: ''
+    };
   });
 
    const [showProducts, setShowProducts] = useState(true);
@@ -383,9 +386,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   const [editingActivityNoteId, setEditingActivityNoteId] = useState(null);
   const [activityNoteEditText, setActivityNoteNoteEditText] = useState("");
 
-  const [rows, setRows] = useState([
-    createProductRow()
-  ]);
+  const [rows, setRows] = useState(() => {
+    if (extraData?.formState?.rows) return extraData.formState.rows;
+    return [createProductRow()];
+  });
 
   const [generalNotes, setGeneralNotes] = useState([]);
   const [generalNoteInput, setGeneralNoteInput] = useState('');
@@ -1422,7 +1426,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                 className="co-btn-icon" 
                 onClick={() => {
                   const returnRoute = isSelection ? 'create-selection' : isOrder ? 'create-direct-order' : 'create-order';
-                  onNavigate('create-customer', null, { returnRoute });
+                  onNavigate('create-customer', null, { 
+                    returnRoute,
+                    formState: { orderHeader, rows, generalNotes, activityHistory, scheduledActivities } 
+                  });
                 }}
                 title="Add Customer"
               >

@@ -142,27 +142,6 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
               </div>
 
               <div className="detail-info-card" style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                <span className="dt-control-label" style={{ fontSize: '9px' }}>Expected Revenue</span>
-                <div style={{ fontWeight: 800, color: '#059669', fontSize: '13px', marginTop: '4px' }}>
-                  {formatCurrency(lead.expected_revenue)}
-                </div>
-              </div>
-
-              <div className="detail-info-card" style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                <span className="dt-control-label" style={{ fontSize: '9px' }}>Probability</span>
-                <div style={{ fontWeight: 800, color: '#334155', fontSize: '13px', marginTop: '4px' }}>
-                  {lead.probability || 0}%
-                </div>
-              </div>
-
-              <div className="detail-info-card" style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                <span className="dt-control-label" style={{ fontSize: '9px' }}>Deadline</span>
-                <div style={{ fontWeight: 800, color: '#f59e0b', fontSize: '13px', marginTop: '4px' }}>
-                  {lead.date_deadline || '—'}
-                </div>
-              </div>
-
-              <div className="detail-info-card" style={{ padding: '8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
                 <span className="dt-control-label" style={{ fontSize: '9px' }}>Priority</span>
                 <div style={{ fontSize: '12px', marginTop: '4px' }}>{priorityStars(lead.priority)}</div>
               </div>

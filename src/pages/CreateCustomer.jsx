@@ -56,14 +56,29 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             return val;
           };
 
+          let streetStr = res.street || '';
+          let parts = streetStr.split(',').map(s => s.trim());
+          let hNo = '', bName = '';
+          if (parts.length === 1) {
+            // Heuristic: if it contains a space or is long, it's likely a Building/Society name
+            if (parts[0].includes(' ') || parts[0].length > 6) {
+              bName = parts[0];
+            } else {
+              hNo = parts[0];
+            }
+          } else if (parts.length >= 2) {
+            hNo = parts[0];
+            bName = parts[1];
+          }
+
           setCustomer({
             name: res.name || '',
             mobile: res.phone || res.mobile || '',
             email: res.email || '',
             otherName: res.other_name || '',
             otherNumber: res.other_number || '',
-            houseNo: res.street?.split(',')[0]?.trim() || '',
-            buildingName: res.street?.split(',')[1]?.trim() || '',
+            houseNo: hNo,
+            buildingName: bName,
             area: res.street2 || '',
             pincode: res.zip || '',
             city: res.city || '',
@@ -95,14 +110,32 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
     try {
       const res = await odooService.gstLookup(customer.gstNo);
       if (res && res.name) {
+        let streetStr = res.street || '';
+        let parts = streetStr.split(',').map(s => s.trim());
+        let hNo = '', bName = '', aName = '';
+        if (parts.length === 1) {
+          if (parts[0].includes(' ') || parts[0].length > 6) {
+            bName = parts[0];
+          } else {
+            hNo = parts[0];
+          }
+        } else if (parts.length === 2) {
+          hNo = parts[0];
+          bName = parts[1];
+        } else if (parts.length >= 3) {
+          hNo = parts[0];
+          bName = parts[1];
+          aName = parts.slice(2).join(', ');
+        }
+
         setCustomer(prev => ({
           ...prev,
           name: res.name || prev.name,
           mobile: res.phone || prev.mobile,
           email: res.email || prev.email,
-          houseNo: res.street?.split(',')[0]?.trim() || '',
-          buildingName: res.street?.split(',')[1]?.trim() || '',
-          area: res.street2 || (res.street?.split(',')[2]?.trim() || ''),
+          houseNo: hNo,
+          buildingName: bName,
+          area: res.street2 || aName,
           city: res.city || '',
           pincode: res.zip || '',
           state: res.state || '',
@@ -198,9 +231,12 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
         alert(`${editId ? 'Update' : 'Creation'} failed`);
         return;
       }
-      // Navigate back to the originating form with the partner pre-selected
+      // Navigate back to the originating form with the partner pre-selected and previous state restored
       setHasChanges(false);
-      onNavigate(returnRoute, null, { preFilledPartnerId: res.id || res.data?.id || editId });
+      onNavigate(returnRoute, null, { 
+        preFilledPartnerId: res.id || res.data?.id || editId,
+        formState: extraData?.formState 
+      });
     } catch {
       alert(`${editId ? 'Update' : 'Creation'} failed`);
     } finally {
@@ -311,7 +347,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             <h2>Create Customer</h2>
             <p className="form-subtitle">Add customer details and return to quotation.</p>
           </div>
-          <button className="btn-ui secondary" onClick={() => safeNavigate(returnRoute)} aria-label="Back to quotation">
+          <button className="btn-ui secondary" onClick={() => onNavigate(returnRoute, null, { formState: extraData?.formState })} aria-label="Back to quotation">
             <X size={16} /> Close
           </button>
         </div>
@@ -589,7 +625,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
           <button className="btn-ui primary lg" onClick={handleSubmit} disabled={!canSubmit || saving}>
             {saving ? (editId ? 'Updating...' : 'Submitting...') : (editId ? 'Update' : 'Submit')}
           </button>
-          <button className="btn-ui secondary lg" onClick={() => safeNavigate(returnRoute)}>
+          <button className="btn-ui secondary lg" onClick={() => onNavigate(returnRoute, null, { formState: extraData?.formState })}>
             Back
           </button>
         </div>
