@@ -783,17 +783,26 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         setShowProducts(mappedRows.length > 0);
 
          // --- NEW: Sync Notes and Activities from Backend ---
-         // 1. Sync General Notes (Remark field)
-          if (data.remarks && Array.isArray(data.remarks)) {
-             setGeneralNotes(data.remarks.map(r => ({
-               id: r.id,
-               text: r.remark,
-               date: r.date,
-               by: r.salesperson,
-               is_new: false,
-               is_structured: true
-             })));
-             setShowNotes(true);
+          // 1. Sync General Notes (Remark field)
+           if (data.remarks && Array.isArray(data.remarks)) {
+              const uniqueRemarks = [];
+              const seenTexts = new Set();
+              data.remarks.forEach(r => {
+                 const cleanText = (r.remark || '').replace(/<[^>]*>?/gm, '').trim();
+                 if (!seenTexts.has(cleanText.toLowerCase()) && cleanText) {
+                    seenTexts.add(cleanText.toLowerCase());
+                    uniqueRemarks.push({
+                      id: r.id,
+                      text: cleanText,
+                      date: r.date,
+                      by: r.salesperson,
+                      is_new: false,
+                      is_structured: true
+                    });
+                 }
+              });
+              setGeneralNotes(uniqueRemarks);
+              setShowNotes(true);
           } else if (data.remark || data.note) {
              // Fallback for old orders without structured remarks
              const remark = data.remark || data.note || '';
@@ -819,18 +828,28 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
              setShowNotes(true);
           }
  
-         // 3. Sync Scheduled Activities (Tasks)
-         if (data.activities && Array.isArray(data.activities) && data.activities.length > 0) {
-            setShowActivitySection(true);
-            setScheduledActivities(data.activities.map(act => ({
-              id: act.id,
-              activity_type_id: act.activity_type_id,
-              summary: act.summary || act.activity_type_name || 'Activity',
-              note: (act.note || '').replace(/<[^>]*>?/gm, '').trim(),
-              user_id: act.user_id,
-              date_deadline: act.date_deadline || ''
-            })));
-         }
+          // 3. Sync Scheduled Activities (Tasks)
+          if (data.activities && Array.isArray(data.activities) && data.activities.length > 0) {
+             setShowActivitySection(true);
+             const uniqueActs = [];
+             const seenActTexts = new Set();
+             data.activities.forEach(act => {
+                const cleanNote = (act.note || '').replace(/<[^>]*>?/gm, '').trim();
+                const key = `${act.summary}-${cleanNote}-${act.date_deadline}`.toLowerCase();
+                if (!seenActTexts.has(key)) {
+                   seenActTexts.add(key);
+                   uniqueActs.push({
+                     id: act.id,
+                     activity_type_id: act.activity_type_id,
+                     summary: act.summary || act.activity_type_name || 'Activity',
+                     note: cleanNote,
+                     user_id: act.user_id,
+                     date_deadline: act.date_deadline || ''
+                   });
+                }
+             });
+             setScheduledActivities(uniqueActs);
+          }
       }
     } catch (err) {
       console.error('Edit fetch failed', err);
@@ -1395,10 +1414,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         amyNoteLines.push([2, id, 0]); // (2, id, 0) = Unlink and delete
       });
 
-      // Step 2: Update existing or create new notes
+      // Step 2: Update existing or create new notes (from both categorized activities and general generalNotes)
       Object.keys(activityHistory).forEach(type => {
         (activityHistory[type] || []).forEach(hNote => {
-          // Extract base64 only for local images (data URLs)
           const base64Images = (hNote.images || []).map(img => {
             if (typeof img !== 'string' || !img.includes(',')) return null;
             return img.split(',')[1];
@@ -1411,17 +1429,30 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           };
 
           if (hNote.is_from_backend && hNote.id && typeof hNote.id === 'number') {
-            // Existing note: Update text. Odoo keeps existing images in Many2many unless we tell it to clear them.
             amyNoteLines.push([1, hNote.id, { text: payload.text }]); 
-            // If there are NEW images added to this existing note line, we can add them here too
             if (payload.image.length > 0) {
               amyNoteLines.push([1, hNote.id, { image: payload.image }]);
             }
           } else {
-            // New note: Create fresh
             amyNoteLines.push([0, 0, payload]);
           }
         });
+      });
+
+      // --- ADDED: Process generalNotes into amyNoteLines to prevent backend doubling ---
+      generalNotes.forEach(n => {
+        const payload = {
+          text: n.text || '',
+          note_type: 'general' // Use a default type for these general notes
+        };
+
+        if (!n.is_new && typeof n.id === 'number') {
+          // Existing note from backend: update
+          amyNoteLines.push([1, n.id, { text: payload.text }]);
+        } else if (n.is_new) {
+          // New note: create
+          amyNoteLines.push([0, 0, payload]);
+        }
       });
 
       // Step 3: Flush any text still in input boxes
@@ -1440,13 +1471,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       });
       // ────────────────────────────────────────────────────────────────────────
 
-      // 2. Build the remark text from ALL current general notes (replaces previous value on backend).
-      //    Each note is stored as its own line — backend receives the full joined text.
-      //    Only truly NEW notes (added in this session) are sent as chatter messages.
-      const currentGeneralNotesText = generalNotes.map(n => n.text).filter(Boolean).join('\n---\n');
-      chatterText = currentGeneralNotesText;
-
+      // 2. Build the remark text. 
+      //    CRITICAL: We now only send TRULY NEW messages to the chatter (chatter_notes).
+      //    We STOP sending the full joined history in the 'remark' field because it 
+      //    causes the backend to duplicate existing lines in the Remarks tab.
       const chatterNotes = generalNotes.filter(n => n.is_new).map(n => n.text).filter(Boolean);
+      chatterText = chatterNotes.join('\n---\n');
 
       console.log("[Save Order] Remark length:", chatterText.length, "| New chatter notes:", chatterNotes.length, "| Amy note commands:", amyNoteLines.length);
 
@@ -1464,7 +1494,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       const finalExtraData = {
         architect_id: parseInt(orderHeader.architectId) || false,
         electrician_id: parseInt(orderHeader.electricianId) || false,
-        remark: chatterText.trim() || orderHeader.remark || '',
+        remark: chatterText.trim() || '', // Now only contains NEW notes safely
         amy_note_lines: amyNoteLines,
         chatter_notes: chatterNotes,
         is_desc: !!orderHeader.is_desc,
@@ -1507,8 +1537,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         
       if (res && (res.success || res.id)) {
         clearDraft();
-        const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder || targetState === 'sale' ? 'orders' : 'quotations'));
-        onNavigate(finalReturn);
+        const finalId = editId || res.id || (typeof res === 'number' ? res : res.data?.id);
+        onNavigate('order-detail', finalId);
       } else {
         alert(res.error?.message || "Error processing order");
       }
@@ -1881,37 +1911,29 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                             </div>
                             <div>
                               {editingTaskId === act.id ? (
-                                <div style={{ background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #3b82f6', marginTop: '4px' }}>
+                                 <div style={{ background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #3b82f6', marginTop: '4px' }}>
                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                                      <select 
-                                        className="co-select-v2" 
-                                        value={taskEditText.activity_type_id}
-                                        onChange={e => setTaskEditText({...taskEditText, activity_type_id: parseInt(e.target.value)})}
-                                        style={{ height: '32px', fontSize: '12px', padding: '0 4px' }}
-                                      >
-                                        {(masterData.activity_types || []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                      </select>
                                       <input 
                                         type="date" 
                                         className="co-input-v2" 
                                         value={taskEditText.date_deadline} 
                                         onChange={e => setTaskEditText({...taskEditText, date_deadline: e.target.value})}
-                                        style={{ height: '32px', fontSize: '12px', padding: '0 4px' }}
+                                        style={{ height: '32px', fontSize: '12px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                                      />
+                                      <SearchableSelect
+                                        placeholder="Assignee"
+                                        value={taskEditText.user_id}
+                                        small
+                                        options={userOptions}
+                                        onChange={(val) => setTaskEditText(prev => ({ ...prev, user_id: val }))}
                                       />
                                    </div>
-                                   <input 
-                                      className="co-input-v2" 
-                                      value={taskEditText.summary} 
-                                      onChange={e => setTaskEditText({...taskEditText, summary: e.target.value})}
-                                      placeholder="Summary"
-                                      style={{ height: '32px', fontSize: '12px', padding: '0 4px', width: '100%', marginBottom: '8px' }}
-                                   />
                                    <textarea 
                                       className="co-textarea" 
                                       value={taskEditText.note} 
                                       onChange={e => setTaskEditText({...taskEditText, note: e.target.value})}
-                                      placeholder="Add Notes..."
-                                      style={{ minHeight: '60px', fontSize: '12px', padding: '8px', width: '100%', marginBottom: '8px' }}
+                                      placeholder="Message..."
+                                      style={{ minHeight: '70px', fontSize: '12px', padding: '8px', width: '100%', marginBottom: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                    />
                                    <div style={{ display: 'flex', gap: '12px' }}>
                                       <button 
@@ -1980,9 +2002,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
               {/* Form Grid: Moved to bottom as requested */}
               <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.5fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Due Date</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '10px' }}>
                     <input 
                       type="date" 
                       className="co-input-border"
@@ -1990,29 +2010,22 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                       onChange={e => setNewActivity(prev => ({ ...prev, date_deadline: e.target.value }))}
                       style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px' }}
                     />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Assigned To</label>
                     <SearchableSelect
-                      placeholder="Select User"
+                      placeholder="Assignee"
                       value={newActivity.user_id}
                       small
                       options={userOptions}
                       onChange={(val) => setNewActivity(prev => ({ ...prev, user_id: val }))}
                     />
-                  </div>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Activity Note</label>
-                  <textarea 
-                    className="co-textarea"
-                    value={newActivity.note} 
-                    onChange={e => setNewActivity(prev => ({ ...prev, note: e.target.value }))}
-                    placeholder="Type details here..."
-                    style={{ width: '100%', minHeight: '80px', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontSize: '13px', lineHeight: '1.5' }}
-                  />
-                </div>
+                <textarea 
+                  className="co-textarea"
+                  value={newActivity.note} 
+                  onChange={e => setNewActivity(prev => ({ ...prev, note: e.target.value }))}
+                  placeholder="Message..."
+                  style={{ width: '100%', minHeight: '80px', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontSize: '13px', lineHeight: '1.5' }}
+                />
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
                   <button 
@@ -2077,7 +2090,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           {showNotes && (
             <div className="co-card-body">
               <div className="gn-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px', borderBottom: '8px solid transparent', minHeight: '0' }}>
-                {generalNotes.map(note => (
+                {(() => {
+                   const seen = new Set();
+                   return generalNotes.filter(n => {
+                     const text = (n.text || '').trim().toLowerCase();
+                     if (seen.has(text)) return false;
+                     seen.add(text);
+                     return true;
+                   });
+                })().map(note => (
                   <div key={note.id} className="gn-note-card" style={{ 
                     background: '#fff', 
                     border: '1px solid #e2e8f0', 

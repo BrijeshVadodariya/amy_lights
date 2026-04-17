@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Edit, CalendarDays,Calendar,MessageSquare, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
+import SearchableSelect from '../components/SearchableSelect';
 import WhatsappModal from '../components/WhatsappModal';
 import { QuickNoteModal, QuickTaskModal } from '../components/QuickActionModals';
 import '../components/Loader.css';
@@ -20,9 +21,11 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [users, setUsers] = useState([]);
   const [editingActivityId, setEditingActivityId] = useState(null);
-  const [activityEditVals, setActivityEditVals] = useState({ summary: '', note: '', date_deadline: '' });
+  const [activityEditVals, setActivityEditVals] = useState({ summary: '', note: '', date_deadline: '', user_id: '' });
   const [editingRemarkIdx, setEditingRemarkIdx] = useState(null);
   const [remarkEditText, setRemarkEditText] = useState('');
+  const [noteInput, setNoteInput] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
   const [showWhatsappModal, setShowWhatsappModal] = useState(false);
 
   useEffect(() => {
@@ -148,6 +151,24 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     } catch {
       alert("Network error");
       setLoading(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteInput.trim()) return;
+    setAddingNote(true);
+    try {
+      const res = await odooService.addQuickNote(orderId, noteInput, 'sale.order');
+      if (res.success || !res.error) {
+        setNoteInput('');
+        fetchOrder();
+      } else {
+        alert(res.error || "Failed to add note");
+      }
+    } catch {
+      alert("Network error while adding note");
+    } finally {
+      setAddingNote(false);
     }
   };
 
@@ -491,39 +512,50 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               </button>
             </div>
             <div style={{ padding: '0 14px', borderBottom: '14px solid transparent', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', minHeight: '0', boxSizing: 'border-box' }}>
-              {!order.activities || order.activities.length === 0 ? (
+              {(!order.activities || order.activities.length === 0) ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
                   No planned tasks found.
                 </div>
               ) : (
-                order.activities.map((act, idx) => (
+                (() => {
+                  const seen = new Set();
+                  return order.activities.filter(act => {
+                    const cleanNote = (act.note || '').replace(/<[^>]*>?/gm, '').trim().toLowerCase();
+                    const key = `${act.summary}-${cleanNote}-${act.date_deadline}`.toLowerCase();
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                  });
+                })().map((act, idx) => (
                   <div key={act.id || idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
                     {editingActivityId === act.id ? (
                       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <input
-                          className="co-input-v2"
-                          value={activityEditVals.summary}
-                          onChange={e => setActivityEditVals({ ...activityEditVals, summary: e.target.value })}
-                          placeholder="Task summary"
-                          style={{ width: '100%', height: '32px', padding: '0 8px', borderRadius: '6px', border: '1px solid #3b82f6', fontSize: '13px' }}
-                        />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <input
+                            type="date"
+                            value={activityEditVals.date_deadline}
+                            onChange={e => setActivityEditVals({ ...activityEditVals, date_deadline: e.target.value })}
+                            style={{ width: '100%', height: '32px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', outline: 'none' }}
+                          />
+                          <SearchableSelect
+                            placeholder="Assignee"
+                            value={activityEditVals.user_id}
+                            small
+                            options={users.map(u => ({ value: u.id, label: u.name }))}
+                            onChange={val => setActivityEditVals({ ...activityEditVals, user_id: val })}
+                          />
+                        </div>
                         <textarea
                           value={activityEditVals.note}
                           onChange={e => setActivityEditVals({ ...activityEditVals, note: e.target.value })}
-                          placeholder="Activity note..."
-                          style={{ width: '100%', minHeight: '60px', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', resize: 'vertical' }}
-                        />
-                        <input
-                          type="date"
-                          value={activityEditVals.date_deadline}
-                          onChange={e => setActivityEditVals({ ...activityEditVals, date_deadline: e.target.value })}
-                          style={{ width: '100%', height: '32px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px' }}
+                          placeholder="Message..."
+                          style={{ width: '100%', minHeight: '70px', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', resize: 'vertical', outline: 'none' }}
                         />
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             onClick={async () => {
                               try {
-                                const res = await odooService.updateActivity(act.id, activityEditVals.summary, activityEditVals.note, activityEditVals.date_deadline);
+                                const res = await odooService.updateActivity(act.id, activityEditVals.summary, activityEditVals.note, activityEditVals.date_deadline, activityEditVals.user_id);
                                 if (res.success || !res.error) { fetchOrder(); setEditingActivityId(null); }
                                 else alert(res.error || 'Update failed');
                               } catch { alert('Network error'); }
@@ -570,7 +602,8 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                                 setActivityEditVals({
                                   summary: act.summary || '',
                                   note: (act.note || '').replace(/<[^>]*>/g, '').trim(),
-                                  date_deadline: act.date_deadline || ''
+                                  date_deadline: act.date_deadline || '',
+                                  user_id: act.user_id ? String(act.user_id) : ''
                                 });
                               }}
                               style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer' }}
@@ -614,23 +647,80 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               </button>
             </div>
             <div style={{ padding: '0 14px', borderBottom: '14px solid transparent', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', minHeight: '0', boxSizing: 'border-box' }}>
-              {!order.remarks || order.remarks.length === 0 ? (
+              {(!order.remarks || order.remarks.length === 0) ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
                   No internal remarks found.
                 </div>
               ) : (
-                order.remarks.map((r, idx) => (
+                (() => {
+                  const seen = new Set();
+                  return order.remarks.filter(r => {
+                    const text = (r.remark || '').trim().toLowerCase();
+                    if (!text || seen.has(text)) return false;
+                    seen.add(text);
+                    return true;
+                  });
+                })().map((r, idx) => (
                   <div key={r.id} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
-                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                       <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, textTransform: 'uppercase' }}>
-                        [{r.salesperson} - {r.date}]
+                        {r.salesperson} · {r.date}
                       </span>
                       <div style={{ display: 'flex', gap: '4px' }}>
-                        <button style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Edit size={13} /></button>
-                        <button style={{ border: 'none', background: 'none', color: '#94a3b8' }}><Trash size={13} /></button>
+                        <button
+                          onClick={() => { setEditingRemarkIdx(r.id); setRemarkEditText(r.remark); }}
+                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                          title="Edit"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm('Delete this note?')) return;
+                            try {
+                              const res = await odooService.deleteRemark(r.id);
+                              if (res.success || !res.error) fetchOrder();
+                              else alert(res.error || 'Delete failed');
+                            } catch { alert('Network error'); }
+                          }}
+                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                          title="Delete"
+                        >
+                          <Trash size={13} />
+                        </button>
                       </div>
                     </div>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap', flex: 1 }}>{r.remark}</p>
+                    {editingRemarkIdx === r.id ? (
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <textarea
+                          value={remarkEditText}
+                          onChange={e => setRemarkEditText(e.target.value)}
+                          style={{ width: '100%', minHeight: '70px', padding: '8px', borderRadius: '8px', border: '1px solid #3b82f6', fontSize: '13px', resize: 'vertical', outline: 'none' }}
+                        />
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await odooService.updateRemark(r.id, remarkEditText);
+                                if (res.success || !res.error) { fetchOrder(); setEditingRemarkIdx(null); }
+                                else alert(res.error || 'Update failed');
+                              } catch { alert('Network error'); }
+                            }}
+                            style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 14px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingRemarkIdx(null)}
+                            style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '5px 14px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p style={{ margin: 0, fontSize: '13px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap', flex: 1 }}>{r.remark}</p>
+                    )}
                   </div>
                 ))
               )}

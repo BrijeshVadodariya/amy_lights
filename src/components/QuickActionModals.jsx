@@ -116,57 +116,49 @@ export const QuickTaskModal = ({ orderId, resModel = 'sale.order', users = [], o
           <button className="co-btn-close" onClick={onClose} style={{ background: '#f1f5f9' }}><X size={18} /></button>
         </div>
         
-        <div className="co-modal-body" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-             <div>
-               <label style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Due Date</label>
-               <input 
-                 type="date" 
-                 className="co-input" 
-                 value={vals.deadline} 
-                 onChange={e => setVals({...vals, deadline: e.target.value})}
-                 style={{ 
-                   width: '100%', 
-                   padding: '14px', 
-                   borderRadius: '12px', 
-                   border: '1px solid #e2e8f0', 
-                   fontSize: '15px',
-                   background: '#f8fafc',
-                   color: '#1e293b'
-                 }}
-               />
-             </div>
-             <div>
-               <label style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assignee</label>
-               <SearchableSelect 
-                 options={users.map(u => ({ value: u.id, label: u.name }))}
-                 value={vals.userId}
-                 onChange={(id) => setVals({...vals, userId: id})}
-                 placeholder="Search user..."
-               />
-             </div>
-           </div>
-
-           <div>
-             <label style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activity Details & Notes</label>
-             <textarea 
-               placeholder="Describe what needs to be done..." 
-               value={vals.note} 
-               onChange={e => setVals({...vals, note: e.target.value})}
+        <div className="co-modal-body" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+             <input 
+               type="date" 
+               className="co-input" 
+               value={vals.deadline} 
+               onChange={e => setVals({...vals, deadline: e.target.value})}
                style={{ 
                  width: '100%', 
-                 minHeight: '130px', 
-                 padding: '16px', 
-                 borderRadius: '16px', 
+                 padding: '12px 14px', 
+                 borderRadius: '12px', 
                  border: '1px solid #e2e8f0', 
-                 fontSize: '15px', 
-                 lineHeight: '1.6', 
-                 resize: 'vertical',
+                 fontSize: '15px',
                  background: '#f8fafc',
+                 color: '#1e293b',
                  outline: 'none'
                }}
              />
+             <SearchableSelect 
+               options={users.map(u => ({ value: u.id, label: u.name }))}
+               value={vals.userId}
+               onChange={(id) => setVals({...vals, userId: id})}
+               placeholder="Assignee"
+             />
            </div>
+
+           <textarea 
+             placeholder="Message..." 
+             value={vals.note} 
+             onChange={e => setVals({...vals, note: e.target.value})}
+             style={{ 
+               width: '100%', 
+               minHeight: '140px', 
+               padding: '16px', 
+               borderRadius: '16px', 
+               border: '1px solid #e2e8f0', 
+               fontSize: '15px', 
+               lineHeight: '1.6', 
+               resize: 'vertical',
+               background: '#f8fafc',
+               outline: 'none'
+             }}
+           />
 
            <div style={{ display: 'flex', gap: '12px' }}>
              <button 
@@ -184,7 +176,7 @@ export const QuickTaskModal = ({ orderId, resModel = 'sale.order', users = [], o
                onClick={handleSubmit}
                disabled={submitting}
              >
-               {submitting ? 'Creating Activity...' : 'Confirm Activity'}
+               {submitting ? 'Creating Activity...' : 'Add Activity'}
              </button>
              <button 
               className="co-btn" 

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { X, Plus, Phone, User, MapPin, Activity,MessageSquare,Trash, DollarSign, Target, Star, FileText } from 'lucide-react';
+import { X, Plus, Phone, User, MapPin, Activity, MessageSquare, Trash, DollarSign, Target, Star, FileText, ChevronRight, Zap, MessageCircle, Edit2 } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import SearchableSelect from '../components/SearchableSelect';
 import './FormPages.css';
@@ -8,9 +8,33 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
   const returnRoute = extraData?.returnRoute || 'crm';
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [masterData, setMasterData] = useState({ architects: [], electricians: [], users: [], stages: [], partners: [] });
+  const [masterData, setMasterData] = useState({ architects: [], electricians: [], users: [], stages: [], partners: [], activity_types: [] });
   const [modalState, setModalState] = useState({ show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
+
+  const [scheduledActivities, setScheduledActivities] = useState([]);
+  const [generalNotes, setGeneralNotes] = useState([]);
+  const [newActivity, setNewActivity] = useState({
+    activity_type_id: '',
+    summary: 'To Do',
+    note: '',
+    user_id: '',
+    date_deadline: new Date().toISOString().split('T')[0]
+  });
+  const [generalNoteInput, setGeneralNoteInput] = useState('');
+  const [showActivitySection, setShowActivitySection] = useState(false);
+  const [showRemarksSection, setShowRemarksSection] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [taskEditText, setTaskEditText] = useState({});
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [noteEditText, setNoteEditText] = useState("");
   
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [lead, setLead] = useState(() => {
     // 1. Check if we have state passed directly (return logic)
     if (extraData?.formState) return extraData.formState;
@@ -173,6 +197,12 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
             user_id: extractId(res.user_id),
             date_deadline: res.date_deadline || ''
           });
+          setScheduledActivities(res.activities || []);
+          
+          // Auto-expand sections if data exists
+          if (res.activities && res.activities.length > 0) setShowActivitySection(true);
+          if (res.remarks && res.remarks.length > 0) setShowRemarksSection(true);
+          
           setTimeout(() => setHasChanges(false), 200);
         }
         setLoading(false);
@@ -188,9 +218,10 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
       setMasterData({
         architects: (masterRes?.architects || []).map(p => ({ value: p.id, label: p.name, phone: p.phone })),
         electricians: (masterRes?.electricians || []).map(p => ({ value: p.id, label: p.name, phone: p.phone })),
-        users: (masterRes?.users || []).map(u => ({ value: u.id, label: u.name })),
+        users: masterRes?.users || [],
         partners: (masterRes?.partners || []).map(p => ({ value: p.id, label: p.name, phone: p.phone || p.mobile || '' })),
-        stages: stagesRes || []
+        stages: stagesRes || [],
+        activity_types: masterRes?.activity_types || []
       });
     });
   }, []);
@@ -290,7 +321,9 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
         ...lead, 
         street: finalStreet, 
         street2: finalStreet2,
-        name: finalName 
+        name: finalName,
+        activities: scheduledActivities,
+        general_notes: generalNotes.map(n => n.text)
       };
 
       if (editId) {
@@ -302,7 +335,8 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
       if (res && (res.success || res.id)) {
         setHasChanges(false);
         localStorage.removeItem('amy_crm_form_draft');
-        onNavigate(returnRoute);
+        const finalId = editId || res.id || (typeof res === 'number' ? res : res.data?.id);
+        onNavigate('crm-detail', finalId);
       } else {
         alert(`${editId ? 'Update' : 'Creation'} failed`);
       }
@@ -385,7 +419,27 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
     }
   };
 
+  const userOptions = useMemo(() => {
+    return (masterData.users || []).map(u => ({ value: u.id, label: u.name }));
+  }, [masterData.users]);
+
   if (loading) return <div className="p-8 text-center text-slate-500">Loading lead details...</div>;
+
+  const handleAddGeneralNote = () => {
+    if (!generalNoteInput.trim()) return;
+    const newNote = {
+      id: Date.now(),
+      text: generalNoteInput,
+      date: new Date().toLocaleString(),
+      by: masterData.users.find(u => String(u.value) === String(lead.user_id))?.label || 'Self'
+    };
+    setGeneralNotes(prev => [newNote, ...prev]);
+    setGeneralNoteInput('');
+  };
+
+  const handleDeleteNote = (id) => {
+    setGeneralNotes(prev => prev.filter(n => n.id !== id));
+  };
 
   return (
     <div className="co-container">
@@ -547,98 +601,125 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
             </div>
           </section>
 
-          <section className="co-form-section" style={{ marginTop: '24px' }}>
-            <div className="co-section-header">
-              <MessageSquare size={18} />
-              <h2>Notes & Remarks</h2>
-            </div>
-            <div className="co-input-stack">
-
-              {editId && (
-                <div className="remarks-section" style={{ marginTop: '20px' }}>
-                  <div className="add-remark-box" style={{ marginBottom: '20px' }}>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <input 
-                        className="co-input-v2" 
-                        placeholder="Add a new remark..." 
-                        value={newRemark}
-                        onChange={e => setNewRemark(e.target.value)}
-                        onKeyPress={e => e.key === 'Enter' && handleAddRemark()}
-                      />
-                      <button 
-                        type="button" 
-                        className="co-save-btn" 
-                        style={{ padding: '0 20px', height: '44px' }}
-                        onClick={handleAddRemark}
-                      >
-                        Add
-                      </button>
-                    </div>
+          <div style={{ marginBottom: '1.5rem', marginTop: '1.5rem' }}>
+            {/* TASKS SECTION - Full Width, matches CreateOrder */}
+            <div className="co-expandable-card activity-schedule-card">
+              <div className="co-expand-header" onClick={() => setShowActivitySection(!showActivitySection)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div className="co-card-icon-pill" style={{ backgroundColor: '#f0f9ff', color: '#0ea5e9' }}>
+                    <Activity size={18} />
                   </div>
+                  <div className="co-card-title-stack" style={{ height: '18px', display: 'flex', alignItems: 'center' }}>
+                    <h2 style={{ fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155' }}>Tasks</h2>
+                  </div>
+                </div>
+                <div className={`co-chevron ${showActivitySection ? 'open' : ''}`}>
+                  <ChevronRight size={18} />
+                </div>
+              </div>
 
-                  <div className="remarks-timeline" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {lead.remarks && lead.remarks.length > 0 ? (
-                      lead.remarks.map((r) => (
-                        <div key={r.id} style={{ 
-                          background: '#f8fafc', 
-                          border: '1px solid #e2e8f0', 
-                          borderRadius: '12px', 
-                          padding: '12px' 
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontWeight: 800, fontSize: '13px', color: '#0f172a' }}>{r.salesperson}</span>
-                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>{r.date}</span>
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button 
-                                type="button" 
-                                onClick={() => handleEditRemark(r)}
-                                style={{ border: 'none', background: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
-                              >
-                                Edit
-                              </button>
-                              <button 
-                                type="button" 
-                                onClick={() => handleDeleteRemark(r.id)}
-                                style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer' }}
-                              >
-                                <Trash size={12} />
-                              </button>
-                            </div>
-                          </div>
-                          {editingRemarkId === r.id ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              <textarea 
-                                className="co-textarea-v2" 
-                                style={{ minHeight: '60px', padding: '8px' }}
-                                value={editingRemarkText}
-                                onChange={e => setEditingRemarkText(e.target.value)}
-                              />
+              {showActivitySection && (
+                <div className="co-card-body" style={{ padding: '0.5rem 1rem' }}>
+                  {scheduledActivities.length > 0 && (
+                    <div className="planned-activities" style={{ marginTop: '0.4rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.4rem' }}>
+                      <h3 style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', marginBottom: '0.4rem' }}>Planned Activities</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px', borderBottom: '8px solid transparent' }}>
+                        {scheduledActivities.map(act => {
+                          const typeName = masterData.activity_types?.find(t => t.id === act.activity_type_id)?.name || 'Activity';
+                          const userName = masterData.users?.find(u => u.id === parseInt(act.user_id))?.name || 'Self';
+                          return (
+                            <div key={act.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', flexShrink: 0 }}>
+                              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0', marginTop: '2px' }}>
+                                  <Activity size={16} style={{ color: '#3b82f6' }} />
+                                </div>
+                                <div>
+                                  {editingTaskId === act.id ? (
+                                    <div style={{ background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #3b82f6', marginTop: '4px' }}>
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '8px' }}>
+                                        <input 
+                                          type="date" 
+                                          className="co-input-v2"
+                                          value={taskEditText.date_deadline}
+                                          onChange={e => setTaskEditText({...taskEditText, date_deadline: e.target.value})}
+                                          style={{ height: '32px', fontSize: '12px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                                        />
+                                        <SearchableSelect
+                                          placeholder="Assignee"
+                                          value={taskEditText.user_id}
+                                          small
+                                          options={userOptions}
+                                          onChange={val => setTaskEditText({...taskEditText, user_id: val})}
+                                        />
+                                      </div>
+                                      <textarea 
+                                        className="co-textarea-v2"
+                                        value={taskEditText.note}
+                                        onChange={e => setTaskEditText({...taskEditText, note: e.target.value})}
+                                        placeholder="Message..."
+                                        style={{ minHeight: '60px', fontSize: '12px', padding: '8px', width: '100%', marginBottom: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
+                                      />
+                                      <div style={{ display: 'flex', gap: '12px' }}>
+                                        <button onClick={() => { setScheduledActivities(prev => prev.map(a => a.id === act.id ? { ...taskEditText } : a)); setEditingTaskId(null); }} style={{ color: '#3b82f6', fontWeight: 800, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>Save</button>
+                                        <button onClick={() => setEditingTaskId(null)} style={{ color: '#64748b', fontWeight: 600, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{act.summary || typeName}</div>
+                                      {act.note && (
+                                        <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }}>{(act.note || '').replace(/<[^>]*>?/gm, '').trim()}</div>
+                                      )}
+                                      <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
+                                        <span>📅 {act.date_deadline}</span>
+                                        <span>👤 {userName}</span>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                               <div style={{ display: 'flex', gap: '8px' }}>
-                                <button type="button" className="co-save-btn" style={{ padding: '4px 12px', fontSize: '11px' }} onClick={() => handleUpdateRemark(r.id)}>Save</button>
-                                <button type="button" className="co-back-btn" style={{ padding: '4px 12px', fontSize: '11px' }} onClick={() => setEditingRemarkId(null)}>Cancel</button>
+                                <button onClick={e => { e.stopPropagation(); setEditingTaskId(act.id); setTaskEditText({ ...act, note: (act.note || '').replace(/<[^>]*>?/gm, '').trim() }); }} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Edit">
+                                  <Edit2 size={15} />
+                                </button>
+                                <button onClick={e => { e.stopPropagation(); setScheduledActivities(prev => prev.filter(a => a.id !== act.id)); }} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Delete">
+                                  <Trash size={16} />
+                                </button>
                               </div>
                             </div>
-                          ) : (
-                            <p style={{ margin: 0, fontSize: '14px', color: '#475569', lineHeight: '1.5' }}>{r.remark}</p>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div style={{ textAlign: 'center', padding: '10px', color: '#94a3b8', fontSize: '12px' }}>
-                        No remarks history.
+                          );
+                        })}
                       </div>
-                    )}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '10px' }}>
+                        <input type="date" className="co-input-border" value={newActivity.date_deadline} onChange={e => setNewActivity(prev => ({ ...prev, date_deadline: e.target.value }))} style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px' }} />
+                        <SearchableSelect placeholder="Assignee" value={newActivity.user_id} small options={userOptions} onChange={val => setNewActivity(prev => ({ ...prev, user_id: val }))} />
+                    </div>
+                    <textarea className="co-textarea" value={newActivity.note} onChange={e => setNewActivity(prev => ({ ...prev, note: e.target.value }))} placeholder="Message..." style={{ width: '100%', minHeight: '80px', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontSize: '13px', lineHeight: '1.5' }} />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button onClick={() => {
+                        let typeId = newActivity.activity_type_id;
+                        if (!typeId && masterData.activity_types) {
+                          const todoType = masterData.activity_types.find(t => t.name.toLowerCase().includes('todo') || t.name.toLowerCase().includes('to do')) || masterData.activity_types[0];
+                          typeId = todoType?.id;
+                        }
+                        if (!typeId) return alert('No activity type found');
+                        setScheduledActivities(prev => [...prev, { ...newActivity, activity_type_id: typeId, id: Date.now() }]);
+                        setNewActivity({ activity_type_id: '', summary: 'To Do', note: '', user_id: '', date_deadline: new Date().toISOString().split('T')[0] });
+                      }} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', padding: '0 20px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(14,165,233,0.2)' }}>
+                        <Zap size={16} fill="white" />
+                        Add Activity
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          </section>
+          </div>
         </div>
-
-
-
 
         {/* Right Span: Other Details (Professionals & Address) */}
         <div className="co-form-side">
@@ -708,59 +789,23 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               <div style={{ marginBottom: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <label style={{ fontWeight: 700, color: '#64748b', fontSize: '0.85rem' }}>Architect</label>
-                  <button 
-                    type="button"
-                    className="selection-add-new" 
-                    style={{ padding: 0 }}
-                    onClick={() => setModalState({ ...modalState, show: true, isArchitect: true, isElectrician: false })}
-                  >
+                  <button type="button" className="selection-add-new" style={{ padding: 0 }} onClick={() => setModalState({ ...modalState, show: true, isArchitect: true, isElectrician: false })}>
                     <Plus size={14} /> Add New
                   </button>
                 </div>
                 {lead.architect_id ? (
-                  <div style={{ 
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f172a' }}>
-                        {masterData.architects.find(a => String(a.value) === String(lead.architect_id))?.label || 'Selected Architect'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Phone size={12} />
-                        {masterData.architects.find(a => String(a.value) === String(lead.architect_id))?.phone || 'No Phone Number'}
-                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f172a' }}>{masterData.architects.find(a => String(a.value) === String(lead.architect_id))?.label || 'Selected Architect'}</div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}><Phone size={12} />{masterData.architects.find(a => String(a.value) === String(lead.architect_id))?.phone || 'No Phone'}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button 
-                        type="button"
-                        onClick={() => handleEditProfessional(lead.architect_id, true)}
-                        style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setLead({...lead, architect_id: ''})}
-                        style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
-                      >
-                        <X size={14} />
-                      </button>
+                      <button type="button" onClick={() => handleEditProfessional(lead.architect_id, true)} style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>Edit</button>
+                      <button type="button" onClick={() => setLead({...lead, architect_id: ''})} style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}><X size={14} /></button>
                     </div>
                   </div>
                 ) : (
-                  <SearchableSelect 
-                    options={masterData.architects}
-                    value={lead.architect_id}
-                    onChange={id => { setLead({...lead, architect_id: id}); setHasChanges(true); }}
-                    placeholder="Search or select architect..."
-                    className="clean-select"
-                  />
+                  <SearchableSelect options={masterData.architects} value={lead.architect_id} onChange={id => { setLead({...lead, architect_id: id}); setHasChanges(true); }} placeholder="Search or select architect..." className="clean-select" />
                 )}
               </div>
 
@@ -768,64 +813,136 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <label style={{ fontWeight: 700, color: '#64748b', fontSize: '0.85rem' }}>Electrician</label>
-                  <button 
-                    type="button"
-                    className="selection-add-new" 
-                    style={{ padding: 0 }}
-                    onClick={() => setModalState({ ...modalState, show: true, isArchitect: false, isElectrician: true })}
-                  >
+                  <button type="button" className="selection-add-new" style={{ padding: 0 }} onClick={() => setModalState({ ...modalState, show: true, isArchitect: false, isElectrician: true })}>
                     <Plus size={14} /> Add New
                   </button>
                 </div>
-                
                 {lead.electrician_id ? (
-                  <div style={{ 
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f172a' }}>
-                        {masterData.electricians.find(e => String(e.value) === String(lead.electrician_id))?.label || 'Selected Electrician'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Phone size={12} />
-                        {masterData.electricians.find(e => String(e.value) === String(lead.electrician_id))?.phone || 'No Phone Number'}
-                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f172a' }}>{masterData.electricians.find(e => String(e.value) === String(lead.electrician_id))?.label || 'Selected Electrician'}</div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}><Phone size={12} />{masterData.electricians.find(e => String(e.value) === String(lead.electrician_id))?.phone || 'No Phone'}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button 
-                        type="button"
-                        onClick={() => handleEditProfessional(lead.electrician_id, false)}
-                        style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setLead({...lead, electrician_id: ''})}
-                        style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}
-                      >
-                        <X size={14} />
-                      </button>
+                      <button type="button" onClick={() => handleEditProfessional(lead.electrician_id, false)} style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>Edit</button>
+                      <button type="button" onClick={() => setLead({...lead, electrician_id: ''})} style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}><X size={14} /></button>
                     </div>
                   </div>
                 ) : (
-                  <SearchableSelect 
-                    options={masterData.electricians}
-                    value={lead.electrician_id}
-                    onChange={id => { setLead({...lead, electrician_id: id}); setHasChanges(true); }}
-                    placeholder="Search or select electrician..."
-                    className="clean-select"
-                  />
+                  <SearchableSelect options={masterData.electricians} value={lead.electrician_id} onChange={id => { setLead({...lead, electrician_id: id}); setHasChanges(true); }} placeholder="Search or select electrician..." className="clean-select" />
                 )}
               </div>
+
             </div>
           </section>
+
+          {/* NOTES SECTION - Moved here, matches CreateOrder */}
+          <div className="co-expandable-card main-notes-card" style={{ marginBottom: '1.5rem', marginTop: '1.5rem' }}>
+            <div className="co-expand-header" onClick={() => setShowRemarksSection(!showRemarksSection)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div className="co-card-icon-pill" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
+                  <MessageSquare size={18} />
+                </div>
+                <div className="co-card-title-stack" style={{ height: '18px', display: 'flex', alignItems: 'center' }}>
+                  <h2 style={{ fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', color: '#334155' }}>Notes</h2>
+                </div>
+              </div>
+              <div className={`co-chevron ${showRemarksSection ? 'open' : ''}`}>
+                <ChevronRight size={18} />
+              </div>
+            </div>
+
+            {showRemarksSection && (
+              <div className="co-card-body">
+                {/* Combined scrollable history */}
+                <div className="gn-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px', borderBottom: '8px solid transparent', minHeight: '0' }}>
+                  {/* New (unsaved) notes */}
+                  {generalNotes.map(note => (
+                    <div key={note.id} className="gn-note-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', flexShrink: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#64748b', border: '1px solid #e2e8f0' }}>
+                            {note.by.substring(0,2).toUpperCase()}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{note.by}</span>
+                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>{note.date}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button onClick={() => { setEditingNoteId(note.id); setNoteEditText(note.text); }} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} title="Edit Note">
+                            <Edit2 size={13} />
+                          </button>
+                          <button onClick={() => handleDeleteNote(note.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} title="Delete Note">
+                            <Trash size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        {editingNoteId === note.id ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <textarea className="co-textarea" value={noteEditText} onChange={e => setNoteEditText(e.target.value)} style={{ width: '100%', minHeight: '80px', padding: '10px', borderRadius: '8px', border: '1px solid #3b82f6', fontSize: '14px' }} />
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <button style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => { setGeneralNotes(prev => prev.map(n => n.id === note.id ? { ...n, text: noteEditText } : n)); setEditingNoteId(null); }}>Save Changes</button>
+                              <button style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setEditingNoteId(null)}>Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p style={{ fontSize: '14px', lineHeight: '1.5', color: '#334155', margin: 0, whiteSpace: 'pre-wrap' }}>{note.text}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Existing remarks from DB */}
+                  {(lead.remarks || []).map(r => (
+                    <div key={r.id} className="gn-note-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', flexShrink: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#64748b', border: '1px solid #e2e8f0' }}>
+                            {(r.salesperson || 'U').substring(0,2).toUpperCase()}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{r.salesperson}</span>
+                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>{r.date}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button onClick={() => handleEditRemark(r)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} title="Edit">
+                            <Edit2 size={13} />
+                          </button>
+                          <button onClick={() => handleDeleteRemark(r.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} title="Delete">
+                            <Trash size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        {editingRemarkId === r.id ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <textarea className="co-textarea" value={editingRemarkText} onChange={e => setEditingRemarkText(e.target.value)} style={{ width: '100%', minHeight: '80px', padding: '10px', borderRadius: '8px', border: '1px solid #3b82f6', fontSize: '14px' }} />
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <button style={{ fontSize: '12px', fontWeight: 700, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => handleUpdateRemark(r.id)}>Save Changes</button>
+                              <button style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setEditingRemarkId(null)}>Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p style={{ fontSize: '14px', lineHeight: '1.5', color: '#334155', margin: 0, whiteSpace: 'pre-wrap' }}>{r.remark}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add note input */}
+                <div className="gn-input-card" style={{ marginTop: '1.25rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1rem', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+                  <textarea placeholder="Add Note (Use Shift+Enter for new lines)" value={generalNoteInput} onChange={e => setGeneralNoteInput(e.target.value)} style={{ border: '1px solid #e2e8f0', padding: '12px', borderRadius: '10px', flex: 1, minHeight: '48px', maxHeight: '150px', fontSize: '14px', lineHeight: '1.5', resize: 'none', backgroundColor: '#fff', outline: 'none' }} />
+                  <button onClick={handleAddGeneralNote} style={{ width: '42px', height: '42px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(59,130,246,0.2)', flexShrink: 0 }}>
+                    <Zap size={20} fill="white" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
         </div>
       </div>
