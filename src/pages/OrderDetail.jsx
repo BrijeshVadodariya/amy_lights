@@ -235,11 +235,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     <div className="order-detail-page detail-page-shell">
       <div className="detail-card detail-surface">
         <div className="detail-hero">
-          <button className="btn-ui" onClick={() => {
-            if (order.state === 'selection') onNavigate('selection');
-            else if (order.state === 'sale' || order.state === 'done') onNavigate('orders');
-            else onNavigate('quotations');
-          }} style={{ height: '32px', borderRadius: '4px' }}>
+          <button className="btn-ui" onClick={onBack} style={{ height: '32px', borderRadius: '4px' }}>
             <ChevronLeft size={16} />
             <span>Back</span>
           </button>

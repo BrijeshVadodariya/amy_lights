@@ -348,7 +348,7 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
 };
 
 // ... existing code ...
-const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) => {
+const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [masterData, setMasterData] = useState({
     partners: [],
@@ -2504,8 +2504,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
               onClick={() => {
                 if (confirm("Any unsaved changes will be lost. Continue?")) {
                   clearDraft();
-                  const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder ? 'orders' : 'quotations'));
-                  onNavigate(finalReturn);
+                  if (onBack) onBack();
+                  else {
+                    const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder ? 'orders' : 'quotations'));
+                    onNavigate(finalReturn);
+                  }
                 }
               }}
               style={{

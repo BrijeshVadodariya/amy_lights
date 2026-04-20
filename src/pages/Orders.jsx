@@ -9,7 +9,7 @@ import { QuickNoteModal, QuickTaskModal } from '../components/QuickActionModals'
 import './Products.css'; // Global DataTable styles
 import '../CreateOrder.css'; // Use shared form styles for consistency
 
-const Orders = ({ stateType = 'all', onNavigate }) => {
+const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +34,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
 
   // Today's task filter
   const [filterToday, setFilterToday] = useState(false);
+  const [filterMyTasks, setFilterMyTasks] = useState(false);
+  const [filterAssignee, setFilterAssignee] = useState('');
 
   // Quick Actions State
   const [quickDetailOrderId, setQuickDetailOrderId] = useState(null);
@@ -83,7 +85,24 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
   // Today's task filter — uses ISO YYYY-MM-DD to match backend activity_date format
   const todayISO = new Date().toISOString().split('T')[0]; // e.g. "2026-04-17"
 
+  const currentUserName = (() => {
+    try {
+      const session = JSON.parse(localStorage.getItem('amyLightsLoginSession'));
+      return session?.user?.name || '';
+    } catch { return ''; }
+  })();
+
   const filtered = orders.filter(o => {
+    if (isTaskView) {
+      if (filterMyTasks && currentUserName) {
+         if (!String(o.last_activity || '').includes(currentUserName)) return false;
+      }
+      if (filterAssignee) {
+         const assigneeName = users.find(u => u.id === parseInt(filterAssignee))?.name;
+         if (assigneeName && !String(o.last_activity || '').includes(assigneeName)) return false;
+      }
+    }
+
     // 1. Today's Task Filter — activity_date is YYYY-MM-DD from backend
     if (filterToday) {
       if (!o.activity_date) return false;
@@ -241,7 +260,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
     'selection': 'Selections',
     'cancel': 'Cancelled Orders'
   };
-  const title = titleMap[stateType] || 'All Orders';
+  const title = isTaskView ? 'Tasks' : (titleMap[stateType] || 'All Orders');
 
   return (
     <div className="dt-page">
@@ -297,7 +316,33 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
             </div>
           </div>
 
-          <div className="dt-toolbar-right">
+          <div className="dt-toolbar-right" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {isTaskView && (
+              <>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, color: filterMyTasks ? '#3b82f6' : '#64748b', background: filterMyTasks ? '#eff6ff' : '#f8fafc', border: `1px solid ${filterMyTasks ? '#bfdbfe' : '#e2e8f0'}`, borderRadius: '8px', padding: '5px 10px', transition: 'all 0.2s', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={filterMyTasks}
+                    onChange={(e) => { setFilterMyTasks(e.target.checked); setCurrentPage(1); }}
+                    style={{ width: '14px', height: '14px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                  />
+                  My Tasks
+                </label>
+                <div style={{ width: '180px' }}>
+                  <SearchableSelect
+                    placeholder="Assignee..."
+                    value={filterAssignee}
+                    small
+                    options={[
+                      { value: '', label: 'All' },
+                      ...users.map(u => ({ value: String(u.id), label: u.name }))
+                    ]}
+                    onChange={(val) => { setFilterAssignee(val); setCurrentPage(1); }}
+                  />
+                </div>
+              </>
+            )}
+
             {/* Today's Tasks filter */}
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, color: filterToday ? '#3b82f6' : '#64748b', background: filterToday ? '#eff6ff' : '#f8fafc', border: `1px solid ${filterToday ? '#bfdbfe' : '#e2e8f0'}`, borderRadius: '8px', padding: '5px 10px', transition: 'all 0.2s', userSelect: 'none' }}>
               <input
@@ -330,7 +375,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                   <Trash2 size={14} />
                   <span>{isBulkDeleting ? 'Deleting...' : `Delete (${selectedIds.size})`}</span>
                 </button>
-              ) : (
+              ) : !isTaskView ? (
                 <>
                   <button 
                     ref={catalogBtnRef}
@@ -350,7 +395,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                     </span>
                   </button>
                 </>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -383,8 +428,8 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                   <th style={{ width: '120px', fontSize: '11px' }}>Sale Person</th>
                   <th style={{ width: '80px', fontSize: '11px' }}>Date</th>
                   {showProfessional && <th style={{ width: '250px' }}>Professional</th>}
-                  <th style={{ minWidth: showProfessional ? '120px' : '160px' }}>Note</th>
-                  <th style={{ width: showProfessional ? '120px' : '220px' }}>Task</th>
+                  <th style={{ width: showProfessional ? '120px' : '140px' }}>Note</th>
+                  <th style={{ width: showProfessional ? '120px' : '320px' }}>Task</th>
                   <th className="text-center" style={{ width: '90px' }}>Action</th>
                 </tr>
               </thead>
