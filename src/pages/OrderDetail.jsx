@@ -200,7 +200,11 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
       value: (
         <div>
           <div className="font-bold text-slate-900">{formatValue(order.partner_name)}</div>
-          <div className="text-[12px] text-slate-500 font-medium">{formatValue(order.phone)}</div>
+          <div className="text-[12px] text-slate-500 font-medium">
+            {order.phone && <div>{order.phone}</div>}
+            {order.email && order.email !== 'null' && <div className="text-slate-400">{order.email}</div>}
+            {order.vat && order.vat !== 'null' && <div className="mt-1 text-slate-400 uppercase">GST: {order.vat}</div>}
+          </div>
         </div>
       ) 
     },
@@ -226,7 +230,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
         </div>
       ) 
     },
-    { label: 'Customer Address', value: formatValue(fullAddress) },
+    { label: 'Address', value: formatValue(fullAddress) },
   ];
 
   const orderLines = order.lines || [];
