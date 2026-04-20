@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Edit, CalendarDays,Calendar,MessageSquare, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Edit, CalendarDays,Sparkles, Calendar,MessageSquare, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import SearchableSelect from '../components/SearchableSelect';
@@ -20,6 +20,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [users, setUsers] = useState([]);
+  const [noteTypes, setNoteTypes] = useState([]);
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [activityEditVals, setActivityEditVals] = useState({ summary: '', note: '', date_deadline: '', user_id: '' });
   const [editingRemarkIdx, setEditingRemarkIdx] = useState(null);
@@ -33,6 +34,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
       try {
         const res = await odooService.getMasterData();
         if (res.users) setUsers(res.users);
+        if (res.amy_note_types) setNoteTypes(res.amy_note_types);
       } catch (err) { console.error("Error fetching master data:", err); }
     };
     fetch();
@@ -198,7 +200,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
       value: (
         <div>
           <div className="font-bold text-slate-900">{formatValue(order.partner_name)}</div>
-          <div className="text-[12px] text-slate-500 font-medium">{formatValue(order.mobile)}</div>
+          <div className="text-[12px] text-slate-500 font-medium">{formatValue(order.phone)}</div>
         </div>
       ) 
     },
@@ -242,7 +244,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             <span>Back</span>
           </button>
           
-          <div className="detail-hero-actions" style={{ display: 'flex', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
+          <div className="detail-hero-actions">
             <button 
               className="btn-ui hover:bg-[#25D366] hover:text-white" 
               onClick={() => setShowWhatsappModal(true)} 
@@ -554,6 +556,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             onClick={async () => {
+                              if (!activityEditVals.note.trim()) return alert("Message is required");
                               try {
                                 const res = await odooService.updateActivity(act.id, activityEditVals.summary, activityEditVals.note, activityEditVals.date_deadline, activityEditVals.user_id);
                                 if (res.success || !res.error) { fetchOrder(); setEditingActivityId(null); }
@@ -582,17 +585,18 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                           )}
                           <div 
                             style={{ 
-                              fontSize: '13px', 
-                              color: '#334155', 
+                              fontSize: '14px', // Slightly larger
+                              color: '#0f172a', // Darker/Higher contrast
                               lineHeight: '1.5',
-                              fontWeight: 400
+                              fontWeight: 600, // Semi-bold for highlights
+                              marginBottom: '8px'
                             }} 
                             dangerouslySetInnerHTML={{ __html: act.note }} 
                           />
                         </div>
                         <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>
-                            Assigned to: <span style={{ fontWeight: 700, color: '#475569' }}>{act.user_name || 'Unassigned'}</span>
+                            Assigned to: <span style={{ fontWeight: 500, color: '#94a3b8' }}>{act.user_name || 'Unassigned'}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>{act.date_deadline || 'No Date'}</span>
@@ -636,7 +640,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
           {/* Remarks Column */}
           <div style={{ background: '#fff' }}>
             <div className="detail-section-header" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Remarks</h2>
+              <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>General Notes</h2>
               <button 
                 className="ghost-action-btn" 
                 onClick={() => setShowNoteModal(true)}
@@ -700,6 +704,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             onClick={async () => {
+                              if (!remarkEditText.trim()) return alert("Remark is required");
                               try {
                                 const res = await odooService.updateRemark(r.id, remarkEditText);
                                 if (res.success || !res.error) { fetchOrder(); setEditingRemarkIdx(null); }
@@ -734,68 +739,97 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               <h2 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#000', textTransform: 'uppercase' }}>Activity History</h2>
             </div>
 
-            <div className="activity-notes-stack">
-              {order.amy_notes.map((note) => {
-                const getIcon = (type) => {
-                  switch(type) {
-                    case 'switches': return <ToggleRight size={18} />;
-                    case 'fans': return <Wind size={18} />;
-                    case 'ac': return <Activity size={18} />;
-                    case 'curtains': return <Layers size={18} />;
-                    case 'automation': return <Zap size={18} />;
-                    case 'lights': return <Lightbulb size={18} />;
-                    case 'profiles': return <Layers size={18} />;
-                    default: return <MoreHorizontal size={18} />;
-                  }
-                };
+            {(() => {
+              // Helper to resolve a typeVal to a known noteType
+              const resolveType = (typeVal) => {
+                if (!typeVal) return null;
+                const v = typeVal.toLowerCase().trim();
+                // 1. Exact match first
+                let found = noteTypes.find(t => String(t.id).toLowerCase() === v);
+                if (found) return found;
+                // 2. Plural-insensitive
+                found = noteTypes.find(t => {
+                  const tid = String(t.id).toLowerCase();
+                  return tid === v.replace(/s$/, '') || v === tid.replace(/s$/, '');
+                });
+                return found || null;
+              };
 
-                const isLong = (note.text && note.text.length > 200) || (note.images && note.images.length > 3);
-                
-                return (
-                  <div 
-                    key={note.id} 
-                    className="detail-info-card activity-note-card"
-                    style={isLong ? { gridColumn: 'span 2' } : {}}
-                  >
-                    <div className="activity-note-type-label">
-                      {getIcon(note.note_type)}
-                      <span>{note.note_type}</span>
+              const getIcon = (type) => {
+                const t = String(type || '').toLowerCase();
+                if (t.includes('switch')) return <ToggleRight size={18} />;
+                if (t.includes('fan')) return <Wind size={18} />;
+                if (t.includes('light')) return <Lightbulb size={18} />;
+                if (t.includes('profile')) return <Layers size={18} />;
+                if (t.includes('decorative')) return <Sparkles size={18} />;
+                if (t.includes('other')) return <MoreHorizontal size={18} />;
+                return <MoreHorizontal size={18} />;
+              };
+
+              // Group notes by their resolved category
+              const grouped = {}; // key = typeId, value = { typeInfo, notes[] }
+              order.amy_notes.forEach(note => {
+                const rawType = String(note.note_type || '').trim();
+                const typeInfo = resolveType(rawType);
+                const key = typeInfo ? typeInfo.id : (rawType || 'others');
+                const title = typeInfo ? typeInfo.title : (rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1) : 'Others');
+                if (!grouped[key]) grouped[key] = { title, key, notes: [] };
+                grouped[key].notes.push(note);
+              });
+
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', padding: '12px 14px' }}>
+                  {Object.values(grouped).map(group => (
+                    <div
+                      key={group.key}
+                      className="detail-info-card activity-note-card"
+                      style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+                    >
+                      {/* Category Header */}
+                      <div className="activity-note-type-label" style={{ marginBottom: '4px' }}>
+                        {getIcon(group.key)}
+                        <span style={{ textTransform: 'uppercase', fontSize: '11px', fontWeight: 800, letterSpacing: '0.05em' }}>{group.title}</span>
+                      </div>
+
+                      {/* All notes in this category */}
+                      {group.notes.map(note => (
+                        <div key={note.id} style={{ borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                          {note.text && (
+                            <div className="activity-note-text-box" style={{ marginBottom: '8px' }}>
+                              <p>{note.text}</p>
+                            </div>
+                          )}
+                          {note.images && note.images.length > 0 && (
+                            <div className="activity-note-media-grid">
+                              {note.images.map((img, i) => (
+                                <div
+                                  key={i}
+                                  className="activity-media-item"
+                                  onClick={() => {
+                                    const token = localStorage.getItem('odoo_session_id') || '';
+                                    const db = import.meta.env.VITE_ODOO_DB || 'stage';
+                                    setLightboxImage(`${img}${img.includes('?') ? '&' : '?'}token=${token}&db=${db}`);
+                                  }}
+                                >
+                                  <img
+                                    src={`${img}${img.includes('?') ? '&' : '?'}token=${localStorage.getItem('odoo_session_id') || ''}&db=${import.meta.env.VITE_ODOO_DB || 'stage'}`}
+                                    alt="Attachment"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                  {note.images.length > 1 && (
+                                    <span className="media-count-badge">{i + 1}/{note.images.length}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    
-                    {note.text && (
-                      <div className="activity-note-text-box">
-                        <p>{note.text}</p>
-                      </div>
-                    )}
-
-                    {note.images && note.images.length > 0 && (
-                      <div className="activity-note-media-grid">
-                        {note.images.map((img, i) => (
-                          <div 
-                            key={i} 
-                            className="activity-media-item"
-                            onClick={() => {
-                              const token = localStorage.getItem('odoo_session_id') || '';
-                              const db = import.meta.env.VITE_ODOO_DB || 'stage';
-                              setLightboxImage(`${img}${img.includes('?') ? '&' : '?'}token=${token}&db=${db}`);
-                            }}
-                          >
-                            <img 
-                              src={`${img}${img.includes('?') ? '&' : '?'}token=${localStorage.getItem('odoo_session_id') || ''}&db=${import.meta.env.VITE_ODOO_DB || 'stage'}`} 
-                              alt="Attachment" 
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                            {note.images.length > 1 && (
-                                <span className="media-count-badge">{i + 1}/{note.images.length}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              );
+            })()}
           </section>
         )}
 
@@ -884,7 +918,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
         onClose={() => setShowWhatsappModal(false)}
         resModel="sale.order"
         resId={order.id}
-        defaultMobile={order.mobile}
+        defaultMobile={order.phone}
         defaultMessage={`Hello ${order.partner_name || ''},\n\nHere is your ${order.state === 'selection' ? 'selection' : 'quotation'} ${order.name || ''} for an amount of ${formatCurrency(order.amount_total)}.\n\nBest regards,`}
       />
     </div>

@@ -10,6 +10,8 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
   const [saving, setSaving] = useState(false);
   const [masterData, setMasterData] = useState({ partners: [], architects: [], electricians: [], users: [] });
   const [modalState, setModalState] = useState({ show: false, editingId: null, newName: '', newPhone: '', newEmail: '', newAddress: '', newNote: '', isArchitect: false, isElectrician: false });
+  const [showSuccessOptions, setShowSuccessOptions] = useState(false);
+  const [createdPartnerId, setCreatedPartnerId] = useState(null);
   const [customer, setCustomer] = useState(() => {
     // 1. Check if we have state passed from previous form (return logic)
     if (extraData?.formState) return extraData.formState;
@@ -29,7 +31,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
     // 3. Fallback to default empty state
     return {
       name: '',
-      mobile: '',
+      phone: '',
       email: '',
       otherName: '',
       otherNumber: '',
@@ -67,7 +69,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
   const [hasChanges, setHasChanges] = useState(false);
   
   useEffect(() => {
-    const isDirty = customer.name !== '' || customer.mobile !== '' || customer.houseNo !== '' || customer.area !== '';
+    const isDirty = customer.name !== '' || customer.phone !== '' || customer.houseNo !== '' || customer.area !== '';
     setHasChanges(isDirty && !editId); // Only track unsaved changes for new creations or if actually edited
   }, [customer, editId]);
 
@@ -101,7 +103,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
 
           setCustomer({
             name: res.name || '',
-            mobile: res.phone || res.mobile || '',
+            phone: res.phone || '',
             email: res.email || '',
             otherName: res.other_name || '',
             otherNumber: res.other_number || '',
@@ -159,7 +161,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
         setCustomer(prev => ({
           ...prev,
           name: res.name || prev.name,
-          mobile: res.phone || prev.mobile,
+          phone: res.phone || prev.phone,
           email: res.email || prev.email,
           houseNo: hNo,
           buildingName: bName,
@@ -226,7 +228,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
     try {
       const payload = {
         name: customer.name,
-        phone: customer.mobile,
+        phone: customer.phone,
         email: customer.email,
         street: [customer.houseNo, customer.buildingName].filter(Boolean).join(', '),
         street2: customer.area,
@@ -262,10 +264,17 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
       // Navigate back to the originating form with the partner pre-selected and previous state restored
       localStorage.removeItem('amy_customer_form_draft');
       setHasChanges(false);
-      onNavigate(returnRoute, null, { 
-        preFilledPartnerId: res.id || res.data?.id || editId,
-        formState: extraData?.formState 
-      });
+      
+      const pId = res.id || res.data?.id || editId;
+      if (!editId && returnRoute === 'customers') {
+        setCreatedPartnerId(pId);
+        setShowSuccessOptions(true);
+      } else {
+        onNavigate(returnRoute, null, { 
+          preFilledPartnerId: pId,
+          formState: extraData?.formState 
+        });
+      }
     } catch {
       alert(`${editId ? 'Update' : 'Creation'} failed`);
     } finally {
@@ -283,7 +292,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
           show: true,
           editingId: id,
           newName: res.name || '',
-          newPhone: res.phone || res.mobile || '',
+          newPhone: res.phone || '',
           newEmail: res.email || '',
           newAddress: res.street || '',
           newNote: res.comment || '',
@@ -325,7 +334,6 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
           id: targetId,
           name: modalState.newName,
           phone: modalState.newPhone,
-          mobile: modalState.newPhone,
           email: modalState.newEmail,
           street: modalState.newAddress,
           comment: modalState.newNote
@@ -403,9 +411,8 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
                     <Phone size={14} className="text-slate-400" />
                     <input 
                       className="clean-input phone-input" 
-                      value={customer.mobile} 
-                      onChange={(e) => setCustomer({ ...customer, mobile: e.target.value })} 
-                      placeholder="Enter Mobile Number" 
+                      onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} 
+                      placeholder="Enter Phone Number" 
                     />
                   </div>
                 </div>
@@ -659,6 +666,50 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
           </button>
         </div>
       </div>
+
+      {showSuccessOptions && (
+        <div className="form-modal-overlay">
+          <div className="form-modal-content" style={{ textAlign: 'center', padding: '30px' }}>
+            <div style={{ width: '60px', height: '60px', background: '#f0fdf4', color: '#16a34a', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <Plus size={32} />
+            </div>
+            <h2 style={{ marginBottom: '10px' }}>Customer Created!</h2>
+            <p style={{ color: '#64748b', marginBottom: '25px' }}>What would you like to do next for <b>{customer.name}</b>?</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button 
+                className="btn-ui primary" 
+                style={{ width: '100%', justifyContent: 'center', height: '45px' }}
+                onClick={() => onNavigate('create-selection', null, { partner_id: createdPartnerId })}
+              >
+                Create Selection
+              </button>
+              <button 
+                className="btn-ui secondary" 
+                style={{ width: '100%', justifyContent: 'center', height: '45px', border: '1px solid #e2e8f0' }}
+                onClick={() => onNavigate('create-order', null, { partner_id: createdPartnerId })}
+              >
+                Create Quotation
+              </button>
+              <button 
+                className="btn-ui secondary" 
+                style={{ width: '100%', justifyContent: 'center', height: '45px', border: '1px solid #e2e8f0' }}
+                onClick={() => onNavigate('create-direct-order', null, { partner_id: createdPartnerId })}
+              >
+                Create Direct Order
+              </button>
+              <div style={{ height: '10px' }}></div>
+              <button 
+                className="btn-ui" 
+                style={{ width: '100%', justifyContent: 'center', color: '#94a3b8' }}
+                onClick={() => onNavigate('customers')}
+              >
+                Just Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalState.show && (
         <div className="modal-overlay" style={{

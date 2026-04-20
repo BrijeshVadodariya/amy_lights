@@ -15,6 +15,7 @@ import Customers from './pages/Customers';
 import CRM from './pages/CRM';
 import CRMDetail from './pages/CRMDetail';
 import CreateCRM from './pages/CreateCRM';
+import CustomerDetail from './pages/CustomerDetail';
 import Catalog from './pages/Catalog';
 import { Menu } from 'lucide-react';
 import './App.css';
@@ -181,6 +182,8 @@ function App() {
         return <CRMDetail leadId={selectedId} onBack={() => handleNavigate('crm')} onNavigate={handleNavigate} />;
       case 'create-crm':
         return <CreateCRM editId={selectedId} onNavigate={handleNavigate} extraData={extraData} />;
+      case 'customer-detail':
+        return <CustomerDetail partnerId={selectedId} onBack={() => handleNavigate('customers')} onNavigate={handleNavigate} />;
       default:
         return <Dashboard user={user} onNavigate={handleNavigate} />;
     }

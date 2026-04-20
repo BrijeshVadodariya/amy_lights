@@ -709,7 +709,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                  onChange={(val) => setSelectedPartnerId(val)}
                  options={partners.map((p) => ({ 
                    value: p.id, 
-                   label: `${p.name}${p.mobile ? ' - ' + p.mobile : (p.phone ? ' - ' + p.phone : '')}`
+                   label: `${p.name}${p.phone ? ' - ' + p.phone : ''}`
                  }))}
                />
              </div>
@@ -723,7 +723,7 @@ const Orders = ({ stateType = 'all', onNavigate }) => {
                    </div>
                    <div className="partner-meta-info">
                      <div className="partner-name-bold">{p?.name}</div>
-                     <div className="partner-contact-pill">{p?.mobile || p?.phone || 'No Contact Info'}</div>
+                     <div className="partner-contact-pill">{p?.phone || 'No Contact Info'}</div>
                    </div>
                  </div>
                );

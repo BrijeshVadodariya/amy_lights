@@ -47,7 +47,7 @@ const Customers = ({ onNavigate }) => {
     const search = searchTerm.toLowerCase();
     return (
       String(c.name || '').toLowerCase().includes(search) || 
-      String(c.mobile || '').toLowerCase().includes(search) ||
+      String(c.phone || '').toLowerCase().includes(search) ||
       String(c.phone || '').toLowerCase().includes(search) ||
       String(c.email || '').toLowerCase().includes(search)
     );
@@ -144,7 +144,7 @@ const Customers = ({ onNavigate }) => {
             <div 
                 key={c.id} 
                 className="kanban-card"
-                onClick={() => onNavigate('catalog', c.id, { fromTab: 'customers' })}
+                onClick={() => onNavigate('customer-detail', c.id)}
             >
                 <div 
                     className="kanban-avatar-side"
@@ -168,11 +168,11 @@ const Customers = ({ onNavigate }) => {
                                 <span>{c.email}</span>
                             </div>
                         )}
-                        {(c.mobile || c.phone) && (
-                            <div className="kanban-row">
-                                <Phone size={12} />
-                                <span>{c.mobile || c.phone}</span>
-                            </div>
+                        {c.phone && (
+                          <div className="flex items-center gap-1.5 text-slate-500">
+                            <Phone size={13} className="text-slate-400" />
+                            <span>{c.phone}</span>
+                          </div>
                         )}
                         {(c.city || c.state_name) && (
                             <div className="kanban-row">
@@ -189,13 +189,10 @@ const Customers = ({ onNavigate }) => {
                     <div className="kanban-actions" onClick={e => e.stopPropagation()}>
                          <button 
                             className="action-dot-btn" 
-                            title="Create Order" 
-                            onClick={() => onNavigate('create-order', null, { partner_id: c.id })}
+                            title="Open Catalog" 
+                            onClick={() => onNavigate('catalog', c.id, { fromTab: 'customers' })}
                          >
                             <ShoppingCart size={14} />
-                         </button>
-                         <button className="action-dot-btn">
-                            <MoreVertical size={14} />
                          </button>
                     </div>
                 </div>

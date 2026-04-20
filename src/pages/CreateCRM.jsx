@@ -56,7 +56,6 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
       name: '',
       contact_name: '',
       phone: '',
-      mobile: '',
       email: '',
       street: '',
       city: '',
@@ -72,7 +71,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
       architect_remark: '',
       architect_follow_up: '',
       electrician_id: '',
-      partner_id: '',
+      partner_id: extraData?.partner_id || '',
       user_id: '',
       date_deadline: '',
       houseNo: '',
@@ -115,6 +114,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
   };
 
   const handleUpdateRemark = async (remarkId) => {
+    if (!editingRemarkText.trim()) return alert("Remark is required");
     try {
       await odooService.updateRemark(remarkId, editingRemarkText);
       setEditingRemarkId(null);
@@ -173,7 +173,6 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
             name: res.name || '',
             contact_name: res.contact_name || '',
             phone: res.phone || '',
-            mobile: res.mobile || '',
             email: res.email || '',
             street: streetStr,
             houseNo: hNo,
@@ -219,7 +218,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
         architects: (masterRes?.architects || []).map(p => ({ value: p.id, label: p.name, phone: p.phone })),
         electricians: (masterRes?.electricians || []).map(p => ({ value: p.id, label: p.name, phone: p.phone })),
         users: masterRes?.users || [],
-        partners: (masterRes?.partners || []).map(p => ({ value: p.id, label: p.name, phone: p.phone || p.mobile || '' })),
+        partners: (masterRes?.partners || []).map(p => ({ value: p.id, label: p.name, phone: p.phone || '' })),
         stages: stagesRes || [],
         activity_types: masterRes?.activity_types || []
       });
@@ -276,7 +275,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
           city: res.city || '',
           state_name: res.state_name || '',
           contact_name: '', 
-          mobile: '',
+          phone: '',
           email: ''
         }));
       }
@@ -356,7 +355,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
           show: true,
           editingId: id,
           newName: res.name || '',
-          newPhone: res.phone || res.mobile || '',
+          newPhone: res.phone || '',
           newEmail: res.email || '',
           newAddress: res.street || '',
           newNote: res.comment || '',
@@ -660,7 +659,11 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                                         style={{ minHeight: '60px', fontSize: '12px', padding: '8px', width: '100%', marginBottom: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
                                       />
                                       <div style={{ display: 'flex', gap: '12px' }}>
-                                        <button onClick={() => { setScheduledActivities(prev => prev.map(a => a.id === act.id ? { ...taskEditText } : a)); setEditingTaskId(null); }} style={{ color: '#3b82f6', fontWeight: 800, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>Save</button>
+                                        <button onClick={() => { 
+                                          if (!taskEditText.note.trim()) return alert("Message is required");
+                                          setScheduledActivities(prev => prev.map(a => a.id === act.id ? { ...taskEditText } : a)); 
+                                          setEditingTaskId(null); 
+                                        }} style={{ color: '#3b82f6', fontWeight: 800, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>Save</button>
                                         <button onClick={() => setEditingTaskId(null)} style={{ color: '#64748b', fontWeight: 600, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
                                       </div>
                                     </div>
@@ -707,6 +710,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                           typeId = todoType?.id;
                         }
                         if (!typeId) return alert('No activity type found');
+                        if (!newActivity.note.trim()) return alert("Please enter activity note");
                         setScheduledActivities(prev => [...prev, { ...newActivity, activity_type_id: typeId, id: Date.now() }]);
                         setNewActivity({ activity_type_id: '', summary: 'To Do', note: '', user_id: '', date_deadline: new Date().toISOString().split('T')[0] });
                       }} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', padding: '0 20px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(14,165,233,0.2)' }}>

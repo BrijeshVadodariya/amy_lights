@@ -163,6 +163,11 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },
+  getPartnerDetail: async (partnerId) => {
+    const res = await api.post('/api/partners/detail', { params: { partner_id: partnerId } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
   getProductDetail: async (productId) => {
     const res = await api.post('/api/products/detail', { params: { product_id: productId } });
     const result = res.data.result || { success: false, error: res.data.error };
@@ -290,9 +295,9 @@ export const odooService = {
     const res = await api.post('/api/whatsapp/disconnect');
     return res.data?.result?.data || res.data?.result || { success: false };
   },
-  sendWhatsappPdf: async (resModel, resId, mobile, message) => {
+  sendWhatsappPdf: async (resModel, resId, phone, message) => {
     const res = await api.post('/api/whatsapp/send_pdf', {
-      params: { res_model: resModel, res_id: resId, mobile: mobile, message: message }
+      params: { res_model: resModel, res_id: resId, phone: phone, message: message }
     });
     return res.data.result || { success: false, error: res.data.error };
   },

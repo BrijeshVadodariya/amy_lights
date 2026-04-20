@@ -92,6 +92,7 @@ export const QuickTaskModal = ({ orderId, resModel = 'sale.order', users = [], o
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (!vals.note.trim()) return alert("Please enter activity note");
     setSubmitting(true);
     try {
       const finalSummary = vals.summary.trim() || 'Task';

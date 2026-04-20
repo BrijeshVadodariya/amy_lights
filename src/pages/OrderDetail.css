@@ -37,6 +37,13 @@
   flex-wrap: wrap; /* Fix for button truncation on mobile */
 }
 
+.detail-hero-actions {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
 @media (max-width: 600px) {
   .detail-hero {
     padding: 1rem;
@@ -45,8 +52,10 @@
   .detail-hero-actions {
     width: 100%;
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     justify-content: flex-start;
+    padding-left: 2px;
   }
   
   .detail-hero-actions .btn-ui {

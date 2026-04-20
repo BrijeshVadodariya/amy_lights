@@ -371,7 +371,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
     }
 
     return {
-      partnerId: '',
+      partnerId: extraData?.partner_id || '',
       date: new Date().toISOString().split('T')[0],
       remark: '',
       architectId: '',
@@ -424,7 +424,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   // Modal & Form States (Restored to fix lint errors)
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ 
-    name: '', billing_name: '', contact_person: '', mobile: '', 
+    name: '', billing_name: '', contact_person: '', phone: '', 
     billing_address: '', delivery_address: '', electrician: '', 
     electrician_number: '', architect: '', architect_number: '', 
     office_contact_person: '' 
@@ -522,7 +522,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
       // Update cache and state
       // Update cache and state without wiping newly injected edit items
-      if (newData.products.length > 0 || newData.partners.length > 0) {
+      if (newData.products.length > 0 || newData.partners.length > 0 || masterRes) {
         setMasterData(prev => {
           // Merge arrays securely using Map to preserve existing UI items (specifically injected by edit flow)
           const mergeArrays = (arr1, arr2) => {
@@ -600,7 +600,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
             city: data.city || '',
             zip: data.zip || '',
             state_id: data.state_id || false,
-            phone: data.partner_phone || data.phone || data.mobile || '',
+            phone: data.partner_phone || data.phone || '',
             vat: data.partner_vat || data.vat || '',
             architect_name: extractName(data.architect_id),
             architect_phone: data.architect_phone || '',
@@ -650,11 +650,57 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           const sessionId = localStorage.getItem('odoo_session_id') || '';
           const dbName = import.meta.env.VITE_ODOO_DB || 'stage';
 
+          // 1. Process standard remarks first to build a master list of seen texts
+          const seenTexts = new Set();
+          const remarkItems = [];
+          if (data.remark) {
+            const cleanRemark = data.remark.replace(/<\/?[^>]+(>|$)/g, "\n").trim();
+            if (cleanRemark) {
+              const individualNotes = cleanRemark.split(/\n|<br\s*\/?>|\|/i)
+                .map(t => t.trim())
+                .filter(t => t.length > 0);
+              
+              individualNotes.forEach((text, idx) => {
+                const tLower = text.toLowerCase();
+                if (!seenTexts.has(tLower)) {
+                  seenTexts.add(tLower);
+                  remarkItems.push({
+                    id: `imported-remark-${idx}`,
+                    text: text,
+                    by: 'System',
+                    date: 'Imported',
+                    is_from_backend: true,
+                    is_new: false
+                  });
+                }
+              });
+            }
+          }
+
+          // 2. Process amy.note records
           const allTypeNotes = [];
           noteData.forEach(note => {
-            const type = note.note_type || note.type || 'others';
+            // EXACT match first, then plural-strip fallback
+            const rawType = String(note.note_type || '').trim();
+            let resolvedType = null;
+            if (rawType) {
+              const v = rawType.toLowerCase();
+              resolvedType = masterData.amy_note_types?.find(t => String(t.id).toLowerCase() === v);
+              if (!resolvedType) {
+                resolvedType = masterData.amy_note_types?.find(t => {
+                  const tid = String(t.id).toLowerCase();
+                  return tid === v.replace(/s$/, '') || v === tid.replace(/s$/, '');
+                });
+              }
+            }
+            const type = resolvedType ? resolvedType.id : (rawType.toLowerCase() || 'others');
+            const noteText = (note.text || '').replace(/<[^>]*>?/gm, '').trim();
+            const tLower = noteText.toLowerCase();
+
+            // Only deduplicate against remarks for truly general notes (no category)
+            if (!rawType && seenTexts.has(tLower)) return;
+            if (noteText) seenTexts.add(tLower);
             
-            // Map image URLs if present, ensuring they have auth tokens
             const noteImages = (note.images || note.image || []).map(url => {
               if (typeof url !== 'string') return null;
               const hasToken = url.includes('token=') || url.includes('session_id=');
@@ -665,49 +711,26 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
             const processedNote = {
               id: note.id || Math.random(),
-              text: (note.text || '').replace(/<[^>]*>?/gm, '').trim(),
+              text: noteText,
               images: noteImages,
               by: note.author || 'System',
-              date: note.create_date || '', // Use backend date if available
+              date: note.create_date || '',
+              note_type_id: type,
               is_from_backend: true,
               is_new: false
             };
             
-            if (type === 'others' || type === 'remark' || type === 'note') {
-              allTypeNotes.push(processedNote);
-            } else {
+            // Notes with a valid backend note_type ALWAYS stay in their category bucket
+            if (rawType) {
               if (!mappedHistory[type]) mappedHistory[type] = [];
               mappedHistory[type].push(processedNote);
+            } else {
+              // Only truly un-typed notes go to generalNotes
+              allTypeNotes.push(processedNote);
             }
           });
           
-          setGeneralNotes(prev => {
-            let combined = [...allTypeNotes];
-            if (data.remark) {
-              const cleanRemark = data.remark.replace(/<\/?[^>]+(>|$)/g, "\n").trim();
-              if (cleanRemark) {
-                // Split by common separators if they were joined
-                const individualNotes = cleanRemark.split(/\n|<br\s*\/?>|\|/i)
-                  .map(t => t.trim())
-                  .filter(t => t.length > 0);
-
-                individualNotes.forEach((text, idx) => {
-                  // Only add if not already present in allTypeNotes (deduplicate)
-                  if (!combined.some(existing => existing.text === text)) {
-                    combined.push({
-                      id: `imported-remark-${idx}`,
-                      text: text,
-                      by: 'System',
-                      date: 'Imported',
-                      is_from_backend: true,
-                      is_new: false
-                    });
-                  }
-                });
-              }
-            }
-            return combined;
-          });
+          setGeneralNotes([...allTypeNotes, ...remarkItems]);
           setActivityHistory(mappedHistory);
           // Auto-expand categories if we have history
           if (Object.keys(mappedHistory).length > 0) {
@@ -1003,6 +1026,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       }
     }
     
+    if (!noteEditText.trim()) return alert("Remark is required");
     setGeneralNotes(prev => prev.map(n => n.id === id ? { ...n, text: noteEditText } : n));
     setEditingNoteId(null);
     setNoteEditText("");
@@ -1114,7 +1138,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
 
   const handleAddActivityNote = (id) => {
     const input = activityInputs[id] || { text: '', images: [] };
-    if (!input.text && input.images.length === 0) return;
+    if (!input.text.trim()) return alert("Please enter note message");
     
     const newNote = {
       id: `local-${Date.now()}`,  // String prefix so it's never confused with a real Odoo numeric ID
@@ -1138,6 +1162,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
   };
 
   const handleSaveActivityNote = (catId, noteId) => {
+    if (!activityNoteEditText.trim()) return alert("Note message is required");
     setActivityHistory(prev => ({
       ...prev,
       [catId]: prev[catId].map(n => n.id === noteId ? { ...n, text: activityNoteEditText } : n)
@@ -1284,7 +1309,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       // Mapping to Odoo (Simplified check)
       const res = await odooService.createPartner({
          name: newCustomer.name,
-         phone: newCustomer.mobile,
+         phone: newCustomer.phone,
          email: '', // Not in form
          comment: newCustomer.billing_address // Simplified
       });
@@ -1292,7 +1317,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         setMasterData(prev => ({ ...prev, partners: [...prev.partners, res] }));
         setOrderHeader(prev => ({ ...prev, partnerId: res.id }));
         setShowCustomerModal(false);
-        setNewCustomer({ name: '', billing_name: '', contact_person: '', mobile: '', billing_address: '', delivery_address: '', electrician: '', electrician_number: '', architect: '', architect_number: '', office_contact_person: '' });
+        setNewCustomer({ name: '', billing_name: '', contact_person: '', phone: '', billing_address: '', delivery_address: '', electrician: '', electrician_number: '', architect: '', architect_number: '', office_contact_person: '' });
       }
     } catch {
       alert("Customer creation failed");
@@ -1406,7 +1431,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
       let chatterText = "";
 
       // Helper to generate a unique filename
-      const genName = (type, i) => `${type}_note_${Date.now()}_${i}.png`;
+      const genName = (type, i) => {
+        const typeInfo = masterData.amy_note_types?.find(t => String(t.id) === String(type));
+        const typeLabel = typeInfo ? typeInfo.title : type;
+        return `${typeLabel}_note_${Date.now()}_${i}.png`;
+      };
 
       // ── GRANULAR UPDATE STRATEGY ──────────────────────────────────────────
       // Step 1: Handled deleted records
@@ -1429,7 +1458,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
           };
 
           if (hNote.is_from_backend && hNote.id && typeof hNote.id === 'number') {
-            amyNoteLines.push([1, hNote.id, { text: payload.text }]); 
+            // CRITICAL: Must send note_type in update command to prevent losing it in backend
+            amyNoteLines.push([1, hNote.id, { 
+              text: payload.text,
+              note_type: payload.note_type 
+            }]); 
             if (payload.image.length > 0) {
               amyNoteLines.push([1, hNote.id, { image: payload.image }]);
             }
@@ -1439,21 +1472,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
         });
       });
 
-      // --- ADDED: Process generalNotes into amyNoteLines to prevent backend doubling ---
-      generalNotes.forEach(n => {
-        const payload = {
-          text: n.text || '',
-          note_type: 'general' // Use a default type for these general notes
-        };
-
-        if (!n.is_new && typeof n.id === 'number') {
-          // Existing note from backend: update
-          amyNoteLines.push([1, n.id, { text: payload.text }]);
-        } else if (n.is_new) {
-          // New note: create
-          amyNoteLines.push([0, 0, payload]);
-        }
-      });
+      // ────────────────────────────────────────────────────────────────────────
 
       // Step 3: Flush any text still in input boxes
       Object.keys(activityInputs).forEach(type => {
@@ -1616,7 +1635,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '18px', minWidth: '100px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
                       <span style={{ fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Phone:</span>
-                      <span style={{ fontWeight: 800, color: '#334155' }}>{selectedPartner?.phone || selectedPartner?.mobile || '-'}</span>
+                      <span style={{ fontWeight: 800, color: '#334155' }}>{selectedPartner?.phone || '-'}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }}>
                       <span style={{ fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>GSTIN:</span>
@@ -1657,7 +1676,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Phone Number</label>
                   <div style={{ height: '32px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 10px', borderRadius: '2px', border: '1px solid #ddd', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                    {selectedPartner?.phone || selectedPartner?.mobile || '-'}
+                    {selectedPartner?.phone || '-'}
                   </div>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -2036,7 +2055,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                         typeId = todoType?.id;
                       }
                       if (!typeId) return alert("Select activity type");
-                      if (!newActivity.note) return alert("Please enter activity note");
+                      if (!newActivity.note.trim()) return alert("Please enter activity note");
                       
                       setScheduledActivities(prev => [...prev, { ...newActivity, activity_type_id: typeId, id: Date.now() }]);
                       setNewActivity({
@@ -2125,7 +2144,19 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                           {note.by.substring(0,2).toUpperCase()}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{note.by}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>
+                            {note.by}
+                            {(() => {
+                              const typeId = String(note.note_type_id || '').toLowerCase().trim();
+                              if (!typeId) return null;
+                              
+                              const tInfo = masterData.amy_note_types?.find(t => {
+                                const tid = String(t.id).toLowerCase();
+                                return tid === typeId || tid.includes(typeId.replace(/s$/, '')) || typeId.includes(tid.replace(/s$/, ''));
+                              });
+                              return tInfo ? <span style={{ color: '#3b82f6', fontWeight: 600 }}> · {tInfo.title}</span> : <span style={{ color: '#64748b' }}> · {typeId}</span>;
+                            })()}
+                          </span>
                           <span style={{ fontSize: '11px', color: '#94a3b8' }}>{note.date}</span>
                         </div>
                       </div>
@@ -2259,7 +2290,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData }) =>
                   <span style={{ position: 'absolute', content: '""', height: '16px', width: '16px', left: showCategories ? '20px' : '3px', bottom: '3px', backgroundColor: 'white', transition: '.4s', borderRadius: '50%' }}></span>
                 </span>
              </label>
-             <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Show Product Selections</span>
+             <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Show Activity History</span>
           </div>
 
           {(() => {

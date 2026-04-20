@@ -67,9 +67,14 @@ export default function WhatsappModal({ isOpen, onClose, resModel, resId, defaul
         if (res.status === 'connected') {
           cleanup();
           setStatus('connected');
-        } else if (!qrCode) {
-          // Keep trying to get the QR if it wasn't ready on first load
-          await fetchQr();
+        } else {
+          // If we were connected but now we are not, go back to QR
+          if (status === 'connected') {
+             setStatus('qr');
+             await fetchQr();
+          } else if (!qrCode) {
+             await fetchQr();
+          }
         }
       } catch (e) {
         // Ignore poll errors
@@ -101,11 +106,28 @@ export default function WhatsappModal({ isOpen, onClose, resModel, resId, defaul
     if (!window.confirm("Are you sure you want to unlink your WhatsApp device?")) return;
     try {
       setStatus('loading');
+      cleanup(); // Ensure polling is stopped during disconnect
+      
       await odooService.disconnectWhatsapp();
-      setStatus('qr');
+      
+      // Clear local state
       setQrCode(null);
-      await fetchQr();
-      startPolling();
+      setErrorMsg('');
+
+      // Give the backend/node server a moment to settle the session unlink
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Re-verify status before resuming
+      const res = await odooService.checkWhatsappStatus();
+      if (res.status === 'connected') {
+        // If still reporting connected, backend hasn't unlinked yet
+        setStatus('connected');
+        setErrorMsg("Disconnect signal sent, but session is still active. Please refresh in a moment.");
+      } else {
+        await fetchQr();
+        setStatus('qr');
+        startPolling();
+      }
     } catch (e) {
       setErrorMsg("Failed to disconnect.");
       setStatus('connected');
