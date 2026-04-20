@@ -410,6 +410,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   });
 
   const [generalNotes, setGeneralNotes] = useState(() => {
+    if (extraData?.formState?.generalNotes) return extraData.formState.generalNotes;
+    
     if (!editId) {
       const savedDraft = localStorage.getItem('amy_order_draft_notes');
       if (savedDraft) {
@@ -439,11 +441,14 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   };
 
   const [activityInputs, setActivityInputs] = useState({});
-  const [activityHistory, setActivityHistory] = useState({
-    call: [],
-    whatsapp: [],
-    visit: [],
-    email: []
+  const [activityHistory, setActivityHistory] = useState(() => {
+    if (extraData?.formState?.activityHistory) return extraData.formState.activityHistory;
+    return {
+      call: [],
+      whatsapp: [],
+      visit: [],
+      email: []
+    };
   });
 
   const partnerOptions = useMemo(() => {
@@ -1192,9 +1197,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
 
   React.useEffect(() => {
     fetchMasterData();
-    if (editId) fetchEditOrder();
+    if (editId && !extraData?.formState) fetchEditOrder();
     // Only triggering on editId mount/change to prevent recursive reloads
-  }, [editId]); 
+  }, [editId, extraData?.formState]); 
 
   const handleRowChange = (id, field, value) => {
     setRows(prev => prev.map(r => {
@@ -1586,7 +1591,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                   style={{ backgroundColor: '#f1f5f9', color: '#6366f1' }}
                   onClick={() => {
                     const returnRoute = isSelection ? 'create-selection' : isOrder ? 'create-direct-order' : 'create-order';
-                    onNavigate('create-customer', orderHeader.partnerId, { returnRoute });
+                    onNavigate('create-customer', orderHeader.partnerId, { 
+                      returnRoute,
+                      orderEditId: editId,
+                      formState: { orderHeader, rows, generalNotes, activityHistory, scheduledActivities }
+                    });
                   }}
                   title="Edit Customer"
                 >
@@ -1599,6 +1608,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                   const returnRoute = isSelection ? 'create-selection' : isOrder ? 'create-direct-order' : 'create-order';
                   onNavigate('create-customer', null, { 
                     returnRoute,
+                    orderEditId: editId,
                     formState: { orderHeader, rows, generalNotes, activityHistory, scheduledActivities } 
                   });
                 }}

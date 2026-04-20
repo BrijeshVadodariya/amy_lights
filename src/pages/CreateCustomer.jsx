@@ -270,7 +270,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
         setCreatedPartnerId(pId);
         setShowSuccessOptions(true);
       } else {
-        onNavigate(returnRoute, null, { 
+        onNavigate(returnRoute, extraData?.orderEditId, { 
           preFilledPartnerId: pId,
           formState: extraData?.formState 
         });
@@ -384,7 +384,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             <h2>Create Customer</h2>
             <p className="form-subtitle">Add customer details and return to quotation.</p>
           </div>
-          <button className="btn-ui secondary" onClick={() => onNavigate(returnRoute, null, { formState: extraData?.formState })} aria-label="Back to quotation">
+          <button className="btn-ui secondary" onClick={() => onNavigate(returnRoute, extraData?.orderEditId, { formState: extraData?.formState })} aria-label="Back to quotation">
             <X size={16} /> Close
           </button>
         </div>
@@ -661,7 +661,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
           <button className="btn-ui primary lg" onClick={handleSubmit} disabled={!canSubmit || saving}>
             {saving ? (editId ? 'Updating...' : 'Submitting...') : (editId ? 'Update' : 'Submit')}
           </button>
-          <button className="btn-ui secondary lg" onClick={() => onNavigate(returnRoute, null, { formState: extraData?.formState })}>
+          <button className="btn-ui secondary lg" onClick={() => onNavigate(returnRoute, extraData?.orderEditId, { formState: extraData?.formState })}>
             Back
           </button>
         </div>

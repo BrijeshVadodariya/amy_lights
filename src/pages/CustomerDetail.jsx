@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ChevronLeft, Edit, User, MapPin, 
   Phone, Mail, MessageSquare, Plus, ShoppingCart, 
-  Target, Star, Briefcase
+  Target, Star, Briefcase, Trash2
 } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
@@ -29,6 +29,23 @@ const CustomerDetail = ({ partnerId, onBack, onNavigate }) => {
     if (partnerId) fetchPartner();
   }, [partnerId, fetchPartner]);
 
+  const handleDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete ${partner.name}? This action cannot be undone.`)) return;
+    setLoading(true);
+    try {
+      const res = await odooService.deletePartner(partnerId);
+      if (res.success || !res.error) {
+        onBack();
+      } else {
+        alert(res.error?.message || "Failed to delete customer");
+        setLoading(false);
+      }
+    } catch (err) {
+      alert("Network error while deleting");
+      setLoading(false);
+    }
+  };
+
   if (loading) return <div className="py-20 text-center"><Loader message="Loading details..." /></div>;
   if (!partner) return <div className="p-10 text-center">Customer not found.</div>;
 
@@ -49,6 +66,13 @@ const CustomerDetail = ({ partnerId, onBack, onNavigate }) => {
           </div>
         </div>
         <div className="cd-header-right">
+          <button 
+            className="btn-ui" 
+            style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }}
+            onClick={handleDelete}
+          >
+            <Trash2 size={16} /> Delete
+          </button>
           <button 
             className="btn-ui secondary" 
             onClick={() => onNavigate('create-customer', partner.id)}

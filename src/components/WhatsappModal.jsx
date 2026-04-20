@@ -114,8 +114,8 @@ export default function WhatsappModal({ isOpen, onClose, resModel, resId, defaul
       setQrCode(null);
       setErrorMsg('');
 
-      // Give the backend/node server a moment to settle the session unlink
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Give the backend/node server a moment to settle
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Re-verify status before resuming
       const res = await odooService.checkWhatsappStatus();

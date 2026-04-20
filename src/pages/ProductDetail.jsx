@@ -4,6 +4,7 @@ import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import '../components/Loader.css';
 import './OrderDetail.css';
+import './ProductDetail.css';
 
 const ProductDetail = ({ productId, onBack }) => {
   const [product, setProduct] = useState(null);
