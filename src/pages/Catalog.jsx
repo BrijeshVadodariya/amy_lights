@@ -220,7 +220,7 @@ const Catalog = ({ onNavigate, partnerId, extraData }) => {
         price: item.price,
         name: item.name,
         description: item.description || item.description_sale || '',
-        beam: item.beam || '-',
+
         image_url: item.image_url || ''
       }))
     };

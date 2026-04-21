@@ -14,7 +14,8 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
   const [createdPartnerId, setCreatedPartnerId] = useState(null);
   const [customer, setCustomer] = useState(() => {
     // 1. Check if we have state passed from previous form (return logic)
-    if (extraData?.formState) return extraData.formState;
+    // IMPORTANT: Only return if it's actually CUSTOMER form state, not parent ORDER form state
+    if (extraData?.formState && !extraData.formState.orderHeader) return extraData.formState;
 
     // 2. If not editing, check localStorage for a saved draft
     if (!editId) {
@@ -76,6 +77,14 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
   // Load existing customer data if editing
   useEffect(() => {
     if (editId) {
+      // Handle Ghost IDs (Temporary names from search that aren't in DB yet)
+      if (typeof editId === 'string' && editId.startsWith('_GHOST_PARTNER-')) {
+        const ghostName = editId.replace('_GHOST_PARTNER-', '');
+        setCustomer(prev => ({ ...prev, name: ghostName }));
+        setSaving(false);
+        return;
+      }
+
       setSaving(true);
       odooService.getPartnerDetail(editId).then(res => {
         if (res) {
@@ -381,8 +390,8 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
       <div className="form-card">
         <div className="form-header">
           <div>
-            <h2>Create Customer</h2>
-            <p className="form-subtitle">Add customer details and return to quotation.</p>
+            <h2>{editId && !String(editId).startsWith('_GHOST_') ? 'Edit Customer' : 'Create Customer'}</h2>
+            <p className="form-subtitle">{editId ? 'Update customer details and return.' : 'Add customer details and return to quotation.'}</p>
           </div>
           <button className="btn-ui secondary" onClick={() => onNavigate(returnRoute, extraData?.orderEditId, { formState: extraData?.formState })} aria-label="Back to quotation">
             <X size={16} /> Close

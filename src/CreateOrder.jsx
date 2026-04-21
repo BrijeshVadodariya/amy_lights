@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { odooService } from './services/odoo';
 import SearchableSelect from './components/SearchableSelect';
 import { 
@@ -134,7 +134,7 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
             display: isMobile ? 'flex' : 'grid', 
             gridTemplateColumns: r.display_type === 'line_section' 
               ? `1fr 40px` 
-              : isMobile ? 'none' : `1.2fr 1fr 300px ${orderHeader.is_image ? '120px' : ''} ${orderHeader.is_beam ? '180px' : ''} 40px`.trim().replace(/\s+/g, ' '),
+              : isMobile ? 'none' : `1.2fr 1fr 300px ${orderHeader.is_image ? '120px' : ''} 40px`.trim().replace(/\s+/g, ' '),
             alignItems: 'flex-start', 
             gap: isMobile ? '4px' : '8px', 
             flexWrap: isMobile ? 'wrap' : 'nowrap',
@@ -299,47 +299,7 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
                  </div>
                </div>
 
-                <div style={{ 
-                  display: orderHeader.is_beam ? 'block' : 'none', 
-                  paddingTop: isMobile ? '0' : '4px' 
-                }}>
-                  <input 
-                    type="text" 
-                    className="co-input-border"
-                    value={r.beam || '-'} 
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => handleRowChange(r.id, 'beam', e.target.value)}
-                    style={{ 
-                      width: '100%', 
-                      height: '32px', 
-                      fontSize: '11px', 
-                      textAlign: 'center', 
-                      border: '1px solid #e2e8f0', 
-                      borderRadius: '4px',
-                      backgroundColor: '#fff' 
-                    }}
-                  />
-                </div>
-             </>
-           )}
-
-           {!isMobile && (
-             <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <button 
-                  className="pi-remove-row" 
-                  onClick={() => {
-                    if (isOrder && editId) {
-                      handleRowChange(r.id, 'qty', 0);
-                    } else {
-                      setRows(prev => prev.filter(row => row.id !== r.id));
-                    }
-                  }}
-                  style={{ width: '40px', height: '32px', color: '#ef4444', backgroundColor: '#fef2f2', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  title="Delete Row"
-                >
-                  <Trash size={15} />
-                </button>
-              </div>
+              </>
            )}
         </div>
       </div>
@@ -378,7 +338,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       electricianId: '',
       is_desc: false,
       is_image: false,
-      is_beam: false,
       is_automate: false,
       opportunity_id: ''
     };
@@ -1214,33 +1173,17 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
             productId: value, 
             productName: prod ? prod.name : r.productName,
             price: prod ? prod.price : 0,
-            beam: baseBeam,
-            description: updateDescriptionWithBeam(baseDesc, baseBeam)
+            description: baseDesc
           };
         }
-        if (field === 'beam') {
-          // Update beam and also sync description
-          const newDesc = updateDescriptionWithBeam(r.description, value);
-          return { ...r, beam: value, description: newDesc };
-        }
+
         return { ...r, [field]: value };
       }
       return r;
     }));
   };
 
-  const updateDescriptionWithBeam = (desc, newBeam) => {
-    if (!desc) return `Beam: ${newBeam}`;
-    const regex = /(Beam(\s*Angle)?\s*:\s*)([^|\n]+)/i;
-    if (regex.test(desc)) {
-      return desc.replace(regex, `$1${newBeam}`);
-    }
-    // Only append if it's not a generic dash and there's actually a value
-    if (newBeam && newBeam !== '-') {
-      return `${desc}\nBeam: ${newBeam}`;
-    }
-    return desc;
-  };
+
 
   const selectedPartner = useMemo(() => masterData.partners.find(p => String(p.id) === String(orderHeader.partnerId)), [masterData.partners, orderHeader.partnerId]);
   const selectedArchitect = useMemo(() => {
@@ -1442,7 +1385,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
         return `${typeLabel}_note_${Date.now()}_${i}.png`;
       };
 
-      // ── GRANULAR UPDATE STRATEGY ──────────────────────────────────────────
+      // â”€â”€ GRANULAR UPDATE STRATEGY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // Step 1: Handled deleted records
       deletedActivityIds.forEach(id => {
         amyNoteLines.push([2, id, 0]); // (2, id, 0) = Unlink and delete
@@ -1477,7 +1420,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
         });
       });
 
-      // ────────────────────────────────────────────────────────────────────────
+      // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
       // Step 3: Flush any text still in input boxes
       Object.keys(activityInputs).forEach(type => {
@@ -1493,7 +1436,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
           }]);
         }
       });
-      // ────────────────────────────────────────────────────────────────────────
+      // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
       // 2. Build the remark text. 
       //    CRITICAL: We now only send TRULY NEW messages to the chatter (chatter_notes).
@@ -1513,7 +1456,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
         return dateVal;
       };
 
-      // 3. Activities — same clear-all + re-insert approach.
+      // 3. Activities â€” same clear-all + re-insert approach.
       //    Send all current activities as fresh records; backend clears old ones first.
       const finalExtraData = {
         architect_id: parseInt(orderHeader.architectId) || false,
@@ -1523,12 +1466,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
         chatter_notes: chatterNotes,
         is_desc: !!orderHeader.is_desc,
         is_image: !!orderHeader.is_image,
-        is_beam: !!orderHeader.is_beam,
         is_automate: !!orderHeader.is_automate,
         state: targetState || (isSelection ? 'selection' : isOrder ? 'sale' : 'draft'),
         date_order: ensureIsoDate(orderHeader.date),
         opportunity_id: orderHeader.opportunity_id || false,
-        // All scheduled activities (existing + new) — backend will clear old ones and recreate
+        // All scheduled activities (existing + new) â€” backend will clear old ones and recreate
         activities: scheduledActivities,
         clear_activities: true   // Signal backend to unlink all existing activities before creating
       };
@@ -1764,10 +1706,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                   <input type="checkbox" checked={orderHeader.is_image} onChange={(e) => setOrderHeader({...orderHeader, is_image: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                   Image
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={orderHeader.is_beam} onChange={(e) => setOrderHeader({...orderHeader, is_beam: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                  Beam
-                </label>
+
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
                   <input type="checkbox" checked={orderHeader.is_automate} onChange={(e) => setOrderHeader({...orderHeader, is_automate: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                   Automation
@@ -1797,7 +1736,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                         padding: '0.25rem 0.5rem', 
                         borderBottom: '2px solid #f8fafc', 
                         display: 'grid',
-                        gridTemplateColumns: `1.2fr 1fr 300px ${orderHeader.is_image ? '120px' : ''} ${orderHeader.is_beam ? '180px' : ''} 40px`.trim().replace(/\s+/g, ' '),
+                        gridTemplateColumns: `1.2fr 1fr 300px ${orderHeader.is_image ? '120px' : ''} 40px`.trim().replace(/\s+/g, ' '),
                         gap: '8px',
                         alignItems: 'center'
                     }}>
@@ -1811,9 +1750,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                       {orderHeader.is_image && (
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Image</div>
                       )}
-                      {orderHeader.is_beam && (
-                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Beam</div>
-                      )}
+
                       <div />
                     </div>
                   )}
@@ -1989,8 +1926,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                                     <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
                                   )}
                                   <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
-                                    <span>📅 {act.date_deadline}</span>
-                                    <span>👤 {userName}</span>
+                                    <span>ðŸ“… {act.date_deadline}</span>
+                                    <span>ðŸ‘¤ {userName}</span>
                                   </div>
                                 </>
                               )}
@@ -2164,7 +2101,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                                 const tid = String(t.id).toLowerCase();
                                 return tid === typeId || tid.includes(typeId.replace(/s$/, '')) || typeId.includes(tid.replace(/s$/, ''));
                               });
-                              return tInfo ? <span style={{ color: '#3b82f6', fontWeight: 600 }}> · {tInfo.title}</span> : <span style={{ color: '#64748b' }}> · {typeId}</span>;
+                              return tInfo ? <span style={{ color: '#3b82f6', fontWeight: 600 }}> Â· {tInfo.title}</span> : <span style={{ color: '#64748b' }}> Â· {typeId}</span>;
                             })()}
                           </span>
                           <span style={{ fontSize: '11px', color: '#94a3b8' }}>{note.date}</span>
