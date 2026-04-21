@@ -17,6 +17,7 @@ import CRMDetail from './pages/CRMDetail';
 import CreateCRM from './pages/CreateCRM';
 import CustomerDetail from './pages/CustomerDetail';
 import Catalog from './pages/Catalog';
+import TodoList from './pages/Todo';
 import { Menu } from 'lucide-react';
 import './App.css';
 
@@ -62,12 +63,25 @@ function App() {
 
   useEffect(() => {
     const handleResize = () => {
-      setIsSidebarOpen(window.innerWidth > 768);
+      const width = window.innerWidth;
+      // Below 769px: Mobile (Overlay Sidebar)
+      // 769px to 1024px: Tablet (Auto-collapse)
+      // Above 1024px: Desktop (Full Sidebar)
+      
+      if (width <= 768) {
+        setIsSidebarOpen(false);
+        setIsSidebarCollapsed(false);
+      } else if (width <= 1024) {
+        setIsSidebarOpen(true);
+        setIsSidebarCollapsed(true);
+      } else {
+        setIsSidebarOpen(true);
+        setIsSidebarCollapsed(false);
+      }
     };
 
     handleResize();
     window.addEventListener('resize', handleResize);
-
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
@@ -213,6 +227,8 @@ function App() {
         return <Customers onNavigate={handleNavigate} />;
       case 'crm':
         return <CRM onNavigate={handleNavigate} />;
+      case 'todo':
+        return <TodoList onNavigate={handleNavigate} />;
       case 'order-detail':
         return <OrderDetail orderId={selectedId} onBack={() => handleBack('quotations')} onNavigate={handleNavigate} />;
       case 'product-detail':
@@ -286,6 +302,7 @@ function App() {
                   case 'cancelled': return 'Cancelled Orders';
                   case 'customers': return 'Customers';
                   case 'crm': return 'Lead CRM';
+                  case 'todo': return 'To-Do List';
                   case 'order-detail': return 'Order Details';
                   case 'product-detail': return 'Product Details';
                   case 'create-order': return isEdit ? 'Edit Quotation' : 'Create Quotation';

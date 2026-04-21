@@ -291,25 +291,25 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
               />
             </div>
 
-            <div className="dt-flex" style={{ gap: '8px', marginLeft: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f8fafc', padding: '4px 8px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+            <div className="dt-date-range">
+              <div className="dt-date-input-wrap">
                 <Calendar size={12} className="text-slate-400" />
                 <input 
                   type="date" 
                   value={dateFrom}
                   onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
-                  style={{ border: 'none', background: 'transparent', fontSize: '12px', outline: 'none', color: '#475569' }}
+                  className="dt-date-input"
                 />
                 {dateFrom && <X size={12} className="cursor-pointer text-slate-300 hover:text-red-500" onClick={() => setDateFrom('')} />}
               </div>
-              <span className="text-slate-400" style={{ fontSize: '11px', fontWeight: 600 }}>TO</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f8fafc', padding: '4px 8px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <span className="dt-date-sep">TO</span>
+              <div className="dt-date-input-wrap">
                 <Calendar size={12} className="text-slate-400" />
                 <input 
                   type="date" 
                   value={dateTo}
                   onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
-                  style={{ border: 'none', background: 'transparent', fontSize: '12px', outline: 'none', color: '#475569' }}
+                  className="dt-date-input"
                 />
                 {dateTo && <X size={12} className="cursor-pointer text-slate-300 hover:text-red-500" onClick={() => setDateTo('')} />}
               </div>

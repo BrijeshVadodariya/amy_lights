@@ -112,7 +112,14 @@
 
 @media (max-width: 768px) {
   .ss-menu {
-    max-height: 320px;
+    max-height: 50vh;
+  }
+  .ss-option {
+    padding: 0.75rem 1rem; /* Larger tap area */
+    font-size: 0.95rem;
+  }
+  .ss-search {
+    padding: 0.6rem 1rem; /* Larger input */
   }
 }
 

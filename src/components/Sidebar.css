@@ -14,9 +14,10 @@
 }
 
 .sidebar-header {
-  padding: 1.5rem;
+  padding: 1.25rem 1rem;
   display: flex;
-  justify-content: center;
+  align-items: center;
+  justify-content: flex-start;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -54,6 +55,26 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+}
+
+.sidebar-close-btn {
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  transition: all 0.2s;
+}
+
+.sidebar-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .user-info p {

@@ -7,16 +7,21 @@ import {
   LogOut,
   ChevronDown,
   ChevronUp,
+  CheckSquare,
   FileText,
   Clock,
   Users,
   XCircle,
-  Target
+  Target,
+  X
 } from 'lucide-react';
 import './Sidebar.css';
 
 const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, onCloseSidebar, isCollapsed }) => {
   const [isSaleOrderOpen, setIsSaleOrderOpen] = useState(true);
+
+  // Check if we are in mobile view to show the X button
+  const isMobile = window.innerWidth <= 768;
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -36,6 +41,7 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
       ]
     },
     { id: 'crm', label: 'CRM', icon: Target },
+    { id: 'todo', label: 'To-Do', icon: CheckSquare },
     { id: 'customers', label: 'Customers', icon: Users },
   ];
 
@@ -80,6 +86,11 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
         </div>
         {!isCollapsed && companyInfo?.name && (
           <span className="company-name">{companyInfo.name}</span>
+        )}
+        {isMobile && isOpen && (
+          <button className="sidebar-close-btn" onClick={onCloseSidebar} aria-label="Close Sidebar">
+            <X size={20} />
+          </button>
         )}
       </div>
       

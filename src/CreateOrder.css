@@ -601,6 +601,42 @@
   }
 }
 
+@media (max-width: 1023px) {
+  .pi-grid {
+    gap: 1rem !important;
+    padding-right: 0;
+    min-width: 0;
+  }
+
+  .pi-sub-grid {
+    grid-template-columns: 1fr 1fr; /* 2 columns on tablets */
+  }
+
+  .product-select-group {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .pi-sub-grid {
+    grid-template-columns: 1fr; /* 1 column on phones */
+  }
+  
+  .pi-grid {
+    padding: 0;
+  }
+
+  /* Make sure inputs don't overflow */
+  .pi-grid input {
+    width: 100% !important;
+  }
+  
+  .desktop-alignment-label {
+    display: none;
+  }
+}
+
 .co-add-product-btn {
   width: 100%;
   padding: 1rem;
