@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { odooService } from './services/odoo';
 import SearchableSelect from './components/SearchableSelect';
 import { 
@@ -379,6 +379,24 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
     }
     return [];
   });
+  const [scheduledActivities, setScheduledActivities] = useState(() => {
+    if (extraData?.formState?.scheduledActivities) return extraData.formState.scheduledActivities;
+    if (!editId) {
+      const savedDraft = localStorage.getItem('amy_order_draft_activities');
+      if (savedDraft) {
+        try { return JSON.parse(savedDraft); } catch (e) { console.error("Failed to parse Order Activities draft", e); }
+      }
+    }
+    return [];
+  });
+  const [newActivity, setNewActivity] = useState({
+    activity_type_id: '',
+    summary: 'Task',
+    note: '',
+    user_id: '',
+    date_deadline: new Date().toISOString().split('T')[0]
+  });
+  const [showActivitySection, setShowActivitySection] = useState(false);
   const [generalNoteInput, setGeneralNoteInput] = useState('');
   const [deletedActivityIds, setDeletedActivityIds] = useState([]);
 
@@ -402,6 +420,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   const [activityInputs, setActivityInputs] = useState({});
   const [activityHistory, setActivityHistory] = useState(() => {
     if (extraData?.formState?.activityHistory) return extraData.formState.activityHistory;
+    if (!editId) {
+      const saved = localStorage.getItem('amy_order_draft_history');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) { console.error(e); }
+      }
+    }
     return {
       call: [],
       whatsapp: [],
@@ -431,10 +455,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
         localStorage.setItem('amy_order_draft_header', JSON.stringify(orderHeader));
         localStorage.setItem('amy_order_draft_rows', JSON.stringify(rows));
         localStorage.setItem('amy_order_draft_notes', JSON.stringify(generalNotes));
+        localStorage.setItem('amy_order_draft_activities', JSON.stringify(scheduledActivities));
+        localStorage.setItem('amy_order_draft_history', JSON.stringify(activityHistory));
       }, 800);
       return () => clearTimeout(timeoutId);
     }
-  }, [orderHeader, rows, generalNotes, editId]);
+  }, [orderHeader, rows, generalNotes, scheduledActivities, activityHistory, editId]);
 
   const clearDraft = () => {
     localStorage.removeItem('amy_order_draft_header');
@@ -915,15 +941,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   const [debugRawData, setDebugRawData] = useState(null);
   const [dragActiveId, setDragActiveId] = useState(null);
 
-  const [scheduledActivities, setScheduledActivities] = useState([]);
-  const [newActivity, setNewActivity] = useState({
-    activity_type_id: '',
-    summary: 'Task',
-    note: '',
-    user_id: '',
-    date_deadline: new Date().toISOString().split('T')[0]
-  });
-  const [showActivitySection, setShowActivitySection] = useState(false);
 
   const handleAddGeneralNote = async () => {
     if (!generalNoteInput.trim()) return;
@@ -1157,7 +1174,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   React.useEffect(() => {
     fetchMasterData();
     if (editId && !extraData?.formState) fetchEditOrder();
-    // Only triggering on editId mount/change to prevent recursive reloads
   }, [editId, extraData?.formState]); 
 
   const handleRowChange = (id, field, value) => {
@@ -1290,31 +1306,61 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
      }
   };
 
-  const handleProcess = async (e, targetState = null) => {
+  const getFormDataStats = () => {
+    const productLines = rows.filter(r => r.display_type === 'line_section' || (r.productId !== '' && r.productId !== null && r.productId !== undefined));
+    const hasProducts = productLines.length > 0;
+    const hasActivities = Object.values(activityHistory || {}).some(notes => notes && notes.length > 0);
+    const hasInputs = Object.values(activityInputs || {}).some(input => input && (input.text || (input.images && input.images.length > 0)));
+    const hasScheduled = (scheduledActivities || []).length > 0;
+    const hasGeneralNotes = (generalNotes || []).filter(n => n && n.text).length > 0;
+    return { 
+      hasProducts, 
+      hasActivities: hasActivities || hasInputs, 
+      hasScheduled, 
+      hasGeneralNotes, 
+      hasAnyData: hasProducts || hasActivities || hasInputs || hasScheduled || hasGeneralNotes,
+      productLines
+    };
+  };
 
+  const handleExitBack = async () => {
+    const { hasAnyData } = getFormDataStats();
+    if (hasAnyData) {
+      await handleProcess(null);
+    } else {
+      saveDraft();
+      if (onBack) onBack();
+      else {
+        const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder ? 'orders' : 'quotations'));
+        onNavigate(finalReturn);
+      }
+    }
+  };
+
+  const handleProcess = async (e, targetState = null) => {
+    if (e) e.preventDefault();
     const resolveGhostId = (ghostId, type) => {
       if (!ghostId) return null;
       const ghostStr = String(ghostId);
-      
-      // If it's already a numeric string, return it
       if (/^\d+$/.test(ghostStr)) return ghostStr;
-
       if (ghostStr.startsWith(`_GHOST_${type.toUpperCase()}-`)) {
         const trueName = ghostStr.replace(`_GHOST_${type.toUpperCase()}-`, '');
         const list = type === 'partner' ? masterData.partners : masterData.products;
-        // Try to find by name - this time looking for a REAL numeric ID
         const real = list.find(item => item.name === trueName && !String(item.id).startsWith('_GHOST_'));
         return real ? real.id : ghostId;
       }
       return ghostId;
     };
-
     const finalPartnerId = resolveGhostId(orderHeader.partnerId, 'partner');
     if (!editId && (!finalPartnerId || isNaN(parseInt(finalPartnerId)))) {
         return alert("Please select a valid customer before proceeding.");
     }
-
-    const productLines = rows.filter(r => r.display_type === 'line_section' || (r.productId !== '' && r.productId !== null && r.productId !== undefined));
+    const { hasAnyData, productLines } = getFormDataStats();
+    if (!hasAnyData && !editId) {
+      saveDraft();
+      alert("No products or activities added. Customer has been saved locally as a draft.");
+      return "local_save";
+    }
     if (productLines.length === 0 && !isSelection) {
         return alert("Please select at least one product before saving.");
     }
@@ -1521,8 +1567,29 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
 
   return (
     <div className="create-order-page dt-page">
-      {/* Redundant inner header removed - using app navbar instead */}
       <div className="co-container" style={{ padding: '0.5rem' }}>
+        <div className="co-header-back" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', padding: '0 0.25rem' }}>
+          <button 
+            onClick={handleExitBack} 
+            style={{ 
+              background: '#f8fafc', 
+              border: '1px solid #e2e8f0', 
+              borderRadius: '10px', 
+              width: '40px', 
+              height: '40px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              cursor: 'pointer',
+              color: '#334155'
+            }}
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' }}>
+            {editId ? "Edit" : "New"} {isSelection ? "Selection" : isOrder ? "Order" : "Quotation"}
+          </h2>
+        </div>
         <div className="co-card lead-card" style={{ padding: '0.75rem' }}>
           <div className="co-card-header" style={{ marginBottom: '0.4rem' }}>
             <h3 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: '#64748b' }}>Customer Selection</h3>
@@ -2448,16 +2515,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
             
             <button 
               className="co-btn co-btn-secondary" 
-              onClick={() => {
-                if (confirm("Any unsaved changes will be lost. Continue?")) {
-                  clearDraft();
-                  if (onBack) onBack();
-                  else {
-                    const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder ? 'orders' : 'quotations'));
-                    onNavigate(finalReturn);
-                  }
-                }
-              }}
+              onClick={handleExitBack}
               style={{
                 height: '52px',
                 padding: '0 1.75rem',
@@ -2469,7 +2527,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                 border: '1px solid #e2e8f0'
               }}
             >
-              Cancel
+              Back
             </button>
           </div>
           
