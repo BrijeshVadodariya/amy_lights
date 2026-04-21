@@ -260,7 +260,9 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
       };
 
       let res;
-      if (editId) {
+      const isGhost = typeof editId === 'string' && editId.startsWith('_GHOST_');
+      
+      if (editId && !isGhost) {
         res = await odooService.updatePartner(editId, payload);
       } else {
         res = await odooService.createPartner(payload);
@@ -274,15 +276,21 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
       localStorage.removeItem('amy_customer_form_draft');
       setHasChanges(false);
       
-      const pId = res.id || res.data?.id || editId;
-      if (!editId && returnRoute === 'customers') {
-        setCreatedPartnerId(pId);
-        setShowSuccessOptions(true);
-      } else {
+      const pId = res.id || res.data?.id || (isGhost ? null : editId);
+      
+      // If we just created or updated, and we have a returnRoute that isn't the list, go back
+      if (returnRoute && returnRoute !== 'customers') {
         onNavigate(returnRoute, extraData?.orderEditId, { 
           preFilledPartnerId: pId,
           formState: extraData?.formState 
         });
+      } else if (!editId || isGhost) {
+        // Success modal for NEW creations from the list page
+        setCreatedPartnerId(pId);
+        setShowSuccessOptions(true);
+      } else {
+        // Return to list for normal edits
+        onNavigate('customers');
       }
     } catch {
       alert(`${editId ? 'Update' : 'Creation'} failed`);

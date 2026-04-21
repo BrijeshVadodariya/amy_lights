@@ -29,7 +29,12 @@ function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('amy_active_tab') || 'dashboard');
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState(() => localStorage.getItem('amy_selected_id') || null);
-  const [extraData, setExtraData] = useState(null); // New state for extra data
+  const [extraData, setExtraData] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('amy_extra_data');
+      return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
+  }); // Persists across refresh via sessionStorage
   const [companyInfo, setCompanyInfo] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -109,6 +114,10 @@ function App() {
     setActiveTab(tab);
     setSelectedId(id);
     setExtraData(data);
+    
+    if (data) sessionStorage.setItem('amy_extra_data', JSON.stringify(data));
+    else sessionStorage.removeItem('amy_extra_data');
+    
     localStorage.setItem('amy_active_tab', tab);
     if (id) localStorage.setItem('amy_selected_id', id);
     else localStorage.removeItem('amy_selected_id');
@@ -131,6 +140,10 @@ function App() {
       setActiveTab(prev.tab);
       setSelectedId(prev.id);
       setExtraData(prev.data);
+      
+      if (prev.data) sessionStorage.setItem('amy_extra_data', JSON.stringify(prev.data));
+      else sessionStorage.removeItem('amy_extra_data');
+      
       
       localStorage.setItem('amy_active_tab', prev.tab);
       if (prev.id) localStorage.setItem('amy_selected_id', prev.id);
