@@ -27,15 +27,6 @@
   }
 }
 
-.detail-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.25rem 1rem;
-  border-bottom: 1px solid #eee;
-  flex-wrap: wrap; /* Fix for button truncation on mobile */
-}
 
 .detail-hero-actions {
   display: flex;
@@ -318,4 +309,120 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.detail-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem; /* Reduced padding for cleaner header */
+  border-bottom: 1px solid #eee;
+  flex-wrap: wrap;
+  position: relative; /* Added for absolute centering of child */
+}
+
+/* Odoo-style Smart Buttons */
+.oe_button_box.center-box {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  z-index: 10;
+}
+
+@media (max-width: 1024px) {
+  /* On medium/small screens where space is tight, revert to flex to avoid overlapping */
+  .oe_button_box.center-box {
+    position: static;
+    transform: none;
+    flex: 1;
+    min-width: 100%;
+    order: 3; /* Move below on mobile */
+    margin-top: 10px;
+  }
+}
+
+.smart-button {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
+  height: 44px; /* Odoo standard height */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.smart-button:first-child {
+  border-left: 1px solid #eee;
+}
+
+.smart-button:hover {
+  background: #f8fafc;
+}
+
+.smart-button-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.smart-label-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+
+.smart-count {
+  font-weight: 800;
+  font-size: 15px;
+  color: #0d0d0d;
+}
+
+.smart-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.smart-icon {
+  color: #64748b;
+}
+
+.mobile-modal-container {
+  background: #fff;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-width: 95%;
+  margin: auto;
+}
+
+@media (max-width: 600px) {
+  .mobile-modal-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0 !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    animation: slideUp 0.3s ease-out;
+  }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }

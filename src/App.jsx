@@ -18,6 +18,11 @@ import CreateCRM from './pages/CreateCRM';
 import CustomerDetail from './pages/CustomerDetail';
 import Catalog from './pages/Catalog';
 import TodoList from './pages/Todo';
+import DeliveryList from './pages/DeliveryList';
+import DeliveryDetail from './pages/DeliveryDetail';
+import PurchaseList from './pages/PurchaseList';
+import PurchaseDetail from './pages/PurchaseDetail';
+import Purchases from './pages/Purchases';
 import { Menu } from 'lucide-react';
 import './App.css';
 
@@ -117,8 +122,8 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const handleNavigate = (tab, id = null, data = null) => {
-    if (tab !== activeTab || id !== selectedId) {
+  const handleNavigate = (tab, id = null, data = null, replace = false) => {
+    if (!replace && (tab !== activeTab || id !== selectedId)) {
       setNavHistory(prev => {
         const next = [...prev, { tab: activeTab, id: selectedId, data: extraData }];
         sessionStorage.setItem('amy_nav_history', JSON.stringify(next));
@@ -136,8 +141,12 @@ function App() {
     if (id) localStorage.setItem('amy_selected_id', id);
     else localStorage.removeItem('amy_selected_id');
 
-    // Push to history
-    window.history.pushState({ tab, id, data }, '', '');
+    // Push or Replace history
+    if (replace) {
+        window.history.replaceState({ tab, id, data }, '', '');
+    } else {
+        window.history.pushState({ tab, id, data }, '', '');
+    }
 
     if (window.innerWidth <= 768) {
       setIsSidebarOpen(false);
@@ -145,9 +154,12 @@ function App() {
   };
 
   const handleBack = (defaultTab) => {
+    console.log(`[Navigation] Back requested (History: ${navHistory.length}, Fallback: ${defaultTab})`);
     if (navHistory.length > 0) {
       const newHistory = [...navHistory];
       const prev = newHistory.pop();
+      console.log("[Navigation] Popping history state:", prev);
+      
       setNavHistory(newHistory);
       sessionStorage.setItem('amy_nav_history', JSON.stringify(newHistory));
       
@@ -158,14 +170,14 @@ function App() {
       if (prev.data) sessionStorage.setItem('amy_extra_data', JSON.stringify(prev.data));
       else sessionStorage.removeItem('amy_extra_data');
       
-      
       localStorage.setItem('amy_active_tab', prev.tab);
-      if (prev.id) localStorage.setItem('amy_selected_id', prev.id);
-      else localStorage.removeItem('amy_selected_id');
+      localStorage.setItem('amy_selected_id', prev.id || '');
       
-      window.history.pushState({ tab: prev.tab, id: prev.id, data: prev.data }, '', '');
+      // Update browser URL state without adding a new entry
+      window.history.replaceState({ tab: prev.tab, id: prev.id, data: prev.data }, '', '');
     } else {
-      handleNavigate(defaultTab);
+      console.log("[Navigation] History empty, executing fallback to:", defaultTab);
+      handleNavigate(defaultTab, null, null, true);
     }
   };
 
@@ -229,6 +241,8 @@ function App() {
         return <CRM onNavigate={handleNavigate} />;
       case 'todo':
         return <TodoList onNavigate={handleNavigate} />;
+      case 'purchases':
+        return <Purchases onNavigate={handleNavigate} />;
       case 'order-detail':
         return <OrderDetail orderId={selectedId} onBack={() => handleBack('quotations')} onNavigate={handleNavigate} />;
       case 'product-detail':
@@ -251,6 +265,14 @@ function App() {
         return <CreateCRM editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('crm')} />;
       case 'customer-detail':
         return <CustomerDetail partnerId={selectedId} onBack={() => handleBack('customers')} onNavigate={handleNavigate} />;
+      case 'delivery-list':
+        return <DeliveryList orderId={selectedId} onBack={() => handleBack('order-detail')} onNavigate={handleNavigate} />;
+      case 'delivery-detail':
+        return <DeliveryDetail pickingId={selectedId} onBack={() => handleBack('delivery-list')} onNavigate={handleNavigate} />;
+      case 'purchase-list':
+        return <PurchaseList orderId={selectedId} onBack={() => handleBack('order-detail')} onNavigate={handleNavigate} />;
+      case 'purchase-detail':
+        return <PurchaseDetail purchaseId={selectedId} onBack={() => handleBack('purchase-list')} onNavigate={handleNavigate} />;
       default:
         return <Dashboard user={user} onNavigate={handleNavigate} />;
     }

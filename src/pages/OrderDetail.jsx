@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Edit, CalendarDays,Sparkles, Calendar,MessageSquare, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Edit, CalendarDays,Sparkles, ShoppingCart, Calendar,MessageSquare, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle, Truck } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import SearchableSelect from '../components/SearchableSelect';
@@ -13,6 +13,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
   const [isMobile, setIsMobile] = useState(() => (
     typeof window !== 'undefined' ? window.innerWidth <= 1024 : false
   ));
@@ -27,7 +28,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [remarkEditText, setRemarkEditText] = useState('');
   const [noteInput, setNoteInput] = useState('');
   const [addingNote, setAddingNote] = useState(false);
-  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
@@ -79,6 +79,24 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
       setLoading(false);
     }
   }, [orderId]);
+
+  const handleShowDeliveries = () => {
+    const count = order.delivery_count ?? (order.picking_ids?.length ?? 0);
+    if (count === 1 && order.picking_ids?.length === 1) {
+        onNavigate('delivery-detail', order.picking_ids[0]);
+    } else {
+        onNavigate('delivery-list', orderId);
+    }
+  };
+
+  const handleShowPurchases = () => {
+    const count = order.purchase_count ?? (order.purchase_ids?.length ?? 0);
+    if (count === 1 && order.purchase_ids?.length === 1) {
+        onNavigate('purchase-detail', order.purchase_ids[0]);
+    } else {
+        onNavigate('purchase-list', orderId);
+    }
+  };
 
   useEffect(() => {
     if (orderId) fetchOrder();
@@ -241,8 +259,43 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             <ChevronLeft size={16} />
             <span>Back</span>
           </button>
-          
-          <div className="detail-hero-actions">
+
+          {/* Odoo-style Smart Button - Centered */}
+          <div className="oe_button_box center-box">
+            {(order.delivery_count !== undefined || order.picking_count !== undefined || (order.picking_ids?.length > 0)) && (
+              <button 
+                className="smart-button" 
+                onClick={handleShowDeliveries}
+                title="View Deliveries"
+              >
+                <div className="smart-button-inner">
+                  <Truck size={20} className="smart-icon" />
+                  <div className="smart-label-group">
+                    <span className="smart-count">{order.delivery_count ?? (order.picking_ids?.length ?? 0)}</span>
+                    <span className="smart-label">Delivery</span>
+                  </div>
+                </div>
+              </button>
+            )}
+
+            {(order.purchase_count > 0 || (order.purchase_ids?.length > 0)) && (
+              <button 
+                className="smart-button purchase-btn" 
+                onClick={handleShowPurchases}
+                title="View Purchases"
+                style={{ marginLeft: '8px' }}
+              >
+                <div className="smart-button-inner">
+                  <ShoppingCart size={20} className="smart-icon" style={{ color: '#8b5cf6' }} />
+                  <div className="smart-label-group">
+                    <span className="smart-count" style={{ color: '#8b5cf6' }}>{order.purchase_count ?? (order.purchase_ids?.length ?? 0)}</span>
+                    <span className="smart-label">Purchase</span>
+                  </div>
+                </div>
+              </button>
+            )}
+          </div>
+                   <div className="detail-hero-actions">
             <button 
               className="btn-ui hover:bg-[#25D366] hover:text-white" 
               onClick={() => setShowWhatsappModal(true)} 
@@ -274,7 +327,8 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               </button>
             )}
           </div>
-        </div>        <section className="detail-section">
+        </div>
+        <section className="detail-section">
           <div 
             className="detail-section-header collapsible-trigger" 
             onClick={() => setShowCustomerDetails(!showCustomerDetails)}
@@ -912,6 +966,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
         defaultMobile={order.phone}
         defaultMessage={`Hello ${order.partner_name || ''},\n\nHere is your ${order.state === 'selection' ? 'selection' : 'quotation'} ${order.name || ''} for an amount of ${formatCurrency(order.amount_total)}.\n\nBest regards,`}
       />
+
     </div>
   );
 };

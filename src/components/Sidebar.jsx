@@ -43,6 +43,7 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
     { id: 'crm', label: 'CRM', icon: Target },
     { id: 'todo', label: 'To-Do', icon: CheckSquare },
     { id: 'customers', label: 'Customers', icon: Users },
+    { id: 'purchases', label: 'Purchases', icon: ShoppingBag },
   ];
 
   const handleTabClick = (itemOrId) => {
