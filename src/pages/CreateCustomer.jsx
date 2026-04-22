@@ -132,8 +132,10 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             operationPerson: extractId(res.operation_person),
             architectId: extractId(res.architect_id),
             architectName: res.architect_name || '',
+            architectPhone: res.architect_phone || '',
             electricianId: extractId(res.electrician_id),
-            electricianName: res.electrician_name || ''
+            electricianName: res.electrician_name || '',
+            electricianPhone: res.electrician_phone || ''
           });
           // Reset hasChanges after initial load
           setTimeout(() => setHasChanges(false), 200);
@@ -476,7 +478,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
                   <div className="selection-card-bottom">
                     <Phone size={14} className="text-slate-400" />
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                      {(masterData.architects?.find(a => a.id === parseInt(customer.architectId)))?.phone || '-'}
+                      {(masterData.architects?.find(a => a.id === parseInt(customer.architectId)))?.phone || customer.architectPhone || '-'}
                     </span>
                   </div>
                 </div>
@@ -522,7 +524,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
                   <div className="selection-card-bottom">
                     <Phone size={14} className="text-slate-400" />
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                      {(masterData.electricians?.find(e => e.id === parseInt(customer.electricianId)))?.phone || '-'}
+                      {(masterData.electricians?.find(e => e.id === parseInt(customer.electricianId)))?.phone || customer.electricianPhone || '-'}
                     </span>
                   </div>
                 </div>

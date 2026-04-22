@@ -1734,7 +1734,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                 <label style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Architect</label>
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '2px' : '1.5rem', padding: '2px 0' }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                    {selectedArchitect?.name || selectedPartner?.architect_name || (orderHeader.architectId ? 'Architect Selected' : '-')}
+                    {selectedArchitect?.name || selectedPartner?.architect_name || 
+                     (masterData.partners?.find(p => String(p.id) === String(orderHeader.architectId))?.name) || 
+                     (orderHeader.architectId ? 'Architect Selected' : '-')}
                   </span>
                   {(selectedArchitect?.phone || selectedPartner?.architect_phone) && (
                     <span style={{ fontSize: isMobile ? '11px' : '13px', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -1749,7 +1751,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                 <label style={{ margin: 0, fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Electrician</label>
                 <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '2px' : '1.5rem', padding: '2px 0' }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                    {selectedElectrician?.name || selectedPartner?.electrician_name || (orderHeader.electricianId ? 'Electrician Selected' : '-')}
+                    {selectedElectrician?.name || selectedPartner?.electrician_name || 
+                     (masterData.partners?.find(p => String(p.id) === String(orderHeader.electricianId))?.name) || 
+                     (orderHeader.electricianId ? 'Electrician Selected' : '-')}
                   </span>
                   {(selectedElectrician?.phone || selectedPartner?.electrician_phone) && (
                     <span style={{ fontSize: isMobile ? '11px' : '13px', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
