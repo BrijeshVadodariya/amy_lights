@@ -717,6 +717,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                         }
                         if (!typeId) return alert('No activity type found');
                         if (!newActivity.note.trim()) return alert("Please enter activity note");
+                        if (!newActivity.user_id) return alert("Please select an assignee");
                         setScheduledActivities(prev => [...prev, { ...newActivity, activity_type_id: typeId, id: Date.now() }]);
                         setNewActivity({ activity_type_id: '', summary: 'To Do', note: '', user_id: '', date_deadline: new Date().toISOString().split('T')[0] });
                       }} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: '10px', height: '38px', padding: '0 20px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(14,165,233,0.2)' }}>

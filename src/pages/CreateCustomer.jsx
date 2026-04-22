@@ -428,6 +428,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
                     <Phone size={14} className="text-slate-400" />
                     <input 
                       className="clean-input phone-input" 
+                      value={customer.phone}
                       onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} 
                       placeholder="Enter Phone Number" 
                     />

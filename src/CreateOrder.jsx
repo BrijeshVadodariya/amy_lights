@@ -2091,6 +2091,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                       }
                       if (!typeId) return alert("Select activity type");
                       if (!newActivity.note.trim()) return alert("Please enter activity note");
+                      if (!newActivity.user_id) return alert("Please select an assignee");
                       
                       setScheduledActivities(prev => [...prev, { ...newActivity, activity_type_id: typeId, id: Date.now() }]);
                       setNewActivity({
