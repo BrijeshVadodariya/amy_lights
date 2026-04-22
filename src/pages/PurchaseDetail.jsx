@@ -159,15 +159,9 @@ const PurchaseDetail = ({ purchaseId, onBack, onNavigate }) => {
                         <label className="field-label text-[10px]">Vendor</label>
                         <div className="field-value font-bold text-slate-900 text-sm">{po.partner_name}</div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="info-field">
-                            <label className="field-label text-[10px]">Reference</label>
-                            <div className="field-value text-slate-500 text-xs truncate">{po.vendor_reference || 'N/A'}</div>
-                        </div>
-                        <div className="info-field">
-                            <label className="field-label text-[10px]">Source</label>
-                            <div className="field-value text-slate-500 text-xs truncate">{po.origin || 'N/A'}</div>
-                        </div>
+                    <div className="info-field">
+                        <label className="field-label text-[10px]">Source Quotation</label>
+                        <div className="field-value text-slate-700 text-xs font-bold">{po.origin || 'N/A'}</div>
                     </div>
                 </div>
             </div>
@@ -201,40 +195,24 @@ const PurchaseDetail = ({ purchaseId, onBack, onNavigate }) => {
                     <Calendar size={16} className="text-amber-500" />
                     <h2 className="text-xs font-black uppercase tracking-wider">Status & Timeline</h2>
                 </div>
-                <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="info-field">
-                            <label className="field-label text-[10px]">Order Date</label>
-                            <div className="field-value text-xs">{po.date_order || 'N/A'}</div>
-                        </div>
-                        <div className="info-field">
-                            <label className="field-label text-[10px]">Status</label>
-                            <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                po.state === 'purchase' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
-                            }`}>
-                                <CheckCircle size={10} />
-                                <span>{po.status_label}</span>
-                            </div>
-                        </div>
+                    <div className="info-field bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                        <label className="field-label text-[10px] uppercase font-black text-amber-600">Confirmation Date</label>
+                        <div className="field-value text-xs font-bold text-slate-900 mt-0.5">{po.date_approve || po.date_order || 'Pending'}</div>
                     </div>
-                    <div className="info-field bg-slate-50/50 p-2 rounded-lg">
-                        <label className="field-label text-[10px]">Purchaser</label>
-                        <div className="field-value flex items-center gap-2">
-                             <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-[9px] font-black text-white shadow-sm">
-                                {po.purchaser?.charAt(0) || 'S'}
-                             </div>
-                             <span className="text-slate-700 text-xs font-bold">{po.purchaser || 'System'}</span>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
         {/* Purchase Lines - Optimized Space */}
-        <div className="delivery-tabs-container mt-4 border border-slate-200 shadow-sm overflow-hidden rounded-xl">
-            <div className="tabs-nav px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 m-0">Products & Line Items</h3>
-                <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">{lines.length} Items</span>
+        <div className="delivery-tabs-container mt-6 border border-slate-200 shadow-sm overflow-hidden rounded-xl mx-1 md:mx-0">
+            <div className="tabs-nav px-5 py-4 bg-slate-50/80 border-b border-slate-200 flex justify-between items-center backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                    <ShoppingCart size={18} className="text-slate-400" />
+                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-600 m-0">Products & Line Items</h3>
+                </div>
+                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Total</span>
+                    <span className="text-xs text-blue-600 font-black">{lines.length} Items</span>
+                </div>
             </div>
 
             <div className="p-0 overflow-x-auto bg-white">
