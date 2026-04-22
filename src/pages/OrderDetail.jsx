@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Edit, CalendarDays,Sparkles, ShoppingCart, Calendar,MessageSquare, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle, Truck } from 'lucide-react';
+import { ChevronLeft, Edit, CalendarDays,Sparkles,User, ShoppingCart, Calendar,MessageSquare, UserRound, MapPin, Package2, FileText, CheckCircle, XCircle, ChevronDown, ToggleRight, Wind, Activity, Layers, Zap, Lightbulb, MoreHorizontal, Printer, Plus, Edit2, Trash, MessageCircle, Truck } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import SearchableSelect from '../components/SearchableSelect';

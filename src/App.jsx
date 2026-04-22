@@ -249,11 +249,11 @@ function App() {
       case 'product-detail':
         return <ProductDetail productId={selectedId} onBack={() => handleBack('products')} />;
       case 'create-order':
-        return <CreateOrder editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('quotations')} />;
+        return <CreateOrder key={`create-order-${selectedId || 'new'}`} editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('quotations')} />;
       case 'create-direct-order':
-        return <CreateOrder editId={selectedId} isOrder={true} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('orders')} />;
+        return <CreateOrder key={`create-direct-order-${selectedId || 'new'}`} editId={selectedId} isOrder={true} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('orders')} />;
       case 'create-selection':
-        return <CreateOrder editId={selectedId} isSelection={true} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('selection')} />;
+        return <CreateOrder key={`create-selection-${selectedId || 'new'}`} editId={selectedId} isSelection={true} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('selection')} />;
       case 'create-customer':
         return <CreateCustomer editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('customers')} />;
       case 'create-product':
@@ -263,7 +263,7 @@ function App() {
       case 'crm-detail':
         return <CRMDetail leadId={selectedId} onBack={() => handleBack('crm')} onNavigate={handleNavigate} />;
       case 'create-crm':
-        return <CreateCRM editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('crm')} />;
+        return <CreateCRM key={`create-crm-${selectedId || 'new'}`} editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('crm')} />;
       case 'customer-detail':
         return <CustomerDetail partnerId={selectedId} onBack={() => handleBack('customers')} onNavigate={handleNavigate} />;
       case 'delivery-list':
@@ -275,7 +275,7 @@ function App() {
       case 'purchase-detail':
         return <PurchaseDetail purchaseId={selectedId} onBack={() => handleBack('purchase-list')} onNavigate={handleNavigate} />;
       case 'create-purchase':
-        return <CreatePurchase editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('purchases')} />;
+        return <CreatePurchase key={`create-purchase-${selectedId || 'new'}`} editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('purchases')} />;
       default:
         return <Dashboard user={user} onNavigate={handleNavigate} />;
     }

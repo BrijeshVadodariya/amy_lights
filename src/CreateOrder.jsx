@@ -310,6 +310,7 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
 // ... existing code ...
 const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBack }) => {
   const [loading, setLoading] = useState(false);
+  const submissionRef = React.useRef(false);
   const [masterData, setMasterData] = useState({
     partners: [],
     products: [],
@@ -451,8 +452,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
 
   // Handle auto-saving to localStorage
   useEffect(() => {
-    if (!editId && !isSubmitted) {
+    if (!editId && !isSubmitted && !submissionRef.current) {
       const timeoutId = setTimeout(() => {
+        if (submissionRef.current) return;
         localStorage.setItem('amy_order_draft_header', JSON.stringify(orderHeader));
         localStorage.setItem('amy_order_draft_rows', JSON.stringify(rows));
         localStorage.setItem('amy_order_draft_notes', JSON.stringify(generalNotes));
@@ -464,6 +466,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   }, [orderHeader, rows, generalNotes, scheduledActivities, activityHistory, editId, isSubmitted]);
 
   const clearDraft = () => {
+    submissionRef.current = true;
     setIsSubmitted(true);
     localStorage.removeItem('amy_order_draft_header');
     localStorage.removeItem('amy_order_draft_rows');

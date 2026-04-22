@@ -68,6 +68,8 @@ const PurchaseDetail = ({ purchaseId, onBack, onNavigate }) => {
   );
   if (!po) return null;
 
+  const lines = po.lines || [];
+
   return (
     <div className="delivery-detail-page">
       {/* Top Breadcrumb & Navbar */}
