@@ -622,34 +622,24 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                       </div>
                     ) : (
                       <>
-                        <div style={{ width: '100%', marginBottom: '4px' }}>
-                          {act.summary && !['task', 'to do', 'todo'].includes(act.summary.toLowerCase()) && (
-                            <div style={{ fontWeight: 800, fontSize: '13px', color: '#000', marginBottom: '2px' }}>
-                               {act.summary}
-                            </div>
-                          )}
-                          <div 
-                            style={{ 
-                              fontSize: '14px', // Slightly larger
-                              color: '#0f172a', // Darker/Higher contrast
-                              lineHeight: '1.5',
-                              fontWeight: 600, // Semi-bold for highlights
-                              marginBottom: '8px'
-                            }} 
-                            dangerouslySetInnerHTML={{ __html: act.note }} 
-                          />
-                        </div>
-                        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div className="flex flex-col gap-1">
-                            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                               <User size={12} className="text-slate-400" />
-                               <span>{act.user_name || 'Unassigned'}</span>
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                               <Calendar size={12} className="text-slate-400" />
-                               <span>{act.date_deadline || 'No Date'}</span>
-                            </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '8px' }}>
+                          <div style={{ flex: 1 }}>
+                            {act.summary && !['task', 'to do', 'todo'].includes(act.summary.toLowerCase()) && (
+                              <div style={{ fontWeight: 800, fontSize: '13px', color: '#000', marginBottom: '2px' }}>
+                                {act.summary}
+                              </div>
+                            )}
+                            <div 
+                              style={{ 
+                                fontSize: '14px',
+                                color: '#0f172a',
+                                lineHeight: '1.5',
+                                fontWeight: 600,
+                              }} 
+                              dangerouslySetInnerHTML={{ __html: act.note }} 
+                            />
                           </div>
+                          <div style={{ display: 'flex', gap: '4px', marginLeft: '12px' }}>
                             <button
                               onClick={() => {
                                 setEditingActivityId(act.id);
@@ -660,7 +650,8 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                                   user_id: act.user_id ? String(act.user_id) : ''
                                 });
                               }}
-                              style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer' }}
+                              style={{ border: 'none', background: '#f1f5f9', color: '#64748b', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                              title="Edit Task"
                             >
                               <Edit2 size={13} />
                             </button>
@@ -673,11 +664,25 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                                   else alert(res.error || 'Delete failed');
                                 } catch { alert('Network error'); }
                               }}
-                              style={{ border: 'none', background: 'none', color: '#cbd5e1', cursor: 'pointer' }}
+                              style={{ border: 'none', background: '#f1f5f9', color: '#94a3b8', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                              title="Delete Task"
                             >
                               <Trash size={13} />
                             </button>
                           </div>
+                        </div>
+                        <div style={{ display: 'flex', width: '100%', alignItems: 'center', paddingTop: '4px' }}>
+                          <div className="flex flex-col gap-1">
+                            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                               <User size={12} className="text-slate-400" />
+                               <span>{act.user_name || 'Unassigned'}</span>
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                               <Calendar size={12} className="text-slate-400" />
+                               <span>{act.date_deadline || 'No Date'}</span>
+                            </div>
+                          </div>
+                        </div>
                       </>
                     )}
                   </div>
