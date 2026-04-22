@@ -23,6 +23,7 @@ import DeliveryDetail from './pages/DeliveryDetail';
 import PurchaseList from './pages/PurchaseList';
 import PurchaseDetail from './pages/PurchaseDetail';
 import Purchases from './pages/Purchases';
+import CreatePurchase from './pages/CreatePurchase';
 import { Menu } from 'lucide-react';
 import './App.css';
 
@@ -273,6 +274,8 @@ function App() {
         return <PurchaseList orderId={selectedId} onBack={() => handleBack('order-detail')} onNavigate={handleNavigate} />;
       case 'purchase-detail':
         return <PurchaseDetail purchaseId={selectedId} onBack={() => handleBack('purchase-list')} onNavigate={handleNavigate} />;
+      case 'create-purchase':
+        return <CreatePurchase editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('purchases')} />;
       default:
         return <Dashboard user={user} onNavigate={handleNavigate} />;
     }

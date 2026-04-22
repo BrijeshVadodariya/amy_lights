@@ -673,9 +673,15 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
                                       {act.note && (
                                         <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }}>{(act.note || '').replace(/<[^>]*>?/gm, '').trim()}</div>
                                       )}
-                                      <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
-                                        <span>📅 {act.date_deadline}</span>
-                                        <span>👤 {userName}</span>
+                                      <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                          <Calendar size={12} className="text-slate-400" />
+                                          <span>{act.date_deadline}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                          <User size={12} className="text-slate-400" />
+                                          <span>{userName}</span>
+                                        </div>
                                       </div>
                                     </>
                                   )}

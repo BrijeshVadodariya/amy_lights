@@ -187,11 +187,8 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                         <div className="field-value">{picking.date || 'To be defined'}</div>
                     </div>
                     <div className="info-field">
-                        <label className="field-label">Priority</label>
-                        <div className="flex items-center gap-1">
-                            <ArrowRight size={14} className="text-green-500" />
-                            <span className="field-value italic">Normal</span>
-                        </div>
+                        <label className="field-label">Source Document</label>
+                        <div className="field-value">{picking.origin || 'N/A'}</div>
                     </div>
                 </div>
             </div>

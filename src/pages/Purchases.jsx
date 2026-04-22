@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, Eye, Printer, Filter, ShoppingCart, 
   Calendar, ChevronDown, List as ListIcon, X, 
-  CheckCircle, XCircle, ArrowRight
+  CheckCircle, XCircle, ArrowRight, Plus
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { odooService } from '../services/odoo';
@@ -156,6 +156,15 @@ const Purchases = ({ onNavigate }) => {
                 />
               </div>
             </div>
+          </div>
+          <div className="dt-toolbar-right">
+              <button 
+                className="btn-ui primary h-[42px] px-6"
+                onClick={() => onNavigate('create-purchase')}
+              >
+                <Plus size={18} />
+                <span>Create Purchase</span>
+              </button>
           </div>
         </div>
 

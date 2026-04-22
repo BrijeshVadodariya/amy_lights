@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ChevronLeft, ShoppingCart, Package2, ArrowRight, 
-  Calendar, ChevronRight, Search, Filter, User
+  Calendar, ChevronRight, Search, Filter, User, Plus
 } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';

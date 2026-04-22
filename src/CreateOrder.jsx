@@ -399,6 +399,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   const [showActivitySection, setShowActivitySection] = useState(false);
   const [generalNoteInput, setGeneralNoteInput] = useState('');
   const [deletedActivityIds, setDeletedActivityIds] = useState([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   // Modal & Form States (Restored to fix lint errors)
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -450,7 +451,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
 
   // Handle auto-saving to localStorage
   useEffect(() => {
-    if (!editId) {
+    if (!editId && !isSubmitted) {
       const timeoutId = setTimeout(() => {
         localStorage.setItem('amy_order_draft_header', JSON.stringify(orderHeader));
         localStorage.setItem('amy_order_draft_rows', JSON.stringify(rows));
@@ -460,12 +461,21 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       }, 800);
       return () => clearTimeout(timeoutId);
     }
-  }, [orderHeader, rows, generalNotes, scheduledActivities, activityHistory, editId]);
+  }, [orderHeader, rows, generalNotes, scheduledActivities, activityHistory, editId, isSubmitted]);
 
   const clearDraft = () => {
+    setIsSubmitted(true);
     localStorage.removeItem('amy_order_draft_header');
     localStorage.removeItem('amy_order_draft_rows');
     localStorage.removeItem('amy_order_draft_notes');
+    localStorage.removeItem('amy_order_draft_activities');
+    localStorage.removeItem('amy_order_draft_history');
+    
+    // Also reset internal state in case of instant mount/unmount
+    setRows([createProductRow()]);
+    setGeneralNotes([]);
+    setScheduledActivities([]);
+    setActivityHistory({ call: [], whatsapp: [], visit: [], email: [] });
   };
   // --- HELPER FUNCTIONS (Moved up to avoid "before initialization" errors) ---
 
@@ -1324,6 +1334,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   };
 
   const handleExitBack = async () => {
+    if (loading) return; // Prevent double trigger if already saving
     const { hasAnyData } = getFormDataStats();
     if (hasAnyData) {
       await handleProcess(null);
@@ -1338,6 +1349,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   };
 
   const handleProcess = async (e, targetState = null) => {
+    if (loading) return; // Re-entrancy guard
     if (e) e.preventDefault();
     const resolveGhostId = (ghostId, type) => {
       if (!ghostId) return null;
@@ -1992,9 +2004,15 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                                   {act.note && (
                                     <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
                                   )}
-                                  <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
-                                    <span>ðŸ“… {act.date_deadline}</span>
-                                    <span>ðŸ‘¤ {userName}</span>
+                                  <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <Calendar size={12} className="text-slate-400" />
+                                      <span>{act.date_deadline}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <User size={12} className="text-slate-400" />
+                                      <span>{userName}</span>
+                                    </div>
                                   </div>
                                 </>
                               )}

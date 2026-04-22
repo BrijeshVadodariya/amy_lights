@@ -106,8 +106,8 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },
-  getMasterData: async () => {
-    const res = await api.post('/api/master_data', { params: {} });
+  getMasterData: async (types = []) => {
+    const res = await api.post('/api/master_data', { params: { types } });
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },
@@ -218,6 +218,10 @@ export const odooService = {
   },
   convertSelection: async (orderId, targetState = 'draft') => {
     const res = await api.post('/api/orders/convert_selection', { params: { order_id: orderId, target_state: targetState } });
+    return res.data.result || { success: false, error: res.data.error };
+  },
+  createPurchase: async (data) => {
+    const res = await api.post('/api/purchase/create', { params: data });
     return res.data.result || { success: false, error: res.data.error };
   },
   updatePartnerFlags: async (partnerId, flags) => {

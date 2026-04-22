@@ -307,7 +307,10 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                             {(act.summary || act.activity_type_name) === 'To Do' ? 'Task' : (act.summary || act.activity_type_name || 'Task')}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '11px', color: '#666', fontWeight: 600 }}>📅 {act.date_deadline || 'No Date'}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#666', fontWeight: 600 }}>
+                               <Calendar size={12} className="text-slate-400" />
+                               <span>{act.date_deadline || 'No Date'}</span>
+                            </div>
                             <button onClick={() => handleStartEditTask(act)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Edit">
                               <Edit2 size={13} />
                             </button>
@@ -320,7 +323,10 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                           <div style={{ fontSize: '12px', color: '#475569', lineHeight: '1.4', marginTop: '6px' }} dangerouslySetInnerHTML={{ __html: act.note }} />
                         )}
                         {act.user_name && (
-                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>👤 {act.user_name}</div>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                             <User size={12} />
+                             <span>{act.user_name}</span>
+                          </div>
                         )}
                       </>
                     )}

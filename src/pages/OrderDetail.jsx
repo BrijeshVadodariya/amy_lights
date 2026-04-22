@@ -32,7 +32,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await odooService.getMasterData();
+        const res = await odooService.getMasterData(['users', 'notetypes']);
         if (res.users) setUsers(res.users);
         if (res.amy_note_types) setNoteTypes(res.amy_note_types);
       } catch (err) { console.error("Error fetching master data:", err); }
@@ -640,11 +640,16 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                           />
                         </div>
                         <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>
-                            Assigned to: <span style={{ fontWeight: 500, color: '#94a3b8' }}>{act.user_name || 'Unassigned'}</span>
+                          <div className="flex flex-col gap-1">
+                            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                               <User size={12} className="text-slate-400" />
+                               <span>{act.user_name || 'Unassigned'}</span>
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                               <Calendar size={12} className="text-slate-400" />
+                               <span>{act.date_deadline || 'No Date'}</span>
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>{act.date_deadline || 'No Date'}</span>
                             <button
                               onClick={() => {
                                 setEditingActivityId(act.id);
@@ -673,7 +678,6 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                               <Trash size={13} />
                             </button>
                           </div>
-                        </div>
                       </>
                     )}
                   </div>
