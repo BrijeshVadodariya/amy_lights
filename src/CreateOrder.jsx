@@ -450,20 +450,31 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
     return (masterData.users || []).map(u => ({ value: u.id, label: u.name }));
   }, [masterData.users]);
 
-  // Handle auto-saving to localStorage
-  useEffect(() => {
-    if (!editId && !isSubmitted && !submissionRef.current) {
-      const timeoutId = setTimeout(() => {
-        if (submissionRef.current) return;
-        localStorage.setItem('amy_order_draft_header', JSON.stringify(orderHeader));
-        localStorage.setItem('amy_order_draft_rows', JSON.stringify(rows));
-        localStorage.setItem('amy_order_draft_notes', JSON.stringify(generalNotes));
-        localStorage.setItem('amy_order_draft_activities', JSON.stringify(scheduledActivities));
-        localStorage.setItem('amy_order_draft_history', JSON.stringify(activityHistory));
-      }, 800);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [orderHeader, rows, generalNotes, scheduledActivities, activityHistory, editId, isSubmitted]);
+  const getFormDataStats = () => {
+    const productLines = rows.filter(r => r.display_type === 'line_section' || (r.productId !== '' && r.productId !== null && r.productId !== undefined));
+    const hasProducts = productLines.length > 0;
+    const hasActivities = Object.values(activityHistory || {}).some(notes => notes && notes.length > 0);
+    const hasInputs = Object.values(activityInputs || {}).some(input => input && (input.text || (input.images && input.images.length > 0)));
+    const hasScheduled = (scheduledActivities || []).length > 0;
+    const hasGeneralNotes = (generalNotes || []).filter(n => n && n.text).length > 0;
+    return { 
+      hasProducts, 
+      hasActivities: hasActivities || hasInputs, 
+      hasScheduled, 
+      hasGeneralNotes, 
+      hasAnyData: hasProducts || hasActivities || hasInputs || hasScheduled || hasGeneralNotes,
+      productLines
+    };
+  };
+
+  const saveDraft = () => {
+    if (editId || isSubmitted || submissionRef.current) return;
+    localStorage.setItem('amy_order_draft_header', JSON.stringify(orderHeader));
+    localStorage.setItem('amy_order_draft_rows', JSON.stringify(rows));
+    localStorage.setItem('amy_order_draft_notes', JSON.stringify(generalNotes));
+    localStorage.setItem('amy_order_draft_activities', JSON.stringify(scheduledActivities));
+    localStorage.setItem('amy_order_draft_history', JSON.stringify(activityHistory));
+  };
 
   const clearDraft = () => {
     submissionRef.current = true;
@@ -480,6 +491,19 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
     setScheduledActivities([]);
     setActivityHistory({ call: [], whatsapp: [], visit: [], email: [] });
   };
+
+  // Handle auto-saving to localStorage
+  useEffect(() => {
+    if (!editId && !isSubmitted && !submissionRef.current) {
+      const { hasAnyData } = getFormDataStats();
+      if (!hasAnyData) return; // Don't auto-save if only customer is selected (as per user request)
+
+      const timeoutId = setTimeout(() => {
+        saveDraft();
+      }, 800);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [orderHeader, rows, generalNotes, scheduledActivities, activityHistory, editId, isSubmitted]);
   // --- HELPER FUNCTIONS (Moved up to avoid "before initialization" errors) ---
 
   const fetchMasterData = React.useCallback(async () => {
@@ -1321,30 +1345,27 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
      }
   };
 
-  const getFormDataStats = () => {
-    const productLines = rows.filter(r => r.display_type === 'line_section' || (r.productId !== '' && r.productId !== null && r.productId !== undefined));
-    const hasProducts = productLines.length > 0;
-    const hasActivities = Object.values(activityHistory || {}).some(notes => notes && notes.length > 0);
-    const hasInputs = Object.values(activityInputs || {}).some(input => input && (input.text || (input.images && input.images.length > 0)));
-    const hasScheduled = (scheduledActivities || []).length > 0;
-    const hasGeneralNotes = (generalNotes || []).filter(n => n && n.text).length > 0;
-    return { 
-      hasProducts, 
-      hasActivities: hasActivities || hasInputs, 
-      hasScheduled, 
-      hasGeneralNotes, 
-      hasAnyData: hasProducts || hasActivities || hasInputs || hasScheduled || hasGeneralNotes,
-      productLines
-    };
-  };
 
   const handleExitBack = async () => {
     if (loading) return; // Prevent double trigger if already saving
     const { hasAnyData } = getFormDataStats();
+    
+    // Special Case: Only customer is selected (no products/notes/activities)
+    // Clear everything and go back instead of saving a draft.
+    if (!hasAnyData && orderHeader.partnerId) {
+      clearDraft();
+      if (onBack) onBack();
+      else {
+        const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder ? 'orders' : 'quotations'));
+        onNavigate(finalReturn);
+      }
+      return;
+    }
+
     if (hasAnyData) {
       await handleProcess(null);
     } else {
-      saveDraft();
+      // Nothing at all entered (not even customer), just go back
       if (onBack) onBack();
       else {
         const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder ? 'orders' : 'quotations'));
@@ -1957,7 +1978,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                   <h3 style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', marginBottom: '0.4rem' }}>Planned Activities</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px', borderBottom: '8px solid transparent' }}>
                     {scheduledActivities.map(act => {
-                      const typeName = masterData.activity_types?.find(t => t.id === act.activity_type_id)?.name || 'Activity';
                       const userName = masterData.users?.find(u => u.id === parseInt(act.user_id))?.name || 'Self';
                       return (
                         <div key={act.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', flexShrink: 0 }}>
@@ -2011,7 +2031,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                                 </div>
                               ) : (
                                 <>
-                                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{act.summary || typeName}</div>
                                   {act.note && (
                                     <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
                                   )}
