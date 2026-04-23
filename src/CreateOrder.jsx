@@ -333,6 +333,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
 
     return {
       partnerId: extraData?.partner_id || '',
+      partnerName: extraData?.partner_name || '',
       date: new Date().toISOString().split('T')[0],
       remark: '',
       architectId: '',
@@ -340,7 +341,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       is_desc: false,
       is_image: false,
       is_automate: false,
-      opportunity_id: ''
+      opportunity_id: extraData?.opportunity_id || ''
     };
   });
 
@@ -437,7 +438,9 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   });
 
   const partnerOptions = useMemo(() => {
-    return Array.from(new Map((masterData.partners || []).filter(p => p && p.id).map(p => [String(p.name).toLowerCase().trim(), p])).values()).map((p) => ({ value: p.id, label: p.name }));
+    return (masterData.partners || [])
+      .filter(p => p && p.id)
+      .map((p) => ({ value: p.id, label: p.name }));
   }, [masterData.partners]);
 
   const productOptions = useMemo(() => {
@@ -1241,6 +1244,16 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
 
 
   const selectedPartner = useMemo(() => masterData.partners.find(p => String(p.id) === String(orderHeader.partnerId)), [masterData.partners, orderHeader.partnerId]);
+
+  // Auto-sync partner name when partnerId is present but name is not (vCRM)
+  useEffect(() => {
+    if (orderHeader.partnerId && !orderHeader.partnerName && masterData.partners.length > 0) {
+      const p = masterData.partners.find(x => String(x.id) === String(orderHeader.partnerId));
+      if (p) {
+        setOrderHeader(prev => ({ ...prev, partnerName: p.name }));
+      }
+    }
+  }, [orderHeader.partnerId, orderHeader.partnerName, masterData.partners]);
   const selectedArchitect = useMemo(() => {
     const id = String(orderHeader.architectId);
     return (masterData.architects || []).find(a => String(a.id) === id) || (masterData.partners || []).find(p => String(p.id) === id);
