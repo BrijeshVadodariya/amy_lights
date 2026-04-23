@@ -40,15 +40,16 @@
 
 .input-group input {
   width: 100%;
-  padding: 0.875rem 1rem;
+  padding: 0.875rem 1rem 0.875rem 3rem; /* Added padding-left for icon */
   border: 1px solid #94a3b8;
   font-size: 1rem;
   color: #334155;
+  border-radius: 4px; /* Added border-radius for cleaner look */
 }
 
 .input-group .input-icon {
   position: absolute;
-  right: 12px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
   color: #64748b;
