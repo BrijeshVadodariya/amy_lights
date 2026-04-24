@@ -202,47 +202,40 @@ const PurchaseDetail = ({ purchaseId, onBack, onNavigate }) => {
             </div>
         </div>
 
-        {/* Purchase Lines - Optimized Space */}
+        {/* Purchase Lines */}
         <div className="delivery-tabs-container mt-6 border border-slate-200 shadow-sm overflow-hidden rounded-xl mx-1 md:mx-0">
-            <div className="tabs-nav px-5 py-4 bg-slate-50/80 border-b border-slate-200 flex justify-between items-center backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                    <ShoppingCart size={18} className="text-slate-400" />
-                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-600 m-0">Products & Line Items</h3>
-                </div>
-                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Total</span>
-                    <span className="text-xs text-blue-600 font-black">{lines.length} Items</span>
-                </div>
+            <div className="po-section-header">
+                <h3 className="po-section-title">Products & Line Items</h3>
             </div>
 
-            <div className="p-0 overflow-x-auto bg-white">
+            <div className="overflow-x-auto bg-white">
                 <table className="operations-table w-full">
                     <thead className="bg-slate-50/50">
                         <tr>
-                            <th className="py-2 px-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Product Description</th>
-                            <th className="py-2 px-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">Quantity</th>
-                            <th className="py-2 px-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-wider">Unit Price</th>
-                            <th className="py-2 px-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-wider">Subtotal</th>
+                            <th className="py-3 px-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider">Product Description</th>
+                            <th className="py-3 px-6 text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">Quantity</th>
+                            <th className="py-3 px-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-wider">Unit Price</th>
+                            <th className="py-3 px-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-wider">Subtotal</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {lines.map(line => (
                             <tr key={line.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="py-3 px-4">
+                                <td className="py-4 px-6">
                                     <div className="line-product-name font-bold text-slate-900 text-sm leading-tight">{line.product_name}</div>
                                     {line.product_code && (
-                                         <div className="text-[9px] text-blue-500 font-black mt-1 inline-block bg-blue-50 px-1.5 py-0.5 rounded uppercase">{line.product_code}</div>
+                                         <div className="text-[9px] text-blue-500 font-black mt-1.5 inline-block bg-blue-50 px-1.5 py-0.5 rounded uppercase">{line.product_code}</div>
                                     )}
                                 </td>
-                                <td className="py-3 px-2 text-center">
-                                    <div className="inline-flex items-center justify-center bg-slate-100 text-slate-800 font-bold text-[11px] px-2 py-1 rounded-lg">
+                                <td className="py-4 px-6 text-center">
+                                    <div className="inline-flex items-center justify-center bg-slate-100 text-slate-800 font-bold text-[11px] px-3 py-1 rounded-lg">
                                         {line.qty_ordered} <span className="ml-1 text-[9px] text-slate-400">{line.uom}</span>
                                     </div>
                                 </td>
-                                <td className="py-3 px-2 text-right">
+                                <td className="py-4 px-6 text-right">
                                     <div className="text-xs font-bold text-slate-600">{formatCurrency(line.price_unit)}</div>
                                 </td>
-                                <td className="py-3 px-4 text-right">
+                                <td className="py-4 px-6 text-right">
                                     <div className="text-sm font-black text-slate-900">{formatCurrency(line.price_subtotal)}</div>
                                 </td>
                             </tr>
@@ -252,7 +245,7 @@ const PurchaseDetail = ({ purchaseId, onBack, onNavigate }) => {
                                 <td colSpan="4" className="py-16 text-center">
                                     <AlertCircle size={32} className="mx-auto text-slate-200 mb-2" />
                                     <div className="text-sm font-bold text-slate-400 tracking-tight">No products found in this order</div>
-                                    <div className="text-[10px] text-slate-300">Wait for data to refresh or contact procurement</div>
+                                    <div className="text-[10px] text-slate-300 mt-1">Wait for data to refresh or contact procurement</div>
                                 </td>
                             </tr>
                         )}

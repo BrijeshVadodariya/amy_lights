@@ -138,6 +138,8 @@ const CreatePurchase = ({ editId, onNavigate, onBack, extraData }) => {
 
   const [header, setHeader] = useState({
     partnerId: extraData?.partnerId || '',
+    partnerName: extraData?.partnerName || '',
+    partnerPhone: extraData?.partnerPhone || '',
     date: new Date().toISOString().split('T')[0],
     origin: extraData?.origin || '',
     remark: ''
@@ -169,11 +171,16 @@ const CreatePurchase = ({ editId, onNavigate, onBack, extraData }) => {
       if (!editId) return;
       setLoading(true);
       try {
-          const data = await odooService.getPurchaseDetail(editId);
+          const rawData = await odooService.getPurchaseDetail(editId);
+          // The backend returns a list of purchases
+          const data = Array.isArray(rawData) ? rawData[0] : rawData;
+
           if (data) {
               setHeader({
-                  partnerId: data.partner_id?.[0] || data.partner_id || '',
-                  date: data.date_order?.split(' ')[0] || new Date().toISOString().split('T')[0],
+                  partnerId: data.partner_id || '',
+                  partnerName: data.partner_name || '',
+                  partnerPhone: data.partner_phone || '',
+                  date: data.date_order ? data.date_order.split('-').reverse().join('-') : new Date().toISOString().split('T')[0],
                   origin: data.origin || '',
                   remark: data.remark || ''
               });
@@ -335,14 +342,23 @@ const CreatePurchase = ({ editId, onNavigate, onBack, extraData }) => {
                     placeholder="Search vendors..."
                     options={partnerOptions}
                     value={header.partnerId}
+                    defaultValue={header.partnerName}
                     className="purchase-vendor-select"
-                    onChange={(val) => setHeader(prev => ({ ...prev, partnerId: val }))}
+                    onChange={(val, opt) => {
+                      const selectedPartner = masterData.partners.find(p => String(p.id) === String(val));
+                      setHeader(prev => ({ 
+                        ...prev, 
+                        partnerId: val, 
+                        partnerName: opt?.label || '',
+                        partnerPhone: selectedPartner?.phone || selectedPartner?.mobile || ''
+                      }));
+                    }}
                   />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>Phone Number</label>
                   <div style={{ height: '38px', display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '0 12px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                    {masterData.partners.find(p => String(p.id) === String(header.partnerId))?.phone || '-'}
+                    {header.partnerPhone || '-'}
                   </div>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>

@@ -24,6 +24,7 @@ import PurchaseList from './pages/PurchaseList';
 import PurchaseDetail from './pages/PurchaseDetail';
 import Purchases from './pages/Purchases';
 import CreatePurchase from './pages/CreatePurchase';
+import Team from './pages/Team';
 import { Menu } from 'lucide-react';
 import './App.css';
 
@@ -244,6 +245,8 @@ function App() {
         return <TodoList onNavigate={handleNavigate} />;
       case 'purchases':
         return <Purchases onNavigate={handleNavigate} />;
+      case 'team':
+        return <Team onNavigate={handleNavigate} />;
       case 'order-detail':
         return <OrderDetail orderId={selectedId} onBack={() => handleBack('quotations')} onNavigate={handleNavigate} />;
       case 'product-detail':

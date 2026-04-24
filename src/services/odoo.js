@@ -198,6 +198,21 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },
+  createUser: async (userData) => {
+    const res = await api.post('/api/user/create', { params: userData });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result || { success: false, error: 'Network error' };
+  },
+  getTeam: async () => {
+    const res = await api.post('/api/user/team', { params: {} });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  updateUser: async (userData) => {
+    const res = await api.post('/api/user/update', { params: userData });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result || { success: false, error: 'Network error' };
+  },
   getPurchaseDetail: async (purchaseId) => {
     const res = await api.post('/api/order/purchases', { params: { purchase_id: purchaseId } });
     const result = res.data.result || { success: false, error: res.data.error };

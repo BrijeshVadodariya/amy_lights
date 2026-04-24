@@ -44,6 +44,7 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
     { id: 'todo', label: 'To-Do', icon: CheckSquare },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'purchases', label: 'Purchases', icon: ShoppingBag },
+    ...(user?.is_parent_dealer ? [{ id: 'team', label: 'Team', icon: Users }] : []),
   ];
 
   const handleTabClick = (itemOrId) => {

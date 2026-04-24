@@ -108,7 +108,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
       const res = await odooService.confirmOrder(orderId);
       if (res.success) {
         alert("Quotation Confirmed!");
-        onBack();
+        onNavigate('orders', null, null, true); // Force go to Sales Orders list
       } else {
         alert(res.error?.message || "Failed to confirm");
       }
@@ -136,14 +136,19 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
     const stateName = targetState === 'sale' ? 'Sale Order' : 'Quotation';
     if (!window.confirm(`Convert this selection to a ${stateName}?`)) return;
     try {
+      setLoading(true);
       const res = await odooService.convertSelection(orderId, targetState);
       if (res.success) {
-        onNavigate(targetState === 'sale' ? 'orders' : 'quotations');
+        // Force navigate to the list view of the new state
+        const targetTab = targetState === 'sale' ? 'orders' : 'quotations';
+        onNavigate(targetTab, null, null, true); // Use replace=true to clear history
       } else {
         alert(res.error?.message || `Error converting to ${stateName}`);
+        setLoading(false);
       }
     } catch {
       alert("Network error while converting.");
+      setLoading(false);
     }
   };
 
@@ -161,7 +166,8 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
       }
       const res = await odooService.deleteOrder(orderId);
       if (res.success || !res.error) {
-        onBack();
+        const targetList = order.state === 'sale' ? 'orders' : order.state === 'selection' ? 'selection' : 'quotations';
+        onNavigate(targetList, null, null, true); 
       } else {
         alert(res.error?.message || "Deletion failed");
         setLoading(false);
@@ -262,7 +268,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
 
           {/* Odoo-style Smart Button - Centered */}
           <div className="oe_button_box center-box">
-            {(order.delivery_count !== undefined || order.picking_count !== undefined || (order.picking_ids?.length > 0)) && (
+            {order.state === 'sale' && (order.delivery_count !== undefined || order.picking_count !== undefined || (order.picking_ids?.length > 0)) && (
               <button 
                 className="smart-button" 
                 onClick={handleShowDeliveries}
@@ -278,7 +284,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               </button>
             )}
 
-            {(order.purchase_count > 0 || (order.purchase_ids?.length > 0)) && (
+            {order.state === 'sale' && (order.purchase_count > 0 || (order.purchase_ids?.length > 0)) && (
               <button 
                 className="smart-button purchase-btn" 
                 onClick={handleShowPurchases}

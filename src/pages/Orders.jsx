@@ -169,12 +169,29 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`Delete ${selectedIds.size} selected record(s)? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete ${selectedIds.size} selected record(s)? Confirmed orders will be cancelled first. This cannot be undone.`)) return;
+    
     setIsBulkDeleting(true);
     try {
-      await Promise.all([...selectedIds].map(id => odooService.deleteOrder(id).catch(() => {})));
+      // Process each selected ID
+      for (const id of selectedIds) {
+        const order = orders.find(o => o.id === id);
+        if (!order) continue;
+
+        try {
+          // If it's a confirmed sale order, we must cancel it first
+          if (order.state === 'sale' || order.status === 'sale') {
+            await odooService.declineOrder(id, "Bulk cancelled before deletion");
+          }
+          // Now perform the actual deletion
+          await odooService.deleteOrder(id);
+        } catch (err) {
+          console.error(`Failed to delete order ${id}:`, err);
+        }
+      }
+      
       setSelectedIds(new Set());
-      fetchOrders();
+      await fetchOrders(); // Force fresh reload
     } finally {
       setIsBulkDeleting(false);
     }
