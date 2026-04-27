@@ -2,7 +2,7 @@ import axios from 'axios';
 
 export default async function handler(req, res) {
   const { method, query, body, headers } = req;
-  const odooTarget = process.env.VITE_ODOO_URL || 'https://erp.maxmin.co.in';
+  const odooTarget = process.env.VITE_ODOO_URL || 'http://103.212.121.196:8069';
   const odooDB = process.env.VITE_ODOO_DB || 'stage';
   
   // Prioritize the path passed via Vercel rewrites (?path=...)

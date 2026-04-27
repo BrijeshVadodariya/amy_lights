@@ -77,7 +77,7 @@ export const getOdooErrorMessage = (error, fallback = 'Request to Odoo failed.')
 
 export const odooService = {
   getOdooUrl: () => {
-    return import.meta.env.VITE_ODOO_URL || 'https://erp.maxmin.co.in';
+    return import.meta.env.VITE_ODOO_URL || 'http://103.212.121.196:8069';
   },
   login: async (login, password) => {
     const res = await api.post('/api/login', {
