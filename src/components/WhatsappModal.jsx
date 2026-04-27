@@ -142,10 +142,11 @@ export default function WhatsappModal({ isOpen, onClose, resModel, resId, defaul
         <div className="co-modal-header" style={{ borderBottom: '1px solid #f1f5f9', background: '#ecfdf5', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-
             <path d="M12.0117 2.00098C6.5057 2.00098 2.02344 6.47898 2.02344 11.984C2.02344 13.738 2.48244 15.42 3.32444 16.91l-1.096 4.02 4.14-1.082c1.458.775 3.109 1.183 4.818 1.183h.004c5.505 0 9.988-4.478 9.988-9.983 0-2.667-1.042-5.176-2.927-7.063-1.884-1.886-4.39-2.924-7.063-2.924zm0 16.892h-.002c-1.464 0-2.905-.39-4.161-1.127l-.3-.178-3.09.808.824-3.023-.196-.31c-.81-.1322-1.243-2.853-1.243-4.453 0-4.636 3.774-8.411 8.416-8.411 4.639 0 8.416 3.774 8.416 8.414-.002 4.64-3.778 8.41-8.418 8.41h-.004zm4.61-6.315c-.254-.127-1.498-.74-1.73-.824-.23-.083-.4-.127-.568.127-.17.254-.65 8.24-.8 9.98-.146.17-.293.19-.547.063-.254-.127-.107-.42-2.12-1.39-4.22-.44-.82-1.085-1.126-1.5-.333-.52.036-.8.163-.925.116-.115.253-.294.38-.44.127-.148.17-.254.254-.42.083-.17.042-.317-.02-.444-.064-.127-.568-1.37-.777-1.874-.202-.486-.41-.42-.567-.427-.147-.005-.316-.005-.484-.005-.17 0-.442.063-.674.317-.23.254-.883.864-.883 2.106s.904 2.44 1.03 2.61c.127.17 1.777 2.71 4.305 3.8.602.26 1.07.415 1.436.53.604.192 1.155.165 1.588.1.488-.073 1.498-.61 1.71-1.2.21-.59.21-1.096.147-1.2-.062-.104-.23-.17-.483-.296z" fill="#25D366"/>
-           </svg>
-            <h3 className="font-bold text-slate-800">WhatsApp Web</h3>
+            </svg>
+            <h3 className="font-bold text-slate-800">
+              {status === 'connected' ? 'Send via WhatsApp' : 'WhatsApp Connection'}
+            </h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-1"><X size={20} /></button>
         </div>
@@ -188,7 +189,7 @@ export default function WhatsappModal({ isOpen, onClose, resModel, resId, defaul
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', background: '#f0fdf4', border: '1px solid #dcfce7', padding: '8px 12px', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803d', fontSize: '14px', fontWeight: 600 }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.6)' }}></div>
-                  Connected to WhatsApp
+                  Device Connected & Ready
                 </div>
                 <button onClick={handleDisconnect} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}>
                   <LogOut size={14} /> Disconnect

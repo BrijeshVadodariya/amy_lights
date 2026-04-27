@@ -154,8 +154,15 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                 <div className="space-y-6">
                     <div className="info-field">
                         <label className="field-label">Source Document</label>
-                        <div className="field-value link" onClick={() => onNavigate('order-detail', picking.origin_id)}>
-                            {picking.origin}
+                        <div 
+                            className={`field-value ${picking.origin_id ? 'link' : ''}`} 
+                            onClick={() => {
+                                if (!picking.origin_id) return;
+                                const route = picking.origin_type === 'purchase' ? 'purchase-detail' : 'order-detail';
+                                onNavigate(route, picking.origin_id);
+                            }}
+                        >
+                            {picking.origin || 'N/A'}
                         </div>
                     </div>
                     {picking.carrier && (
@@ -188,7 +195,16 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                     </div>
                     <div className="info-field">
                         <label className="field-label">Source Document</label>
-                        <div className="field-value">{picking.origin || 'N/A'}</div>
+                        <div 
+                            className={`field-value ${picking.origin_id ? 'link' : ''}`} 
+                            onClick={() => {
+                                if (!picking.origin_id) return;
+                                const route = picking.origin_type === 'purchase' ? 'purchase-detail' : 'order-detail';
+                                onNavigate(route, picking.origin_id);
+                            }}
+                        >
+                            {picking.origin || 'N/A'}
+                        </div>
                     </div>
                 </div>
             </div>

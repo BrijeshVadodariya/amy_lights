@@ -308,7 +308,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               style={{ height: '32px', borderRadius: '4px', transition: 'all 0.2s', borderColor: 'transparent' }}
             >
               <MessageCircle size={14} />
-              <span className="hidden sm:inline">WhatsApp</span>
+              <span className="hidden sm:inline">Send WhatsApp</span>
             </button>
             <button className="btn-ui" onClick={() => odooService.printQuotation(order.id)} style={{ height: '32px', borderRadius: '4px' }}>
               <Printer size={14} />
