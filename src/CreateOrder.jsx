@@ -1367,22 +1367,30 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
     // Clear everything and go back instead of saving a draft.
     if (!hasAnyData && orderHeader.partnerId) {
       clearDraft();
-      if (onBack) onBack();
-      else {
+      if (onBack) {
+        onBack();
+      } else {
         const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder ? 'orders' : 'quotations'));
-        onNavigate(finalReturn);
+        onNavigate(finalReturn, null, null, true);
       }
       return;
     }
 
     if (hasAnyData) {
-      await handleProcess(null);
+      // For edits, if they click back, we should just go back to the detail page
+      // handleProcess(null) would trigger a save and a redirect.
+      // If the user wants to save, they click the primary save button.
+      if (editId && onBack) {
+        onBack();
+      } else {
+        await handleProcess(null);
+      }
     } else {
       // Nothing at all entered (not even customer), just go back
       if (onBack) onBack();
       else {
         const finalReturn = extraData?.returnRoute || (isSelection ? 'crm' : (isOrder ? 'orders' : 'quotations'));
-        onNavigate(finalReturn);
+        onNavigate(finalReturn, null, null, true);
       }
     }
   };
@@ -1601,7 +1609,14 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       if (res && (res.success || res.id)) {
         clearDraft();
         const finalId = editId || res.id || (typeof res === 'number' ? res : res.data?.id);
-        onNavigate('order-detail', finalId);
+        
+        // If we were editing an existing record, we should use back() to return to the detail page
+        // this keeps the history stack clean. If it's a NEW record, we replace the 'create' page with 'detail'.
+        if (editId && onBack) {
+          onBack();
+        } else {
+          onNavigate('order-detail', finalId, null, true);
+        }
       } else {
         alert(res.error?.message || "Error processing order");
       }

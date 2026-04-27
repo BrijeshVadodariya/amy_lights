@@ -54,7 +54,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await odooService.getOrders(1000, 0, 'date_order desc', stateType);
+      const data = await odooService.getOrders(1000, 0, 'id desc', stateType);
       setOrders(data.orders || []);
     } catch {
       console.error("Fetch orders failed");

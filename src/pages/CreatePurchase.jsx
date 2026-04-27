@@ -274,7 +274,7 @@ const CreatePurchase = ({ editId, onNavigate, onBack, extraData }) => {
 
       const res = await odooService.createPurchase(payload);
       if (res.success) {
-        onNavigate('purchases');
+        onNavigate('purchases', null, null, true);
       } else {
         alert(res.error?.message || "Failed to save purchase order");
       }

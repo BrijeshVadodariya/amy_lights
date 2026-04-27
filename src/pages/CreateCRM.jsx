@@ -4,7 +4,7 @@ import { odooService } from '../services/odoo';
 import SearchableSelect from '../components/SearchableSelect';
 import './FormPages.css';
 
-const CreateCRM = ({ editId, onNavigate, extraData }) => {
+const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
   const returnRoute = extraData?.returnRoute || 'crm';
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -335,7 +335,12 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
         setHasChanges(false);
         localStorage.removeItem('amy_crm_form_draft');
         const finalId = editId || res.id || (typeof res === 'number' ? res : res.data?.id);
-        onNavigate('crm-detail', finalId);
+        
+        if (editId && onBack) {
+          onBack();
+        } else {
+          onNavigate('crm-detail', finalId, null, true);
+        }
       } else {
         alert(`${editId ? 'Update' : 'Creation'} failed`);
       }
@@ -444,7 +449,7 @@ const CreateCRM = ({ editId, onNavigate, extraData }) => {
     <div className="co-container">
       <div className="co-header">
         <div className="co-header-left">
-          <button className="co-back-btn" onClick={() => onNavigate(returnRoute)}>
+          <button className="co-back-btn" onClick={() => onBack ? onBack() : onNavigate(returnRoute)}>
             <X size={20} />
           </button>
           <div className="co-header-title">

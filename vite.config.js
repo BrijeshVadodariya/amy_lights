@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   // The third parameter '' loads all variables instead of just those with VITE_ prefix
   const env = loadEnv(mode, process.cwd(), '');
   
-  const odooTarget = env.VITE_ODOO_URL || 'http://103.212.121.196:8069';
+  const odooTarget = env.VITE_ODOO_URL || 'https://erp.maxmin.co.in';
   const odooDB = env.VITE_ODOO_DB || 'stage';
 
   return {

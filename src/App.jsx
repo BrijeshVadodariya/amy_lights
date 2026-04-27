@@ -47,11 +47,12 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [navHistory, setNavHistory] = useState(() => {
-    try {
-      const stored = sessionStorage.getItem('amy_nav_history');
-      return stored ? JSON.parse(stored) : [];
-    } catch { return []; }
+    const saved = sessionStorage.getItem('amy_nav_history');
+    return saved ? JSON.parse(saved) : [];
   });
+  
+  // Track last navigation to prevent rapid double-pushes
+  const lastNavRef = React.useRef({ tab: null, id: null, time: 0 });
 
   const fetchCompanyInfo = async () => {
     try {
@@ -112,12 +113,34 @@ function App() {
     }
   }, []);
 
+  // Ensure the initial landing page has a valid history state
+  useEffect(() => {
+    if (isLoggedIn && !window.history.state) {
+      console.log("[Navigation] Initializing history state for:", activeTab);
+      const state = { tab: activeTab, id: selectedId, data: extraData, navHistory };
+      window.history.replaceState(state, '', '');
+    }
+  }, [isLoggedIn]); // Initialize once logged in
+
   useEffect(() => {
     const handlePopState = (event) => {
+      console.log("[Navigation] PopState detected:", event.state);
       if (event.state && event.state.tab) {
         setActiveTab(event.state.tab);
         setSelectedId(event.state.id);
         setExtraData(event.state.data);
+        
+        // Sync internal history stack
+        if (event.state.navHistory) {
+          setNavHistory(event.state.navHistory);
+          sessionStorage.setItem('amy_nav_history', JSON.stringify(event.state.navHistory));
+        }
+      } else if (!event.state) {
+        // Fallback for unexpected null states - go to dashboard/list
+        setActiveTab('quotations');
+        setSelectedId(null);
+        setNavHistory([]);
+        sessionStorage.setItem('amy_nav_history', JSON.stringify([]));
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -125,13 +148,31 @@ function App() {
   }, []);
 
   const handleNavigate = (tab, id = null, data = null, replace = false) => {
-    if (!replace && (tab !== activeTab || id !== selectedId)) {
-      setNavHistory(prev => {
-        const next = [...prev, { tab: activeTab, id: selectedId, data: extraData }];
-        sessionStorage.setItem('amy_nav_history', JSON.stringify(next));
-        return next;
-      });
+    // 1. Debounce rapid identical navigations (e.g. double clicks)
+    const now = Date.now();
+    const isSamePage = tab === activeTab && String(id) === String(selectedId);
+
+    if (!replace && tab === lastNavRef.current.tab && String(id) === String(lastNavRef.current.id) && (now - lastNavRef.current.time < 500)) {
+      console.log("[Navigation] Debouncing duplicate push to:", tab);
+      return;
     }
+    lastNavRef.current = { tab, id, time: now };
+
+    let nextHistory = navHistory;
+    if (!replace && !isSamePage) {
+      nextHistory = [...navHistory, { tab: activeTab, id: selectedId, data: extraData }];
+      setNavHistory(nextHistory);
+      sessionStorage.setItem('amy_nav_history', JSON.stringify(nextHistory));
+    }
+
+    // Push or Replace history (SIDE EFFECT - must be outside state updater)
+    const historyState = { tab, id, data, navHistory: nextHistory };
+    if (replace || isSamePage) {
+      window.history.replaceState(historyState, '', '');
+    } else {
+      window.history.pushState(historyState, '', '');
+    }
+    
     setActiveTab(tab);
     setSelectedId(id);
     setExtraData(data);
@@ -143,13 +184,6 @@ function App() {
     if (id) localStorage.setItem('amy_selected_id', id);
     else localStorage.removeItem('amy_selected_id');
 
-    // Push or Replace history
-    if (replace) {
-        window.history.replaceState({ tab, id, data }, '', '');
-    } else {
-        window.history.pushState({ tab, id, data }, '', '');
-    }
-
     if (window.innerWidth <= 768) {
       setIsSidebarOpen(false);
     }
@@ -158,25 +192,8 @@ function App() {
   const handleBack = (defaultTab) => {
     console.log(`[Navigation] Back requested (History: ${navHistory.length}, Fallback: ${defaultTab})`);
     if (navHistory.length > 0) {
-      const newHistory = [...navHistory];
-      const prev = newHistory.pop();
-      console.log("[Navigation] Popping history state:", prev);
-      
-      setNavHistory(newHistory);
-      sessionStorage.setItem('amy_nav_history', JSON.stringify(newHistory));
-      
-      setActiveTab(prev.tab);
-      setSelectedId(prev.id);
-      setExtraData(prev.data);
-      
-      if (prev.data) sessionStorage.setItem('amy_extra_data', JSON.stringify(prev.data));
-      else sessionStorage.removeItem('amy_extra_data');
-      
-      localStorage.setItem('amy_active_tab', prev.tab);
-      localStorage.setItem('amy_selected_id', prev.id || '');
-      
-      // Update browser URL state without adding a new entry
-      window.history.replaceState({ tab: prev.tab, id: prev.id, data: prev.data }, '', '');
+      // Use browser back to maintain stack integrity
+      window.history.back();
     } else {
       console.log("[Navigation] History empty, executing fallback to:", defaultTab);
       handleNavigate(defaultTab, null, null, true);
@@ -260,7 +277,7 @@ function App() {
       case 'create-customer':
         return <CreateCustomer editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('customers')} />;
       case 'create-product':
-        return <CreateProductPage onNavigate={handleNavigate} onBack={() => handleBack('products')} />;
+        return <CreateProductPage onNavigate={handleNavigate} onBack={() => handleBack('products')} extraData={extraData} />;
       case 'catalog':
         return <Catalog onNavigate={handleNavigate} partnerId={selectedId} extraData={extraData} onBack={() => handleBack('dashboard')} />;
       case 'crm-detail':

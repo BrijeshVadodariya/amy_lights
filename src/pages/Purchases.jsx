@@ -33,7 +33,8 @@ const Purchases = ({ onNavigate }) => {
     setLoading(true);
     try {
       const data = await odooService.getAllPurchases({ limit: 1000 });
-      setPurchases(data || []);
+      const sorted = (data || []).sort((a, b) => b.id - a.id);
+      setPurchases(sorted);
     } catch {
       console.error("Fetch purchases failed");
     } finally {

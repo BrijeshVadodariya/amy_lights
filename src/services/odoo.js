@@ -77,7 +77,7 @@ export const getOdooErrorMessage = (error, fallback = 'Request to Odoo failed.')
 
 export const odooService = {
   getOdooUrl: () => {
-    return import.meta.env.VITE_ODOO_URL || 'http://localhost:8073';
+    return import.meta.env.VITE_ODOO_URL || 'https://erp.maxmin.co.in';
   },
   login: async (login, password) => {
     const res = await api.post('/api/login', {
@@ -94,7 +94,7 @@ export const odooService = {
     const res = await api.post('/api/logout', { params: {} });
     return res.data.result || { success: false, error: res.data.error };
   },
-  getOrders: async (limit = 100, offset = 0, sort = 'date_order desc', state_type = 'all') => {
+  getOrders: async (limit = 100, offset = 0, sort = 'id desc', state_type = 'all') => {
     const res = await api.post('/api/orders', {
       params: { limit, offset, sort, state_type }
     });

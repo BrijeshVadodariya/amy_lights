@@ -7,7 +7,7 @@ import './FormPages.css';
  * CreateProductPage.
  * Full-page version of the "New Product" form to keep UI consistent on mobile.
  */
-const CreateProductPage = ({ onNavigate }) => {
+const CreateProductPage = ({ onNavigate, onBack, extraData }) => {
   const [saving, setSaving] = useState(false);
   const [product, setProduct] = useState({
     name: '',
@@ -29,10 +29,12 @@ const CreateProductPage = ({ onNavigate }) => {
     if (hasChanges) {
       if (window.confirm("You have unsaved changes. Are you sure?")) {
         setHasChanges(false);
-        onNavigate(to);
+        if (to === 'back' && onBack) onBack();
+        else onNavigate(to);
       }
     } else {
-      onNavigate(to);
+      if (to === 'back' && onBack) onBack();
+      else onNavigate(to);
     }
   };
 
@@ -78,7 +80,8 @@ const CreateProductPage = ({ onNavigate }) => {
         return;
       }
 
-      onNavigate('create-order');
+      if (onBack) onBack();
+      else onNavigate('products');
     } catch {
       alert('Product creation failed');
     } finally {
@@ -92,9 +95,9 @@ const CreateProductPage = ({ onNavigate }) => {
         <div className="form-header">
           <div>
             <h2>Create Product</h2>
-            <p className="form-subtitle">Add a new product and return to quotation.</p>
+            <p className="form-subtitle">Add a new product to your system.</p>
           </div>
-          <button className="btn-ui secondary" onClick={() => safeNavigate('create-order')} aria-label="Back to quotation">
+          <button className="btn-ui secondary" onClick={() => safeNavigate('back')} aria-label="Back">
             <X size={16} /> Close
           </button>
         </div>
@@ -139,7 +142,7 @@ const CreateProductPage = ({ onNavigate }) => {
           <button className="btn-ui primary lg" onClick={handleSubmit} disabled={!canSubmit || saving}>
             {saving ? 'Submitting...' : 'Submit'}
           </button>
-          <button className="btn-ui secondary lg" onClick={() => safeNavigate('create-order')}>
+          <button className="btn-ui secondary lg" onClick={() => safeNavigate('back')}>
             Back
           </button>
         </div>

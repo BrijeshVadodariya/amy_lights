@@ -17,6 +17,8 @@ const PurchaseList = ({ orderId, onBack, onNavigate }) => {
     try {
       const res = await odooService.getPurchases(orderId);
       const items = res || [];
+      // Sort items by id descending (latest first)
+      items.sort((a, b) => b.id - a.id);
       setPurchases(items);
       
       if (items.length === 1) {

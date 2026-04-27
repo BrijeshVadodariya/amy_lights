@@ -4,7 +4,7 @@ import { odooService } from '../services/odoo';
 import SearchableSelect from '../components/SearchableSelect';
 import './FormPages.css';
 
-const CreateCustomer = ({ editId, onNavigate, extraData }) => {
+const CreateCustomer = ({ editId, onNavigate, extraData, onBack }) => {
   // Where to go back after creating — set by the calling form (create-order / create-selection / create-direct-order)
   const returnRoute = extraData?.returnRoute || 'customers';
   const [saving, setSaving] = useState(false);
@@ -282,17 +282,25 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
       
       // If we just created or updated, and we have a returnRoute that isn't the list, go back
       if (returnRoute && returnRoute !== 'customers') {
-        onNavigate(returnRoute, extraData?.orderEditId, { 
-          preFilledPartnerId: pId,
-          formState: extraData?.formState 
-        });
+        if (editId && onBack) {
+          onBack();
+        } else {
+          onNavigate(returnRoute, extraData?.orderEditId, { 
+            preFilledPartnerId: pId,
+            formState: extraData?.formState 
+          }, true);
+        }
       } else if (!editId || isGhost) {
         // Success modal for NEW creations from the list page
         setCreatedPartnerId(pId);
         setShowSuccessOptions(true);
       } else {
         // Return to list for normal edits
-        onNavigate('customers');
+        if (editId && onBack) {
+          onBack();
+        } else {
+          onNavigate('customers', null, null, true);
+        }
       }
     } catch {
       alert(`${editId ? 'Update' : 'Creation'} failed`);
@@ -403,7 +411,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
             <h2>{editId && !String(editId).startsWith('_GHOST_') ? 'Edit Customer' : 'Create Customer'}</h2>
             <p className="form-subtitle">{editId ? 'Update customer details and return.' : 'Add customer details and return to quotation.'}</p>
           </div>
-          <button className="btn-ui secondary" onClick={() => onNavigate(returnRoute, extraData?.orderEditId, { formState: extraData?.formState })} aria-label="Back to quotation">
+          <button className="btn-ui secondary" onClick={() => onBack ? onBack() : onNavigate(returnRoute, extraData?.orderEditId, { formState: extraData?.formState })} aria-label="Back to quotation">
             <X size={16} /> Close
           </button>
         </div>
@@ -681,7 +689,7 @@ const CreateCustomer = ({ editId, onNavigate, extraData }) => {
           <button className="btn-ui primary lg" onClick={handleSubmit} disabled={!canSubmit || saving}>
             {saving ? (editId ? 'Updating...' : 'Submitting...') : (editId ? 'Update' : 'Submit')}
           </button>
-          <button className="btn-ui secondary lg" onClick={() => onNavigate(returnRoute, extraData?.orderEditId, { formState: extraData?.formState })}>
+          <button className="btn-ui secondary lg" onClick={() => onBack ? onBack() : onNavigate(returnRoute, extraData?.orderEditId, { formState: extraData?.formState })}>
             Back
           </button>
         </div>

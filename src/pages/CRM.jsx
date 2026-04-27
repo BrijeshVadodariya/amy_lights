@@ -86,7 +86,10 @@ const CRM = ({ onNavigate }) => {
         toDate || null
       );
       if (res) {
-        setLeads(Array.isArray(res) ? res : (res.data || []));
+        const items = Array.isArray(res) ? res : (res.data || []);
+        // Sort by id descending (latest first)
+        items.sort((a, b) => b.id - a.id);
+        setLeads(items);
       }
     } catch (err) {
       console.error("Failed to fetch leads", err);
