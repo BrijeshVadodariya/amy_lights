@@ -27,13 +27,13 @@ api.interceptors.request.use((config) => {
     // Fallback for custom backend checks
     config.headers['X-Odoo-Session-ID'] = sessionId;
   }
-  
+
   console.log(`[OdooService] Request: ${config.method?.toUpperCase()} ${config.url}`, {
     fullURL: `${config.baseURL}${config.url}`,
     params: config.params,
     headers: config.headers
   });
-  
+
   return config;
 });
 
@@ -77,7 +77,7 @@ export const getOdooErrorMessage = (error, fallback = 'Request to Odoo failed.')
 
 export const odooService = {
   getOdooUrl: () => {
-    return import.meta.env.VITE_ODOO_URL || 'http://103.212.121.196:8069';
+    return import.meta.env.VITE_ODOO_URL || 'http://103.212.121.196:8070';
   },
   login: async (login, password) => {
     const res = await api.post('/api/login', {
@@ -119,11 +119,11 @@ export const odooService = {
   },
   updateQuotation: async (orderId, partnerId, lines, extra = {}) => {
     const res = await api.post('/api/quote/create', {
-      params: { 
-        order_id: orderId, 
-        partner_id: partnerId, 
-        lines, 
-        ...extra 
+      params: {
+        order_id: orderId,
+        partner_id: partnerId,
+        lines,
+        ...extra
       }
     });
     return res.data.result || { success: false, error: res.data.error };
@@ -255,15 +255,15 @@ export const odooService = {
     return result.data || result;
   },
   getCRMLeads: async (type = 'all', limit = 100, offset = 0, stageId = null, dateFrom = null, dateTo = null) => {
-    const res = await api.post('/api/crm/list', { 
-      params: { 
-        type, 
-        limit, 
+    const res = await api.post('/api/crm/list', {
+      params: {
+        type,
+        limit,
         offset,
         stage_id: stageId,
         date_from: dateFrom,
         date_to: dateTo
-      } 
+      }
     });
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
@@ -301,15 +301,15 @@ export const odooService = {
     return res.data.result || { success: false, error: res.data.error };
   },
   addQuickActivity: async (resId, summary, note, deadline, userId, resModel = 'sale.order') => {
-    const res = await api.post('/api/order/add_activity', { 
-      params: { 
-        res_id: resId, 
-        summary, 
-        note, 
-        date_deadline: deadline, 
+    const res = await api.post('/api/order/add_activity', {
+      params: {
+        res_id: resId,
+        summary,
+        note,
+        date_deadline: deadline,
         user_id: userId,
         res_model: resModel
-      } 
+      }
     });
     return res.data.result || { success: false, error: res.data.error };
   },

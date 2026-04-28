@@ -5,8 +5,8 @@ export default defineConfig(({ mode }) => {
   // Load env file from the current directory
   // The third parameter '' loads all variables instead of just those with VITE_ prefix
   const env = loadEnv(mode, process.cwd(), '');
-  
-  const odooTarget = env.VITE_ODOO_URL || 'http://103.212.121.196:8069';
+
+  const odooTarget = env.VITE_ODOO_URL || 'http://103.212.121.196:8070';
   const odooDB = env.VITE_ODOO_DB || 'stage';
 
   return {
