@@ -142,8 +142,9 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
           }}
         >
            {r.display_type === 'line_section' ? (
-             <div style={{ flex: 1, padding: '4px 8px' }}>
-               <input 
+             <>
+               <div style={{ flex: 1, padding: '4px 8px' }}>
+                 <input 
                  type="text"
                  placeholder="Section Name (e.g. Living Room)"
                  value={r.productName}
@@ -166,6 +167,18 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
                  }}
                />
              </div>
+             {!isMobile && (
+               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px' }}>
+                 <button 
+                   onClick={() => setRows(prev => prev.filter(row => row.id !== r.id))} 
+                   style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                   title="Delete Section"
+                 >
+                   <Trash size={16} className="hover:text-red-600" />
+                 </button>
+               </div>
+             )}
+           </>
            ) : (
              <>
                <div className="pi-main-info" style={{ width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -182,7 +195,7 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
                            onChange={(val) => handleRowChange(r.id, 'productId', val)}
                             onSelect={() => {
                               setTimeout(() => {
-                                const input = document.getElementById(`qty-input-${r.id}`);
+                                const input = document.getElementById(`note-input-${r.id}`);
                                 if (input) input.focus();
                               }, 50);
                             }}
@@ -209,6 +222,7 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
                <div className="pi-note-col" style={{ display: 'block', width: '100%' }}>
                  {isMobile && <label className="pi-small-label">Note</label>}
                  <textarea 
+                   id={`note-input-${r.id}`}
                    className="co-textarea"
                    placeholder="Add line note..."
                    value={r.line_note || ''}
@@ -298,6 +312,24 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
                    )}
                  </div>
                </div>
+               
+               {!isMobile && (
+                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', marginTop: 'auto', marginBottom: 'auto' }}>
+                   <button 
+                     onClick={() => {
+                       if (isOrder && editId) {
+                         handleRowChange(r.id, 'qty', 0);
+                       } else {
+                         setRows(prev => prev.filter(row => row.id !== r.id));
+                       }
+                     }} 
+                     style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                     title="Delete Row"
+                   >
+                     <Trash size={16} className="hover:text-red-600" />
+                   </button>
+                 </div>
+               )}
 
               </>
            )}
@@ -499,7 +531,17 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   useEffect(() => {
     if (!editId && !isSubmitted && !submissionRef.current) {
       const { hasAnyData } = getFormDataStats();
-      if (!hasAnyData) return; // Don't auto-save if only customer is selected (as per user request)
+      if (!hasAnyData) {
+        // If they deleted everything, remove the draft so it doesn't resurrect on next visit.
+        if (localStorage.getItem('amy_order_draft_rows')) {
+          localStorage.removeItem('amy_order_draft_header');
+          localStorage.removeItem('amy_order_draft_rows');
+          localStorage.removeItem('amy_order_draft_notes');
+          localStorage.removeItem('amy_order_draft_activities');
+          localStorage.removeItem('amy_order_draft_history');
+        }
+        return; // Don't auto-save if only customer is selected (as per user request)
+      }
 
       const timeoutId = setTimeout(() => {
         saveDraft();

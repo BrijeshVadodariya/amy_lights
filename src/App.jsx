@@ -215,6 +215,15 @@ function App() {
       if (res.success) {
         setUser(res.data);
         setIsLoggedIn(true);
+        
+        // Force routing to dashboard on successful login
+        setActiveTab('dashboard');
+        setSelectedId(null);
+        setNavHistory([]);
+        localStorage.setItem('amy_active_tab', 'dashboard');
+        localStorage.removeItem('amy_selected_id');
+        sessionStorage.setItem('amy_nav_history', JSON.stringify([]));
+
         localStorage.setItem(
           LOGIN_SESSION_KEY,
           JSON.stringify({
@@ -263,7 +272,7 @@ function App() {
       case 'purchases':
         return <Purchases onNavigate={handleNavigate} />;
       case 'team':
-        return <Team onNavigate={handleNavigate} />;
+        return user?.is_parent_dealer ? <Team onNavigate={handleNavigate} /> : <Dashboard user={user} onNavigate={handleNavigate} />;
       case 'order-detail':
         return <OrderDetail orderId={selectedId} onBack={() => handleBack('quotations')} onNavigate={handleNavigate} />;
       case 'product-detail':
