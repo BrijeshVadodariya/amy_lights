@@ -250,6 +250,10 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
                      value={r.qty} 
                      onFocus={(e) => e.target.select()} 
                      onChange={(e) => handleRowChange(r.id, 'qty', e.target.value)} 
+                     onKeyDown={(e) => {
+                       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault();
+                     }}
+                     onWheel={(e) => e.target.blur()}
                      style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
                    />
                 </div>
@@ -262,11 +266,13 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
                      onFocus={(e) => e.target.select()} 
                      onChange={(e) => handleRowChange(r.id, 'discount', e.target.value)} 
                      onKeyDown={(e) => {
+                       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault();
                        if (e.key === 'Enter' && idx === rows.length - 1) {
                          e.preventDefault();
                          addRow();
                        }
                      }}
+                     onWheel={(e) => e.target.blur()}
                      style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
                    />
                 </div>
@@ -279,11 +285,13 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
                      onFocus={(e) => e.target.select()} 
                      onChange={(e) => handleRowChange(r.id, 'price', e.target.value)} 
                      onKeyDown={(e) => {
+                       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault();
                        if (e.key === 'Enter' && idx === rows.length - 1) {
                          e.preventDefault();
                          addRow();
                        }
                      }}
+                     onWheel={(e) => e.target.blur()}
                      style={{ width: '100%', height: '32px', fontSize: '13px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '4px', padding: 0 }} 
                    />
                 </div>
@@ -1899,12 +1907,14 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                     placeholder="Apply to all..."
                     style={{ width: '80px', height: '32px', border: '1px solid #d7dee8', borderRadius: '8px', textAlign: 'center', fontWeight: 800, color: '#1e293b' }}
                     onKeyDown={(e) => {
+                      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault();
                       if (e.key === 'Enter') {
                         const val = parseFloat(e.target.value) || 0;
                         setRows(rows.map(r => ({ ...r, discount: val })));
                         e.target.blur();
                       }
                     }}
+                    onWheel={(e) => e.target.blur()}
                   />
                   <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>(Enter to apply)</span>
                 </div>
