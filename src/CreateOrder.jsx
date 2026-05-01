@@ -633,11 +633,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
     try {
       const data = await odooService.getOrderDetail(editId);
       if (data) {
-        if (data.state === 'sale' || data.status === 'sale') {
-           alert("This order is confirmed and can no longer be edited.");
-           return;
-        }
-        
         setDebugRawData(data);
 
         const extractId = (val) => {

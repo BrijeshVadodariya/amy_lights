@@ -322,14 +322,21 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               <Trash size={14} />
               <span className="hidden sm:inline">Delete</span>
             </button>
-            {(order.state === 'draft' || order.state === 'sent' || order.state === 'selection') && (
+            {(order.state === 'draft' || order.state === 'sent' || order.state === 'selection' || order.state === 'sale') && (
               <button 
                 className="btn-ui primary"
-                onClick={() => onNavigate?.(order.state === 'selection' ? 'create-selection' : 'create-order', order.id)}
+                onClick={() => {
+                  const targetRoute = order.state === 'selection' 
+                    ? 'create-selection' 
+                    : order.state === 'sale' 
+                      ? 'create-direct-order' 
+                      : 'create-order';
+                  onNavigate?.(targetRoute, order.id);
+                }}
                 style={{ height: '32px', borderRadius: '4px' }}
               >
                 <Edit size={14} />
-                <span>{order.state === 'selection' ? 'Edit Selection' : 'Edit Quotation'}</span>
+                <span>{order.state === 'selection' ? 'Edit Selection' : order.state === 'sale' ? 'Edit Order' : 'Edit Quotation'}</span>
               </button>
             )}
           </div>
