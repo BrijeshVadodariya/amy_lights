@@ -188,6 +188,11 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result || { success: false, error: 'Network error' };
   },
+  updatePicking: async (pickingId, data) => {
+    const res = await api.post('/api/picking/update', { params: { picking_id: pickingId, ...data } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result || { success: false, error: 'Network error' };
+  },
   getPurchases: async (orderId, purchaseId = null) => {
     const res = await api.post('/api/order/purchases', { params: { order_id: orderId, purchase_id: purchaseId } });
     const result = res.data.result || { success: false, error: res.data.error };
@@ -290,10 +295,10 @@ export const odooService = {
   },
   printQuotation: (orderId) => {
     const token = localStorage.getItem('odoo_session_id') || '';
-    const db = import.meta.env.VITE_ODOO_DB || 'stage';
+    const db = import.meta.env.VITE_ODOO_DB || 'amy_lights';
     const baseUrl = odooService.getOdooUrl();
-    // Construct standard Odoo report URL with auth tokens
-    const url = `${baseUrl}/report/pdf/amy_lights.action_report_lighting_quotation/${orderId}?token=${token}&db=${db}`;
+    // Use our custom API endpoint that handles the token correctly for PDF generation
+    const url = `${baseUrl}/api/order/print?order_id=${orderId}&token=${token}&db=${db}`;
     window.open(url, '_blank');
   },
   addQuickNote: async (resId, text, resModel = 'sale.order') => {

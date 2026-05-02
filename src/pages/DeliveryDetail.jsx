@@ -14,21 +14,28 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
   const [performingAction, setPerformingAction] = useState(false);
   const [activeTab, setActiveTab] = useState('operations');
   const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editVals, setEditVals] = useState({ scheduled_date: '', lines: [] });
 
   const fetchPickingDetails = useCallback(async () => {
     setLoading(true);
     try {
-      // We use the same getPickings endpoint but we might need to filter or get a specific one
-      // For now, let's assume we can fetch it. 
-      // Actually, we'll use a direct fetch for picking data if available, 
-      // or filter from the order's pickings.
-      // Since we have pickingId, we'll try to get the details.
-      
-      // I'll add a dedicated API endpoint in portal_sale.py later if needed,
-      // but for now, I'll filter from the list or assume a specific endpoint.
       const res = await odooService.getPickings(null, pickingId); 
       if (res && res.length > 0) {
-        setPicking(res[0]);
+        const p = res[0];
+        setPicking(p);
+        
+        // Convert DD-MM-YYYY to YYYY-MM-DD for input[type=date]
+        let dateVal = '';
+        if (p.date) {
+            const parts = p.date.split('-');
+            if (parts.length === 3) dateVal = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        
+        setEditVals({
+            scheduled_date: dateVal,
+            lines: (p.lines || []).map(l => ({ id: l.id, qty_done: l.qty_done }))
+        });
       } else {
         setError("Shipment not found");
       }
@@ -60,6 +67,23 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
     }
   };
 
+  const handleSave = async () => {
+    setPerformingAction(true);
+    try {
+      const res = await odooService.updatePicking(pickingId, editVals);
+      if (res.success || !res.error) {
+        setIsEditing(false);
+        await fetchPickingDetails();
+      } else {
+        alert(res.error || "Failed to update shipment");
+      }
+    } catch (err) {
+      alert("Error updating shipment");
+    } finally {
+      setPerformingAction(false);
+    }
+  };
+
   if (loading) return <Loader title="Loading Shipment..." />;
   if (error) return (
     <div className="delivery-error-container">
@@ -69,6 +93,8 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
     </div>
   );
   if (!picking) return null;
+
+  const canEdit = picking.state !== 'done' && picking.state !== 'cancel';
 
   return (
     <div className="delivery-detail-page">
@@ -87,61 +113,83 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
             <h1 className="delivery-title">{picking.name}</h1>
           </div>
         </div>
-        <div className="hidden md:flex gap-2">
-            <button className="btn-ui h-[38px] px-4" onClick={() => window.print()}>
-                <Printer size={16} />
-                <span>Print Slip</span>
-            </button>
+        <div className="flex gap-2">
+            {isEditing ? (
+                <>
+                    <button className="btn-ui btn-cancel" onClick={() => setIsEditing(false)} disabled={performingAction}>
+                        <span>Cancel</span>
+                    </button>
+                    <button className="btn-ui primary" onClick={handleSave} disabled={performingAction}>
+                        <CheckCircle size={16} />
+                        <span>{performingAction ? 'Saving...' : 'Save Changes'}</span>
+                    </button>
+                </>
+            ) : (
+                <>
+                    {canEdit && (
+                        <button className="btn-ui secondary" onClick={() => setIsEditing(true)}>
+                            <Package2 size={16} />
+                            <span>Edit Delivery</span>
+                        </button>
+                    )}
+                    <button className="btn-ui hidden md:flex" onClick={() => window.print()}>
+                        <Printer size={16} />
+                        <span>Print Slip</span>
+                    </button>
+                </>
+            )}
         </div>
       </div>
 
       <div className="delivery-main-container max-w-7xl mx-auto p-4 md:p-6">
         
         {/* Status Bar (Odoo Style) */}
-        <div className="delivery-status-bar">
-            <div className="flex gap-2 px-3">
-                {picking.action_buttons?.validate && (
-                    <button 
-                        className="btn-ui primary h-[40px] px-6" 
-                        onClick={() => handleAction('validate')}
-                        disabled={performingAction}
-                    >
-                        <CheckCircle size={18} />
-                        <span>Validate</span>
-                    </button>
-                )}
-                {picking.action_buttons?.cancel && (
-                    <button 
-                        className="btn-ui h-[40px] px-6 border-red-100 text-red-600 hover:bg-red-50"
-                        onClick={() => handleAction('cancel')}
-                        disabled={performingAction}
-                    >
-                        <XCircle size={18} />
-                        <span>Cancel</span>
-                    </button>
-                )}
-            </div>
-            <div className="status-steps-container">
-                {['draft', 'waiting', 'confirmed', 'assigned', 'done'].map((st) => {
-                    const isActive = picking.state === st;
-                    const labels = {
-                        'draft': 'Draft',
-                        'waiting': 'Waiting',
-                        'confirmed': 'Confirmed',
-                        'assigned': 'Ready',
-                        'done': 'Done'
-                    };
-                    return (
-                        <div 
-                            key={st} 
-                            className={`status-step ${isActive ? 'active' : ''}`}
+        {!isEditing && (
+            <div className="delivery-status-bar">
+                <div className="flex gap-2 px-3">
+                    {picking.action_buttons?.validate && (
+                        <button 
+                            className="btn-ui primary h-[40px] px-6" 
+                            onClick={() => handleAction('validate')}
+                            disabled={performingAction}
                         >
-                            <span>{labels[st]}</span>
-                        </div>
-                    );
-                })}
+                            <CheckCircle size={18} />
+                            <span>Validate</span>
+                        </button>
+                    )}
+                    {picking.action_buttons?.cancel && (
+                        <button 
+                            className="btn-ui h-[40px] px-6 border-red-100 text-red-600 hover:bg-red-50"
+                            onClick={() => handleAction('cancel')}
+                            disabled={performingAction}
+                        >
+                            <XCircle size={18} />
+                            <span>Cancel</span>
+                        </button>
+                    )}
+                </div>
+                <div className="status-steps-container">
+                    {['draft', 'waiting', 'confirmed', 'assigned', 'done'].map((st) => {
+                        const isActive = picking.state === st;
+                        const labels = {
+                            'draft': 'Draft',
+                            'waiting': 'Waiting',
+                            'confirmed': 'Confirmed',
+                            'assigned': 'Ready',
+                            'done': 'Done'
+                        };
+                        return (
+                            <div 
+                                key={st} 
+                                className={`status-step ${isActive ? 'active' : ''}`}
+                            >
+                                <span>{labels[st]}</span>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
-        </div>
+        )}
 
         {/* Info Cards Grid */}
         <div className="delivery-info-grid">
@@ -191,7 +239,16 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                 <div className="grid grid-cols-2 gap-6">
                     <div className="info-field">
                         <label className="field-label">Scheduled Date</label>
-                        <div className="field-value">{picking.date || 'To be defined'}</div>
+                        {isEditing ? (
+                            <input 
+                                type="date" 
+                                className="date-input"
+                                value={editVals.scheduled_date}
+                                onChange={(e) => setEditVals(prev => ({ ...prev, scheduled_date: e.target.value }))}
+                            />
+                        ) : (
+                            <div className="field-value">{picking.date || 'To be defined'}</div>
+                        )}
                     </div>
                     <div className="info-field">
                         <label className="field-label">Source Document</label>
@@ -239,7 +296,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {picking.lines?.map(line => (
+                            {picking.lines?.map((line, lIdx) => (
                                 <tr key={line.id}>
                                     <td>
                                         <div className="line-product-name">{line.product_name}</div>
@@ -249,9 +306,22 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                                         <div className="text-sm font-bold text-slate-600">{line.qty_ordered}</div>
                                     </td>
                                     <td style={{ textAlign: 'right' }}>
-                                        <div className={`qty-pill ${parseFloat(line.qty_done) >= parseFloat(line.qty_ordered) ? 'complete' : ''}`}>
-                                            {line.qty_done}
-                                        </div>
+                                        {isEditing ? (
+                                            <input 
+                                                type="number"
+                                                className="qty-input"
+                                                value={editVals.lines[lIdx]?.qty_done || 0}
+                                                onChange={(e) => {
+                                                    const newLines = [...editVals.lines];
+                                                    newLines[lIdx] = { ...newLines[lIdx], qty_done: e.target.value };
+                                                    setEditVals(prev => ({ ...prev, lines: newLines }));
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className={`qty-pill ${parseFloat(line.qty_done) >= parseFloat(line.qty_ordered) ? 'complete' : ''}`}>
+                                                {line.qty_done}
+                                            </div>
+                                        )}
                                     </td>
                                     <td><div className="line-uom uppercase">{line.uom}</div></td>
                                 </tr>

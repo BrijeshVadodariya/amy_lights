@@ -27,7 +27,7 @@ const CRM = ({ onNavigate }) => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [entriesPerPage, setEntriesPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [quickNoteLeadId, setQuickNoteLeadId] = useState(null);
@@ -235,7 +235,6 @@ const CRM = ({ onNavigate }) => {
                 value={entriesPerPage}
                 onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
               >
-                <option value={10}>10</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
               </select>
@@ -413,7 +412,7 @@ const CRM = ({ onNavigate }) => {
                         </span>
                       </div>
                     </td>
-                    <td className="cell-light" style={{ minWidth: '150px', fontSize: '13px', color: '#64748b' }}>
+                    <td className="cell-light" style={{ minWidth: '150px', fontSize: '30px', color: '#334155', fontWeight: 700 }}>
                       <div className="note-truncate" title={lead.address}>
                         {lead.address || '—'}
                       </div>
@@ -437,15 +436,28 @@ const CRM = ({ onNavigate }) => {
                            </div>
                         </td>
                         <td className="cell-highlight" style={{ minWidth: '180px', padding: '12px' }}>
-                          <div className="note-truncate" title={stripHtml(lead.notes)} style={{ fontSize: '14px', fontWeight: 500, color: '#475569', lineHeight: '1.4' }}>
+                          <div className="note-truncate" title={stripHtml(lead.notes)} style={{ fontSize: '15px', fontWeight: 700, color: '#475569', lineHeight: '1.4' }}>
                             {stripHtml(lead.notes) || <span style={{ color: '#cbd5e1' }}>-</span>}
                           </div>
                         </td>
                       </>
                     )}
                     <td className="cell-highlight" style={{ minWidth: '180px', padding: '12px' }}>
-                      <div className="note-truncate" title={lead.last_activity} style={{ fontSize: '14px', fontWeight: 500, color: '#475569', lineHeight: '1.4' }}>
-                        {lead.last_activity || <span style={{ color: '#cbd5e1' }}>-</span>}
+                      <div className="note-truncate" title={lead.last_activity} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {(() => {
+                          const text = lead.last_activity;
+                          if (!text) return <span style={{ color: '#cbd5e1' }}>-</span>;
+                          const parts = text.split(':');
+                          if (parts.length > 1) {
+                            return (
+                              <>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{parts[0]}</span>
+                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b' }}>{parts.slice(1).join(':').trim()}</span>
+                              </>
+                            );
+                          }
+                          return <span style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>{text}</span>;
+                        })()}
                       </div>
                     </td>
                     <td className="text-center" onClick={(e) => e.stopPropagation()}>

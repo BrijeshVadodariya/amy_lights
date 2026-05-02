@@ -164,9 +164,25 @@ const TodoList = ({ onNavigate }) => {
                   <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>#{item.name}</span>
                 </div>
 
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#1e293b', lineHeight: 1.4 }}>
-                  {item.last_activity || 'Follow-up on Order'}
-                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {(() => {
+                    const text = item.last_activity || 'Follow-up on Order';
+                    const parts = text.split(':');
+                    if (parts.length > 1) {
+                      return (
+                        <>
+                          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                            {parts[0]}
+                          </div>
+                          <div style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b', lineHeight: 1.3 }}>
+                            {parts.slice(1).join(':').trim()}
+                          </div>
+                        </>
+                      );
+                    }
+                    return <div style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>{text}</div>;
+                  })()}
+                </div>
 
                 <div style={{ marginTop: 'auto' }}>
                   <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1rem', marginTop: '0.25rem' }}>

@@ -13,7 +13,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [entriesPerPage, setEntriesPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
@@ -291,7 +291,6 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                 value={entriesPerPage}
                 onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
               >
-                <option value={10}>10</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
               </select>
@@ -444,6 +443,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                   <th style={{ width: '230px' }}>Customer</th>
                   <th style={{ width: '120px', fontSize: '11px' }}>Sale Person</th>
                   <th style={{ width: '80px', fontSize: '11px' }}>Date</th>
+                  {stateType === 'all' && <th style={{ width: '100px', fontSize: '11px' }}>Stage</th>}
                   {showProfessional && <th style={{ width: '250px' }}>Professional</th>}
                   <th style={{ width: showProfessional ? '120px' : '140px' }}>Note</th>
                   <th style={{ width: showProfessional ? '120px' : '320px' }}>Task</th>
@@ -482,6 +482,19 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                         : <span style={{ color: '#cbd5e1' }}>{order.order_date || '-'}</span>
                       }
                     </td>
+                    {stateType === 'all' && (
+                      <td className="cell-light" data-label="Stage" style={{ fontSize: '12px', fontWeight: 600 }}>
+                        <span className={`status-badge ${order.status}`}>
+                          {order.status === 'draft' ? 'Quotation' : 
+                           order.status === 'sent' ? 'Quotation Sent' : 
+                           order.status === 'sale' ? 'Order' : 
+                           order.status === 'done' ? 'Locked' : 
+                           order.status === 'cancel' ? 'Cancelled' : 
+                           order.status === 'selection' ? 'Selection' :
+                           order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </span>
+                      </td>
+                    )}
                     {showProfessional && (
                       <td className="cell-light" data-label="Professional">
                         {order.architect && (
@@ -517,7 +530,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                         
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                            <div className="note-truncate" title={cleanText} style={{ fontWeight: 600, color: '#334155', fontSize: '14px', lineHeight: '1.4' }}>
+                            <div className="note-truncate" title={cleanText} style={{ fontWeight: 700, color: '#334155', fontSize: '15px', lineHeight: '1.4' }}>
                               {cleanText}
                             </div>
                             {authorName && (
@@ -530,8 +543,21 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                       })()}
                     </td>
                     <td className="cell-highlight" data-label="Task" style={{ padding: '12px' }}>
-                      <div className="note-truncate" title={order.last_activity} style={{ fontSize: '14px', fontWeight: 500, color: '#475569' }}>
-                        {order.last_activity || <span style={{ color: '#cbd5e1' }}>-</span>}
+                      <div className="note-truncate" title={order.last_activity} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {(() => {
+                          const text = order.last_activity;
+                          if (!text) return <span style={{ color: '#cbd5e1' }}>-</span>;
+                          const parts = text.split(':');
+                          if (parts.length > 1) {
+                            return (
+                              <>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{parts[0]}</span>
+                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b' }}>{parts.slice(1).join(':').trim()}</span>
+                              </>
+                            );
+                          }
+                          return <span style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>{text}</span>;
+                        })()}
                       </div>
                     </td>
                     <td 
