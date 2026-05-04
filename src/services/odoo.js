@@ -384,4 +384,29 @@ export const odooService = {
     });
     return res.data.result || { success: false, error: res.data.error };
   },
+  // ── Todo CRUD ──────────────────────────────────────────────
+  getTodos: async (filter = 'all', assigneeId = null, dateFrom = null, dateTo = null) => {
+    const res = await api.post('/api/todo/list', { params: { filter, assignee_id: assigneeId, date_from: dateFrom, date_to: dateTo } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || [];
+  },
+  createTodo: async (payload) => {
+    const res = await api.post('/api/todo/create', { params: payload });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result;
+  },
+  updateTodo: async (id, payload) => {
+    const res = await api.post('/api/todo/update', { params: { id, ...payload } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result;
+  },
+  deleteTodo: async (id) => {
+    const res = await api.post('/api/todo/delete', { params: { id } });
+    return res.data.result || { success: false, error: res.data.error };
+  },
+  getTodoTeam: async () => {
+    const res = await api.post('/api/todo/team', { params: {} });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || [];
+  },
 };
