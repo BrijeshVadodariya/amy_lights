@@ -25,6 +25,7 @@ import PurchaseDetail from './pages/PurchaseDetail';
 import Purchases from './pages/Purchases';
 import CreatePurchase from './pages/CreatePurchase';
 import Team from './pages/Team';
+import NotFound from './pages/NotFound';
 import { Menu } from 'lucide-react';
 import './App.css';
 
@@ -305,7 +306,10 @@ function App() {
         return <PurchaseDetail purchaseId={selectedId} onBack={() => handleBack('purchase-list')} onNavigate={handleNavigate} />;
       case 'create-purchase':
         return <CreatePurchase key={`create-purchase-${selectedId || 'new'}`} editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('purchases')} />;
+      case 'not-found':
+        return <NotFound onNavigate={handleNavigate} />;
       default:
+        if (!isLoggedIn) return <Login onLogin={handleLogin} />;
         return <Dashboard user={user} onNavigate={handleNavigate} />;
     }
   };
