@@ -733,3 +733,54 @@
 .status-badge.done { background-color: #fffbeb; color: #854d0e; border: 1px solid #fef3c7; }
 .status-badge.cancel { background-color: #fef2f2; color: #991b1b; border: 1px solid #fee2e2; }
 .status-badge.selection { background-color: #f5f3ff; color: #5b21b6; border: 1px solid #ede9fe; }
+
+/* Product Actions Overlay */
+.product-actions-overlay {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+.catalog-product-card:hover .product-actions-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.action-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.edit-btn {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.edit-btn:hover {
+  background-color: #2563eb;
+  transform: scale(1.1);
+}
+
+.delete-btn {
+  background-color: #ef4444;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #dc2626;
+  transform: scale(1.1);
+}

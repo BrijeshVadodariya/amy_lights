@@ -348,7 +348,7 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
 };
 
 // ... existing code ...
-const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBack }) => {
+const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBack, user }) => {
   const [loading, setLoading] = useState(false);
   const submissionRef = React.useRef(false);
   const [masterData, setMasterData] = useState({
@@ -489,9 +489,19 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       .map(p => ({ value: p.id, label: p.name }));
   }, [masterData.products, orderHeader.is_automate]);
 
-  const userOptions = useMemo(() => {
-    return (masterData.users || []).map(u => ({ value: u.id, label: u.name }));
-  }, [masterData.users]);
+  const filteredUsers = useMemo(() => {
+    let list = masterData.users || [];
+    if (user) {
+      if (user.is_parent_dealer) {
+        list = list.filter(u => u.dealer_id === user.id || u.id === user.id);
+      } else if (user.dealer_id) {
+        list = list.filter(u => u.dealer_id === user.dealer_id || u.id === user.dealer_id);
+      }
+    }
+    return list.map(u => ({ value: u.id, label: u.name }));
+  }, [masterData.users, user]);
+
+  const userOptions = filteredUsers;
 
   const getFormDataStats = () => {
     const productLines = rows.filter(r => r.display_type === 'line_section' || (r.productId !== '' && r.productId !== null && r.productId !== undefined));
@@ -2046,7 +2056,6 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
           {showActivitySection && (
             <div className="co-card-body" style={{ padding: '0.5rem 1rem' }}>
               {/* List of planned activities moved to top */}
-
               {/* List of planned activities */}
               {scheduledActivities.length > 0 && (
                 <div className="planned-activities" style={{ marginTop: '0.4rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.4rem' }}>
@@ -2063,13 +2072,20 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                             <div>
                               {editingTaskId === act.id ? (
                                  <div style={{ background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #3b82f6', marginTop: '4px' }}>
+                                   <textarea 
+                                      className="co-textarea" 
+                                      value={taskEditText.note} 
+                                      onChange={e => setTaskEditText({...taskEditText, note: e.target.value})}
+                                      placeholder="Message..."
+                                      style={{ minHeight: '60px', fontSize: '13px', padding: '10px', width: '100%', marginBottom: '10px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', outline: 'none' }}
+                                   />
                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                                       <input 
                                         type="date" 
                                         className="co-input-v2" 
                                         value={taskEditText.date_deadline} 
                                         onChange={e => setTaskEditText({...taskEditText, date_deadline: e.target.value})}
-                                        style={{ height: '32px', fontSize: '12px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                                        style={{ height: '34px', fontSize: '13px', padding: '0 8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                       />
                                       <SearchableSelect
                                         placeholder="Assignee"
@@ -2079,26 +2095,20 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                                         onChange={(val) => setTaskEditText(prev => ({ ...prev, user_id: val }))}
                                       />
                                    </div>
-                                   <textarea 
-                                      className="co-textarea" 
-                                      value={taskEditText.note} 
-                                      onChange={e => setTaskEditText({...taskEditText, note: e.target.value})}
-                                      placeholder="Message..."
-                                      style={{ minHeight: '70px', fontSize: '12px', padding: '8px', width: '100%', marginBottom: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                                   />
                                    <div style={{ display: 'flex', gap: '12px' }}>
                                       <button 
                                         onClick={() => {
+                                          if (!taskEditText.note.trim()) return alert("Message is required");
                                           setScheduledActivities(prev => prev.map(a => a.id === act.id ? { ...taskEditText } : a));
                                           setEditingTaskId(null);
                                         }}
-                                        style={{ color: '#3b82f6', fontWeight: 800, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}
+                                        style={{ color: '#3b82f6', fontWeight: 800, fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer' }}
                                       >
                                         Save
                                       </button>
                                       <button 
                                         onClick={() => setEditingTaskId(null)}
-                                        style={{ color: '#64748b', fontWeight: 600, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}
+                                        style={{ color: '#64748b', fontWeight: 600, fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer' }}
                                       >
                                         Cancel
                                       </button>
@@ -2107,16 +2117,16 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                               ) : (
                                 <>
                                   {act.note && (
-                                    <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: act.note }} />
+                                    <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 600, marginBottom: '6px', lineHeight: '1.5' }} dangerouslySetInnerHTML={{ __html: act.note }} />
                                   )}
-                                  <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                      <Calendar size={12} className="text-slate-400" />
-                                      <span>{act.date_deadline}</span>
-                                    </div>
+                                  <div style={{ fontSize: '11px', color: '#94a3b8', display: 'flex', gap: '12px', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                       <User size={12} className="text-slate-400" />
                                       <span>{userName}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <Clock size={12} className="text-slate-400" />
+                                      <span>{act.date_deadline}</span>
                                     </div>
                                   </div>
                                 </>
@@ -2260,67 +2270,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                     background: '#fff', 
                     border: '1px solid #e2e8f0', 
                     borderRadius: '12px', 
-                    padding: '1rem',
+                    padding: '12px',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
                     flexShrink: 0
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <div style={{ 
-                          width: '32px', 
-                          height: '32px', 
-                          borderRadius: '50%', 
-                          background: '#f1f5f9', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          color: '#64748b',
-                          border: '1px solid #e2e8f0'
-                        }}>
-                          {note.by.substring(0,2).toUpperCase()}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>
-                            {note.by}
-                            {(() => {
-                              const typeId = String(note.note_type_id || '').toLowerCase().trim();
-                              if (!typeId) return null;
-                              
-                              const tInfo = masterData.amy_note_types?.find(t => {
-                                const tid = String(t.id).toLowerCase();
-                                return tid === typeId || tid.includes(typeId.replace(/s$/, '')) || typeId.includes(tid.replace(/s$/, ''));
-                              });
-                              return tInfo ? <span style={{ color: '#3b82f6', fontWeight: 600 }}> Â· {tInfo.title}</span> : <span style={{ color: '#64748b' }}> Â· {typeId}</span>;
-                            })()}
-                          </span>
-                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>{note.date}</span>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <button 
-                          onClick={() => {
-                            setEditingNoteId(note.id);
-                            setNoteEditText(note.text);
-                          }} 
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} 
-                          title="Edit Note"
-                          className="hover:text-blue-500 transition-colors"
-                        >
-                          <Edit2 size={13} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteNote(note.id)} 
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} 
-                          title="Delete Note"
-                          className="hover:text-red-500 transition-colors"
-                        >
-                          <Trash size={14} />
-                        </button>
-                      </div>
-                    </div>
-
                     <div className="gn-card-content">
                       {editingNoteId === note.id ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -2346,11 +2299,47 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                         <p style={{ 
                           fontSize: '14px', 
                           lineHeight: '1.5', 
-                          color: '#334155', 
-                          margin: 0,
+                          color: '#0f172a', 
+                          fontWeight: 600,
+                          margin: '0 0 8px 0',
                           whiteSpace: 'pre-wrap'
                         }}>{(note.text || '').replace(/<[^>]*>?/gm, '').trim()}</p>
                       )}
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f8fafc', paddingTop: '8px' }}>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                          {note.by}
+                          {(() => {
+                            const typeId = String(note.note_type_id || '').toLowerCase().trim();
+                            if (!typeId) return null;
+                            const tInfo = masterData.amy_note_types?.find(t => {
+                              const tid = String(t.id).toLowerCase();
+                              return tid === typeId || tid.includes(typeId.replace(/s$/, '')) || typeId.includes(tid.replace(/s$/, ''));
+                            });
+                            return tInfo ? <span> · {tInfo.title}</span> : <span> · {typeId}</span>;
+                          })()}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>{note.date}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          onClick={() => handleEditNote(note.id, (note.text || '').replace(/<[^>]*>?/gm, '').trim())}
+                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} 
+                          title="Edit"
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteNote(note.id)}
+                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} 
+                          title="Delete"
+                        >
+                          <Trash size={16} />
+                        </button>
+                      </div>
+                    </div>
 
                       {note.images && note.images.length > 0 && (
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
@@ -2362,9 +2351,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                         </div>
                       )}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
 
               <div className="gn-input-card" style={{ 
                 marginTop: '1.25rem', 

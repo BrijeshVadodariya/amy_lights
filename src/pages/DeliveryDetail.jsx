@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ChevronLeft, Truck, Package2, CheckCircle, Printer, 
   XCircle, Calendar, FileText, User, MapPin, 
-  ArrowRight, Info, AlertCircle 
+  ArrowRight, Info, AlertCircle, MessageCircle
 } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
+import WhatsappModal from '../components/WhatsappModal';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 import './DeliveryDetail.css';
 
 const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
@@ -16,6 +18,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editVals, setEditVals] = useState({ scheduled_date: '', lines: [] });
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
 
   const fetchPickingDetails = useCallback(async () => {
     setLoading(true);
@@ -132,7 +135,15 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             <span>Edit Delivery</span>
                         </button>
                     )}
-                    <button className="btn-ui hidden md:flex" onClick={() => window.print()}>
+                    <button 
+                        className="btn-ui hover:bg-[#25D366] hover:text-white border-transparent" 
+                        onClick={() => setShowWhatsappModal(true)} 
+                        style={{ height: '38px', borderRadius: '4px', transition: 'all 0.2s' }}
+                    >
+                        <WhatsAppIcon size={16} />
+                        <span className="hidden sm:inline">Share</span>
+                    </button>
+                    <button className="btn-ui hidden md:flex" onClick={() => odooService.printPicking(picking.id)}>
                         <Printer size={16} />
                         <span>Print Slip</span>
                     </button>
@@ -343,8 +354,16 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                 )}
             </div>
         </div>
-      </div>
+      <WhatsappModal 
+        isOpen={showWhatsappModal} 
+        onClose={() => setShowWhatsappModal(false)}
+        resModel="stock.picking"
+        resId={pickingId}
+        defaultMobile={picking.partner_phone}
+        defaultMessage={`Hello, here is the delivery slip for ${picking.name}.`}
+      />
     </div>
+  </div>
   );
 };
 

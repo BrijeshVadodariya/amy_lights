@@ -4,6 +4,7 @@ import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
 import SearchableSelect from '../components/SearchableSelect';
 import WhatsappModal from '../components/WhatsappModal';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 import { QuickNoteModal, QuickTaskModal } from '../components/QuickActionModals';
 import '../components/Loader.css';
 import './OrderDetail.css';
@@ -253,6 +254,17 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
       ) 
     },
     { label: 'Address', value: formatValue(fullAddress) },
+    ...(order.other_name ? [{
+      label: 'Others',
+      value: (
+        <div>
+          <div className="font-bold text-slate-900">{order.other_name}</div>
+          {order.other_number && (
+            <div className="text-[12px] text-slate-500 font-medium">{order.other_number}</div>
+          )}
+        </div>
+      )
+    }] : []),
   ];
 
   const orderLines = order.lines || [];
@@ -307,7 +319,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               onClick={() => setShowWhatsappModal(true)} 
               style={{ height: '32px', borderRadius: '4px', transition: 'all 0.2s', borderColor: 'transparent' }}
             >
-              <MessageCircle size={14} />
+              <WhatsAppIcon size={14} />
               <span className="hidden sm:inline">Send WhatsApp</span>
             </button>
             <button className="btn-ui" onClick={() => odooService.printQuotation(order.id)} style={{ height: '32px', borderRadius: '4px' }}>
@@ -385,7 +397,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
             <div className="animate-fade-in" style={{ padding: '0 14px 14px' }}>
               <div className="detail-info-grid" style={{ 
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+                gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)',
                 gap: '8px'
               }}>
                 <div className="detail-info-card" style={{ gridColumn: isMobile ? 'span 2' : 'auto' }}>
@@ -407,6 +419,13 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                   <span className="dt-control-label" style={{ marginBottom: '4px', display: 'block' }}>Address</span>
                   <div className="field-value-box" style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #eee', fontSize: '11px', lineHeight: 1.4 }}>{infoItems[3].value}</div>
                 </div>
+
+                {infoItems[4] && (
+                  <div className="detail-info-card" style={{ gridColumn: isMobile ? 'span 2' : 'auto' }}>
+                    <span className="dt-control-label" style={{ marginBottom: '4px', display: 'block' }}>Others</span>
+                    <div className="field-value-box" style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #eee' }}>{infoItems[4].value}</div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -635,13 +654,8 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                       </div>
                     ) : (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '4px' }}>
                           <div style={{ flex: 1 }}>
-                            {act.summary && !['task', 'to do', 'todo'].includes(act.summary.toLowerCase()) && (
-                              <div style={{ fontWeight: 800, fontSize: '13px', color: '#000', marginBottom: '2px' }}>
-                                {act.summary}
-                              </div>
-                            )}
                             <div 
                               style={{ 
                                 fontSize: '14px',
@@ -651,6 +665,11 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                               }} 
                               dangerouslySetInnerHTML={{ __html: act.note }} 
                             />
+                            {act.summary && !['task', 'to do', 'todo'].includes(act.summary.toLowerCase()) && (
+                              <div style={{ fontWeight: 800, fontSize: '11px', color: '#94a3b8', marginTop: '4px', textTransform: 'uppercase' }}>
+                                {act.summary}
+                              </div>
+                            )}
                           </div>
                           <div style={{ display: 'flex', gap: '4px', marginLeft: '12px' }}>
                             <button
@@ -684,8 +703,8 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                             </button>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', width: '100%', alignItems: 'center', paddingTop: '4px' }}>
-                          <div className="flex flex-col gap-1">
+                        <div style={{ display: 'flex', width: '100%', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid #f8fafc', marginTop: '4px' }}>
+                          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                             <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
                                <User size={12} className="text-slate-400" />
                                <span>{act.user_name || 'Unassigned'}</span>
@@ -732,66 +751,92 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                     return true;
                   });
                 })().map((r, idx) => (
-                  <div key={r.id} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
-                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, textTransform: 'uppercase' }}>
-                        {r.salesperson} · {r.date}
-                      </span>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button
-                          onClick={() => { setEditingRemarkIdx(r.id); setRemarkEditText(r.remark); }}
-                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
-                          title="Edit"
-                        >
-                          <Edit2 size={13} />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (!window.confirm('Delete this note?')) return;
-                            try {
-                              const res = await odooService.deleteRemark(r.id);
-                              if (res.success || !res.error) fetchOrder();
-                              else alert(res.error || 'Delete failed');
-                            } catch { alert('Network error'); }
-                          }}
-                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
-                          title="Delete"
-                        >
-                          <Trash size={13} />
-                        </button>
+                  <div key={r.id} className="field-value-box" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        {editingRemarkIdx === r.id ? (
+                          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <textarea
+                              value={remarkEditText}
+                              onChange={e => setRemarkEditText(e.target.value)}
+                              style={{ width: '100%', minHeight: '70px', padding: '8px', borderRadius: '8px', border: '1px solid #10b981', fontSize: '13px', resize: 'vertical', outline: 'none' }}
+                            />
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                onClick={async () => {
+                                  if (!remarkEditText.trim()) return alert("Remark is required");
+                                  try {
+                                    const res = await odooService.updateRemark(r.id, remarkEditText);
+                                    if (res.success || !res.error) { fetchOrder(); setEditingRemarkIdx(null); }
+                                    else alert(res.error || 'Update failed');
+                                  } catch { alert('Network error'); }
+                                }}
+                                style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 14px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingRemarkIdx(null)}
+                                style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '5px 14px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div 
+                            style={{ 
+                              fontSize: '14px', 
+                              color: '#0f172a', 
+                              lineHeight: '1.5', 
+                              fontWeight: 600, 
+                              whiteSpace: 'pre-wrap' 
+                            }}
+                          >
+                            {r.remark}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    {editingRemarkIdx === r.id ? (
-                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <textarea
-                          value={remarkEditText}
-                          onChange={e => setRemarkEditText(e.target.value)}
-                          style={{ width: '100%', minHeight: '70px', padding: '8px', borderRadius: '8px', border: '1px solid #3b82f6', fontSize: '13px', resize: 'vertical', outline: 'none' }}
-                        />
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                      {!editingRemarkIdx && (
+                        <div style={{ display: 'flex', gap: '4px', marginLeft: '12px' }}>
+                          <button
+                            onClick={() => { setEditingRemarkIdx(r.id); setRemarkEditText(r.remark); }}
+                            style={{ border: 'none', background: '#f1f5f9', color: '#64748b', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                            title="Edit"
+                          >
+                            <Edit2 size={13} />
+                          </button>
                           <button
                             onClick={async () => {
-                              if (!remarkEditText.trim()) return alert("Remark is required");
+                              if (!window.confirm('Delete this note?')) return;
                               try {
-                                const res = await odooService.updateRemark(r.id, remarkEditText);
-                                if (res.success || !res.error) { fetchOrder(); setEditingRemarkIdx(null); }
-                                else alert(res.error || 'Update failed');
+                                const res = await odooService.deleteRemark(r.id);
+                                if (res.success || !res.error) fetchOrder();
+                                else alert(res.error || 'Delete failed');
                               } catch { alert('Network error'); }
                             }}
-                            style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 14px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                            style={{ border: 'none', background: '#f1f5f9', color: '#94a3b8', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                            title="Delete"
                           >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => setEditingRemarkIdx(null)}
-                            style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '5px 14px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}
-                          >
-                            Cancel
+                            <Trash size={13} />
                           </button>
                         </div>
+                      )}
+                    </div>
+                    
+                    {!editingRemarkIdx && (
+                      <div style={{ display: 'flex', width: '100%', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid #f8fafc', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                             <User size={12} className="text-slate-400" />
+                             <span>{r.salesperson || 'Unknown'}</span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                             <Calendar size={12} className="text-slate-400" />
+                             <span>{r.date || 'No Date'}</span>
+                          </div>
+                        </div>
                       </div>
-                    ) : (
-                      <p style={{ margin: 0, fontSize: '13px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap', flex: 1 }}>{r.remark}</p>
                     )}
                   </div>
                 ))

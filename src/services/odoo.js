@@ -153,6 +153,16 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || result;
   },
+  updateProduct: async (productData) => {
+    const res = await api.post('/api/product/create', { params: productData });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  deleteProduct: async (productId) => {
+    const res = await api.post('/api/product/delete', { params: { product_id: productId } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
   getProducts: async (limit = 100, offset = 0) => {
     const res = await api.post('/api/products', { params: { limit, offset } });
     const result = res.data.result || { success: false, error: res.data.error };
@@ -215,6 +225,11 @@ export const odooService = {
   },
   updateUser: async (userData) => {
     const res = await api.post('/api/user/update', { params: userData });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result || { success: false, error: 'Network error' };
+  },
+  deleteUser: async (userId) => {
+    const res = await api.post('/api/user/delete', { params: { user_id: userId } });
     const result = res.data.result || { success: false, error: res.data.error };
     return result || { success: false, error: 'Network error' };
   },
@@ -409,4 +424,19 @@ export const odooService = {
     const result = res.data.result || { success: false, error: res.data.error };
     return result.data || [];
   },
+  printPicking: (pickingId) => {
+    const token = localStorage.getItem('odoo_session_id') || '';
+    const db = import.meta.env.VITE_ODOO_DB || 'amy_lights';
+    const baseUrl = odooService.getOdooUrl();
+    const url = `${baseUrl}/api/picking/print?picking_id=${pickingId}&token=${token}&db=${db}`;
+    window.open(url, '_blank');
+  },
+  printPurchase: (purchaseId) => {
+    const token = localStorage.getItem('odoo_session_id') || '';
+    const db = import.meta.env.VITE_ODOO_DB || 'amy_lights';
+    const baseUrl = odooService.getOdooUrl();
+    const url = `${baseUrl}/api/purchase/print?purchase_id=${purchaseId}&token=${token}&db=${db}`;
+    window.open(url, '_blank');
+  },
 };
+

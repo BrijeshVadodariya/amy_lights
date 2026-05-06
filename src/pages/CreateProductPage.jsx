@@ -7,7 +7,7 @@ import './FormPages.css';
  * CreateProductPage.
  * Full-page version of the "New Product" form to keep UI consistent on mobile.
  */
-const CreateProductPage = ({ onNavigate, onBack, extraData }) => {
+const CreateProductPage = ({ onNavigate, onBack, extraData, editId }) => {
   const [saving, setSaving] = useState(false);
   const [product, setProduct] = useState({
     name: '',
@@ -15,8 +15,33 @@ const CreateProductPage = ({ onNavigate, onBack, extraData }) => {
     unit: '',
     price: '',
     note: '',
-    image: '', // Base64 string
+    image: '', // Base64 string for new upload
+    image_url: '', // URL for existing image
   });
+
+  const isEdit = !!editId;
+
+  useEffect(() => {
+    if (isEdit && extraData?.product) {
+      const p = extraData.product;
+      setProduct({
+        name: p.name || '',
+        product_code: p.code || p.default_code || '',
+        unit: p.uom || p.unit || '',
+        price: p.price || '',
+        note: p.description || '',
+        image: '',
+        image_url: p.image_url || '',
+      });
+    }
+  }, [editId, extraData]);
+
+  const getFullImageUrl = (url) => {
+    if (!url) return null;
+    const token = localStorage.getItem('odoo_session_id') || '';
+    const db = import.meta.env.VITE_ODOO_DB || 'stage';
+    return `${url}?token=${token}&db=${db}`;
+  };
 
   const [hasChanges, setHasChanges] = useState(false);
   
@@ -56,7 +81,7 @@ const CreateProductPage = ({ onNavigate, onBack, extraData }) => {
       reader.onloadend = () => {
         // Remove the data:image/jpeg;base64, prefix if Odoo expects just the base64 data
         const base64String = reader.result.split(',')[1];
-        setProduct({ ...product, image: base64String });
+        setProduct({ ...product, image: base64String, image_url: '' });
       };
       reader.readAsDataURL(file);
     }
@@ -68,22 +93,32 @@ const CreateProductPage = ({ onNavigate, onBack, extraData }) => {
     if (!canSubmit || saving) return;
     setSaving(true);
     try {
-      const res = await odooService.createProduct({
+      let res;
+      const payload = {
         name: product.name,
         default_code: product.product_code,
         list_price: Number(product.price) || 0,
-        image: product.image,
-      });
+        description: product.note,
+        unit: product.unit,
+      };
+      if (product.image) payload.image = product.image;
+      if (isEdit) payload.id = editId;
+
+      if (isEdit) {
+        res = await odooService.updateProduct(payload);
+      } else {
+        res = await odooService.createProduct(payload);
+      }
 
       if (!res) {
-        alert('Product creation failed');
+        alert(`Product ${isEdit ? 'update' : 'creation'} failed`);
         return;
       }
 
       if (onBack) onBack();
       else onNavigate('products');
     } catch {
-      alert('Product creation failed');
+      alert(`Product ${isEdit ? 'update' : 'creation'} failed`);
     } finally {
       setSaving(false);
     }
@@ -94,8 +129,8 @@ const CreateProductPage = ({ onNavigate, onBack, extraData }) => {
       <div className="form-card">
         <div className="form-header">
           <div>
-            <h2>Create Product</h2>
-            <p className="form-subtitle">Add a new product to your system.</p>
+            <h2>{isEdit ? 'Edit Product' : 'Create Product'}</h2>
+            <p className="form-subtitle">{isEdit ? 'Update product information.' : 'Add a new product to your system.'}</p>
           </div>
           <button className="btn-ui secondary" onClick={() => safeNavigate('back')} aria-label="Back">
             <X size={16} /> Close
@@ -122,10 +157,10 @@ const CreateProductPage = ({ onNavigate, onBack, extraData }) => {
           <div className="form-group">
             <label>Product Image</label>
             <input type="file" accept="image/*" className="form-control" onChange={handleImageChange} />
-            {product.image && (
+            {(product.image || product.image_url) && (
               <div style={{ marginTop: '10px' }}>
                 <img 
-                  src={`data:image/png;base64,${product.image}`} 
+                  src={product.image ? `data:image/png;base64,${product.image}` : getFullImageUrl(product.image_url)} 
                   alt="Preview" 
                   style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd' }} 
                 />

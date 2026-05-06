@@ -163,7 +163,7 @@ const Products = ({ onNavigate }) => {
             </div>
           </div>
 
-          <div className="dt-toolbar-right">
+          <div className="dt-toolbar-right flex gap-2">
             <button className="btn-ui primary" onClick={() => onNavigate('create-product')}>
               <Plus size={18} />
               <span>Add Product</span>
@@ -230,9 +230,36 @@ const Products = ({ onNavigate }) => {
                           {p.currency_symbol || '₹'}{p.price?.toLocaleString()}
                         </span>
                         
-                        <div className="card-details-label flex-inline items-center gap-1">
-                          <span>Details</span>
-                          <ChevronRight size={14} />
+                        <div className="product-actions-overlay flex gap-2">
+                           <button 
+                             className="action-icon-btn edit-btn" 
+                             onClick={async (e) => { 
+                               e.stopPropagation(); 
+                               try {
+                                 const fullProduct = await odooService.getProductDetail(p.id);
+                                 onNavigate('create-product', p.id, { product: fullProduct || p }); 
+                               } catch (err) {
+                                 console.error("Failed to fetch product details", err);
+                                 onNavigate('create-product', p.id, { product: p }); 
+                               }
+                             }}
+                             title="Edit Product"
+                           >
+                             <Edit size={14} />
+                           </button>
+                           <button 
+                             className="action-icon-btn delete-btn" 
+                             onClick={async (e) => { 
+                               e.stopPropagation(); 
+                               if(window.confirm('Are you sure you want to delete this product?')) {
+                                 await odooService.deleteProduct(p.id);
+                                 fetchProducts();
+                               }
+                             }}
+                             title="Delete Product"
+                           >
+                             <Trash2 size={14} />
+                           </button>
                         </div>
                       </div>
                    </div>

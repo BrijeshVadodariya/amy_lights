@@ -1,10 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { X, Plus, Phone, User, MapPin, Activity,Calendar, MessageSquare, Trash, DollarSign, Target, Star, FileText, ChevronRight, Zap, MessageCircle, Edit2 } from 'lucide-react';
+import { X, Plus, Phone, User, MapPin, Activity,Calendar, MessageSquare, Trash, DollarSign, Target, Star, FileText, ChevronRight, Zap, MessageCircle, Edit2, Clock } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import SearchableSelect from '../components/SearchableSelect';
 import './FormPages.css';
 
-const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
+const CreateCRM = ({ editId, onNavigate, extraData, onBack, user }) => {
   const returnRoute = extraData?.returnRoute || 'crm';
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -225,6 +225,22 @@ const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
     });
   }, []);
 
+  const filteredUsers = useMemo(() => {
+    let list = masterData.users || [];
+    if (user) {
+      if (user.is_parent_dealer) {
+        list = list.filter(u => u.dealer_id === user.id || u.id === user.id);
+      } else if (user.dealer_id) {
+        list = list.filter(u => u.dealer_id === user.dealer_id || u.id === user.dealer_id);
+      }
+    }
+    const formatted = list.map(u => ({ value: u.id, label: u.name }));
+    console.log("[CreateCRM] Filtered Users:", formatted);
+    return formatted;
+  }, [masterData.users, user]);
+
+  const userOptions = filteredUsers;
+
   const handlePartnerChange = async (partnerId) => {
     if (!partnerId) {
       setLead(prev => ({ ...prev, partner_id: '' }));
@@ -423,9 +439,6 @@ const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
     }
   };
 
-  const userOptions = useMemo(() => {
-    return (masterData.users || []).map(u => ({ value: u.id, label: u.name }));
-  }, [masterData.users]);
 
   if (loading) return <div className="p-8 text-center text-slate-500">Loading lead details...</div>;
 
@@ -595,7 +608,7 @@ const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
                 <div className="co-input-group">
                   <label>Salesperson</label>
                   <SearchableSelect 
-                    options={masterData.users}
+                    options={filteredUsers}
                     value={lead.user_id}
                     onChange={id => { setLead({...lead, user_id: id}); setHasChanges(true); }}
                     placeholder="Assign to..."
@@ -635,18 +648,25 @@ const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
                             <div key={act.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', flexShrink: 0 }}>
                               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                                 <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0', marginTop: '2px' }}>
-                                  <Activity size={16} style={{ color: '#3b82f6' }} />
+                                  <Clock size={16} className="text-blue-500" />
                                 </div>
                                 <div>
                                   {editingTaskId === act.id ? (
                                     <div style={{ background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #3b82f6', marginTop: '4px' }}>
-                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '8px' }}>
+                                      <textarea 
+                                        className="co-textarea-v2"
+                                        value={taskEditText.note}
+                                        onChange={e => setTaskEditText({...taskEditText, note: e.target.value})}
+                                        placeholder="Message..."
+                                        style={{ minHeight: '60px', fontSize: '13px', padding: '10px', width: '100%', marginBottom: '10px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', outline: 'none' }}
+                                      />
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                                         <input 
                                           type="date" 
                                           className="co-input-v2"
                                           value={taskEditText.date_deadline}
                                           onChange={e => setTaskEditText({...taskEditText, date_deadline: e.target.value})}
-                                          style={{ height: '32px', fontSize: '12px', padding: '0 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                                          style={{ height: '34px', fontSize: '13px', padding: '0 8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                         />
                                         <SearchableSelect
                                           placeholder="Assignee"
@@ -656,36 +676,28 @@ const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
                                           onChange={val => setTaskEditText({...taskEditText, user_id: val})}
                                         />
                                       </div>
-                                      <textarea 
-                                        className="co-textarea-v2"
-                                        value={taskEditText.note}
-                                        onChange={e => setTaskEditText({...taskEditText, note: e.target.value})}
-                                        placeholder="Message..."
-                                        style={{ minHeight: '60px', fontSize: '12px', padding: '8px', width: '100%', marginBottom: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
-                                      />
                                       <div style={{ display: 'flex', gap: '12px' }}>
                                         <button onClick={() => { 
                                           if (!taskEditText.note.trim()) return alert("Message is required");
                                           setScheduledActivities(prev => prev.map(a => a.id === act.id ? { ...taskEditText } : a)); 
                                           setEditingTaskId(null); 
-                                        }} style={{ color: '#3b82f6', fontWeight: 800, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>Save</button>
-                                        <button onClick={() => setEditingTaskId(null)} style={{ color: '#64748b', fontWeight: 600, fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                                        }} style={{ color: '#3b82f6', fontWeight: 800, fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer' }}>Save</button>
+                                        <button onClick={() => setEditingTaskId(null)} style={{ color: '#64748b', fontWeight: 600, fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
                                       </div>
                                     </div>
                                   ) : (
                                     <>
-                                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{act.summary || typeName}</div>
                                       {act.note && (
-                                        <div style={{ fontSize: '13px', color: '#475569', margin: '4px 0 6px', lineHeight: '1.4' }}>{(act.note || '').replace(/<[^>]*>?/gm, '').trim()}</div>
+                                        <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 600, marginBottom: '6px', lineHeight: '1.5' }} dangerouslySetInnerHTML={{ __html: act.note }} />
                                       )}
-                                      <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                          <Calendar size={12} className="text-slate-400" />
-                                          <span>{act.date_deadline}</span>
-                                        </div>
+                                      <div style={{ fontSize: '11px', color: '#94a3b8', display: 'flex', gap: '12px', alignItems: 'center' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                           <User size={12} className="text-slate-400" />
                                           <span>{userName}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                          <Clock size={12} className="text-slate-400" />
+                                          <span>{act.date_deadline}</span>
                                         </div>
                                       </div>
                                     </>
@@ -874,27 +886,8 @@ const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
                 <div className="gn-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px', borderBottom: '8px solid transparent', minHeight: '0' }}>
                   {/* New (unsaved) notes */}
                   {generalNotes.map(note => (
-                    <div key={note.id} className="gn-note-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', flexShrink: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#64748b', border: '1px solid #e2e8f0' }}>
-                            {note.by.substring(0,2).toUpperCase()}
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{note.by}</span>
-                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>{note.date}</span>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <button onClick={() => { setEditingNoteId(note.id); setNoteEditText(note.text); }} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} title="Edit Note">
-                            <Edit2 size={13} />
-                          </button>
-                          <button onClick={() => handleDeleteNote(note.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} title="Delete Note">
-                            <Trash size={14} />
-                          </button>
-                        </div>
-                      </div>
-                      <div>
+                    <div key={note.id} className="gn-note-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', flexShrink: 0 }}>
+                      <div className="gn-card-content">
                         {editingNoteId === note.id ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <textarea className="co-textarea" value={noteEditText} onChange={e => setNoteEditText(e.target.value)} style={{ width: '100%', minHeight: '80px', padding: '10px', borderRadius: '8px', border: '1px solid #3b82f6', fontSize: '14px' }} />
@@ -904,34 +897,29 @@ const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
                             </div>
                           </div>
                         ) : (
-                          <p style={{ fontSize: '14px', lineHeight: '1.5', color: '#334155', margin: 0, whiteSpace: 'pre-wrap' }}>{note.text}</p>
+                          <p style={{ fontSize: '14px', lineHeight: '1.5', color: '#0f172a', fontWeight: 600, margin: '0 0 8px 0', whiteSpace: 'pre-wrap' }}>{(note.text || '').replace(/<[^>]*>?/gm, '').trim()}</p>
                         )}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f8fafc', paddingTop: '8px' }}>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>{note.by}</span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>{note.date}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => { setEditingNoteId(note.id); setNoteEditText(note.text); }} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Edit">
+                            <Edit2 size={15} />
+                          </button>
+                          <button onClick={() => setGeneralNotes(prev => prev.filter(n => n.id !== note.id))} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Delete">
+                            <Trash size={16} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
 
                   {/* Existing remarks from DB */}
                   {(lead.remarks || []).map(r => (
-                    <div key={r.id} className="gn-note-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', flexShrink: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#64748b', border: '1px solid #e2e8f0' }}>
-                            {(r.salesperson || 'U').substring(0,2).toUpperCase()}
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{r.salesperson}</span>
-                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>{r.date}</span>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <button onClick={() => handleEditRemark(r)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} title="Edit">
-                            <Edit2 size={13} />
-                          </button>
-                          <button onClick={() => handleDeleteRemark(r.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }} title="Delete">
-                            <Trash size={14} />
-                          </button>
-                        </div>
-                      </div>
+                    <div key={r.id} className="gn-note-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', flexShrink: 0 }}>
                       <div>
                         {editingRemarkId === r.id ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -942,8 +930,22 @@ const CreateCRM = ({ editId, onNavigate, extraData, onBack }) => {
                             </div>
                           </div>
                         ) : (
-                          <p style={{ fontSize: '14px', lineHeight: '1.5', color: '#334155', margin: 0, whiteSpace: 'pre-wrap' }}>{r.remark}</p>
+                          <p style={{ fontSize: '14px', lineHeight: '1.5', color: '#0f172a', fontWeight: 600, margin: '0 0 8px 0', whiteSpace: 'pre-wrap' }}>{r.remark}</p>
                         )}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f8fafc', paddingTop: '8px' }}>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>{r.salesperson}</span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>{r.date}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => handleEditRemark(r)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Edit">
+                            <Edit2 size={15} />
+                          </button>
+                          <button onClick={() => handleDeleteRemark(r.id)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Delete">
+                            <Trash size={16} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

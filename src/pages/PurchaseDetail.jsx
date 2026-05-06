@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ChevronLeft, ShoppingCart, Package2, CheckCircle, Printer, 
-  XCircle, Calendar, MapPin, ArrowRight, AlertCircle, TrendingUp, User, Pencil
+  XCircle, Calendar, MapPin, ArrowRight, AlertCircle, TrendingUp, User, Pencil, MessageCircle
 } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
+import WhatsappModal from '../components/WhatsappModal';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 import './DeliveryDetail.css'; // Reusing established ERP styles
 
 const PurchaseDetail = ({ purchaseId, onBack, onNavigate }) => {
@@ -13,6 +15,7 @@ const PurchaseDetail = ({ purchaseId, onBack, onNavigate }) => {
   const [performingAction, setPerformingAction] = useState(false);
   const [activeTab, setActiveTab] = useState('operations');
   const [error, setError] = useState(null);
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
 
   const fetchPODetails = useCallback(async () => {
     setLoading(true);
@@ -87,12 +90,25 @@ const PurchaseDetail = ({ purchaseId, onBack, onNavigate }) => {
             <h1 className="delivery-title">{po.name}</h1>
           </div>
         </div>
-        <div className="hidden md:flex gap-2">
-            <button className="btn-ui h-[38px] px-4" onClick={() => onNavigate('create-purchase', po.id)}>
-                <Pencil size={16} />
+        <div className="hidden md:flex gap-3">
+            <button 
+                className="btn-ui h-[40px] px-4 font-bold border-slate-200 hover:bg-slate-50" 
+                onClick={() => onNavigate('create-purchase', po.id)}
+            >
+                <Pencil size={15} />
                 <span>Edit PO</span>
             </button>
-            <button className="btn-ui h-[38px] px-4" onClick={() => window.print()}>
+            <button 
+                className="btn-ui h-[40px] px-4 font-bold border-emerald-100 text-emerald-600 hover:bg-emerald-50" 
+                onClick={() => setShowWhatsappModal(true)}
+            >
+                <WhatsAppIcon size={16} />
+                <span>Share</span>
+            </button>
+            <button 
+                className="btn-ui h-[40px] px-4 font-bold border-slate-200 hover:bg-slate-50" 
+                onClick={() => odooService.printPurchase(po.id)}
+            >
                 <Printer size={16} />
                 <span>Print PO</span>
             </button>
@@ -253,8 +269,16 @@ const PurchaseDetail = ({ purchaseId, onBack, onNavigate }) => {
                 </table>
             </div>
         </div>
-      </div>
+      <WhatsappModal 
+        isOpen={showWhatsappModal} 
+        onClose={() => setShowWhatsappModal(false)}
+        resModel="purchase.order"
+        resId={purchaseId}
+        defaultMobile={po.partner_phone}
+        defaultMessage={`Hello, here is the purchase order ${po.name}.`}
+      />
     </div>
+  </div>
   );
 };
 

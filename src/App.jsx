@@ -278,21 +278,21 @@ function App() {
       case 'product-detail':
         return <ProductDetail productId={selectedId} onBack={() => handleBack('products')} />;
       case 'create-order':
-        return <CreateOrder key={`create-order-${selectedId || 'new'}`} editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('quotations')} />;
+        return <CreateOrder key={`create-order-${selectedId || 'new'}`} editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('quotations')} user={user} />;
       case 'create-direct-order':
-        return <CreateOrder key={`create-direct-order-${selectedId || 'new'}`} editId={selectedId} isOrder={true} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('orders')} />;
+        return <CreateOrder key={`create-direct-order-${selectedId || 'new'}`} editId={selectedId} isOrder={true} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('orders')} user={user} />;
       case 'create-selection':
-        return <CreateOrder key={`create-selection-${selectedId || 'new'}`} editId={selectedId} isSelection={true} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('selection')} />;
+        return <CreateOrder key={`create-selection-${selectedId || 'new'}`} editId={selectedId} isSelection={true} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('selection')} user={user} />;
       case 'create-customer':
         return <CreateCustomer editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('customers')} />;
       case 'create-product':
-        return <CreateProductPage onNavigate={handleNavigate} onBack={() => handleBack('products')} extraData={extraData} />;
+        return <CreateProductPage editId={selectedId} onNavigate={handleNavigate} onBack={() => handleBack('products')} extraData={extraData} />;
       case 'catalog':
         return <Catalog onNavigate={handleNavigate} partnerId={selectedId} extraData={extraData} onBack={() => handleBack('dashboard')} />;
       case 'crm-detail':
         return <CRMDetail leadId={selectedId} onBack={() => handleBack('crm')} onNavigate={handleNavigate} />;
       case 'create-crm':
-        return <CreateCRM key={`create-crm-${selectedId || 'new'}`} editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('crm')} />;
+        return <CreateCRM key={`create-crm-${selectedId || 'new'}`} editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('crm')} user={user} />;
       case 'customer-detail':
         return <CustomerDetail partnerId={selectedId} onBack={() => handleBack('customers')} onNavigate={handleNavigate} />;
       case 'delivery-list':

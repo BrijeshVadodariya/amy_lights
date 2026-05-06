@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  UserPlus, Mail, Shield, Search, 
-  RefreshCw, X, Eye, EyeOff, Edit2
+  RefreshCw, X, Eye, EyeOff, Edit2, Trash2, UserPlus, Search, Shield, Users, Mail, Lock
 } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
@@ -120,6 +119,20 @@ const Team = () => {
     }
   };
 
+  const handleDeleteUser = async (user) => {
+    if (!window.confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) return;
+    try {
+      const res = await odooService.deleteUser(user.id);
+      if (res.success || !res.error) {
+        setTeam(prev => prev.filter(u => u.id !== user.id));
+      } else {
+        alert(res.error?.message || 'Failed to delete user');
+      }
+    } catch (err) {
+      alert('A network error occurred. Please try again.');
+    }
+  };
+
   // ── Filter ───────────────────────────────────────────────────────────────
   const filteredTeam = team.filter(u =>
     (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -159,11 +172,11 @@ const Team = () => {
             <table className="products-datatable">
               <thead>
                 <tr>
-                  <th style={{ width: '300px' }}>Member</th>
-                  <th style={{ width: '250px' }}>Email / Login</th>
-                  <th style={{ width: '150px' }}>Last Login</th>
-                  <th style={{ width: '120px' }}>Status</th>
-                  <th className="text-center" style={{ width: '100px' }}>Action</th>
+                  <th style={{ width: '280px' }}>Member</th>
+                  <th style={{ width: '220px' }}>Email / Login</th>
+                  <th style={{ width: '180px' }}>Last Login</th>
+                  <th style={{ width: '100px' }}>Status</th>
+                  <th className="text-right" style={{ width: '120px', paddingRight: '24px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -181,9 +194,8 @@ const Team = () => {
                       </div>
                     </td>
                     <td>
-                      <div className="flex items-center gap-2 text-slate-600">
-                        <Mail size={14} className="text-slate-400" />
-                        {u.email || u.login}
+                      <div className="flex items-center gap-3 text-slate-600 pl-4">
+                        <span className="truncate">{u.email || u.login}</span>
                       </div>
                     </td>
                     <td className="text-slate-500 text-[13px]">{u.last_login}</td>
@@ -192,14 +204,23 @@ const Team = () => {
                         ? <span className="badge badge-success">Active</span>
                         : <span className="badge badge-error">Inactive</span>}
                     </td>
-                    <td className="text-center">
-                      <button
-                        className="action-btn-circle"
-                        title="Edit Member"
-                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(u); }}
-                      >
-                        <Edit2 size={16} />
-                      </button>
+                    <td className="text-right" style={{ paddingRight: '24px' }}>
+                      <div className="flex items-center justify-end" style={{ gap: '8px' }}>
+                        <button
+                          className="team-action-btn edit"
+                          title="Edit Member"
+                          onClick={(e) => { e.stopPropagation(); handleOpenEdit(u); }}
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          className="team-action-btn delete"
+                          title="Delete Member"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteUser(u); }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
