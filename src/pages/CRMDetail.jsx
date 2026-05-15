@@ -160,6 +160,25 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
             <button className="btn-ui primary" onClick={() => onNavigate('create-crm', leadId)} style={{ height: '32px' }}>
               <Edit size={14} /><span>Edit Lead</span>
             </button>
+            {lead.activities && lead.activities.length > 0 && (
+              <button 
+                className="btn-ui" 
+                onClick={async () => {
+                  const lastAct = lead.activities[0];
+                  if (!window.confirm(`Mark task "${lastAct.summary || 'Task'}" as completed?`)) return;
+                  try {
+                    setLoading(true);
+                    const res = await odooService.markActivityDone(lastAct.id);
+                    if (res.success || !res.error) await fetchLead();
+                    else alert(res.error || 'Completion failed');
+                  } catch { alert('Network error'); }
+                  finally { setLoading(false); }
+                }}
+                style={{ height: '32px', background: '#eff6ff', color: '#3b82f6', borderColor: '#bfdbfe' }}
+              >
+                <CheckCircle size={14} /><span>Complete Task</span>
+              </button>
+            )}
             <button className="btn-ui" onClick={() => handleConvertToOrder('draft')} style={{ height: '32px', background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }}>
               <Plus size={14} /><span>New Quotation</span>
             </button>
@@ -311,6 +330,20 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                                <Calendar size={12} className="text-slate-400" />
                                <span>{act.date_deadline || 'No Date'}</span>
                             </div>
+                             <button 
+                               onClick={async () => {
+                                 if (!window.confirm('Mark this task as completed?')) return;
+                                 try {
+                                   const res = await odooService.markActivityDone(act.id);
+                                   if (res.success || !res.error) await fetchLead();
+                                   else alert(res.error || 'Completion failed');
+                                 } catch { alert('Network error'); }
+                               }}
+                               style={{ border: 'none', background: 'none', color: '#3b82f6', cursor: 'pointer' }} 
+                               title="Complete Task"
+                             >
+                               <CheckCircle size={13} />
+                             </button>
                             <button onClick={() => handleStartEditTask(act)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Edit">
                               <Edit2 size={13} />
                             </button>

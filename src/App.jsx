@@ -255,7 +255,10 @@ function App() {
       case 'all-orders':
         return <Orders stateType="all" onNavigate={handleNavigate} />;
       case 'tasks':
-        return <Orders stateType="all" isTaskView={true} onNavigate={handleNavigate} />;
+      case 'tasks-pending':
+        return <Orders stateType="task_pending" isTaskView={true} onNavigate={handleNavigate} />;
+      case 'tasks-completed':
+        return <Orders stateType="task_completed" isTaskView={true} onNavigate={handleNavigate} />;
       case 'quotations':
         return <Orders stateType="quotation" onNavigate={handleNavigate} />;
       case 'orders':

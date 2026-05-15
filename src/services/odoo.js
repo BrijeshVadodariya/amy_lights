@@ -353,6 +353,12 @@ export const odooService = {
     });
     return res.data.result || { success: false, error: res.data.error };
   },
+  markActivityDone: async (activityId, feedback = '') => {
+    const res = await api.post('/api/order/activity/done', {
+      params: { activity_id: activityId, feedback }
+    });
+    return res.data.result || { success: false, error: res.data.error };
+  },
   updateRemark: async (orderId, noteIndex, newText) => {
     const res = await api.post('/api/order/update_remark', {
       params: { order_id: orderId, note_index: noteIndex, new_text: newText }

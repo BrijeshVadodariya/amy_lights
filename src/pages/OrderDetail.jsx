@@ -673,6 +673,20 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                           </div>
                           <div style={{ display: 'flex', gap: '4px', marginLeft: '12px' }}>
                             <button
+                              onClick={async () => {
+                                if (!window.confirm('Mark this task as completed?')) return;
+                                try {
+                                  const res = await odooService.markActivityDone(act.id);
+                                  if (res.success || !res.error) fetchOrder();
+                                  else alert(res.error || 'Completion failed');
+                                } catch { alert('Network error'); }
+                              }}
+                              style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                              title="Complete Task"
+                            >
+                              <CheckCircle size={13} />
+                            </button>
+                            <button
                               onClick={() => {
                                 setEditingActivityId(act.id);
                                 setActivityEditVals({

@@ -221,6 +221,29 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             <span>Edit Delivery</span>
                         </button>
                     )}
+                    {picking.activities && picking.activities.length > 0 && (
+                        <button 
+                            className="btn-ui hover:bg-blue-50 hover:text-blue-600 border-blue-100"
+                            onClick={async () => {
+                                const lastAct = picking.activities[0];
+                                if (!window.confirm(`Mark task "${lastAct.summary || 'Task'}" as completed?`)) return;
+                                try {
+                                    setPerformingAction(true);
+                                    const res = await odooService.markActivityDone(lastAct.id);
+                                    if (res.success || !res.error) {
+                                        await fetchPickingDetails();
+                                    } else {
+                                        alert(res.error || "Completion failed");
+                                    }
+                                } catch { alert("Network error"); }
+                                finally { setPerformingAction(false); }
+                            }}
+                            disabled={performingAction}
+                        >
+                            <CheckCircle size={16} className="text-blue-500" />
+                            <span>Complete Task</span>
+                        </button>
+                    )}
                     <button 
                         className="btn-ui hover:bg-[#25D366] hover:text-white border-transparent" 
                         onClick={() => setShowWhatsappModal(true)} 

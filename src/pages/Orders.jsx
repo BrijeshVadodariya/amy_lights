@@ -36,13 +36,23 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
   const [filterToday, setFilterToday] = useState(false);
   const [filterMyTasks, setFilterMyTasks] = useState(false);
   const [filterAssignee, setFilterAssignee] = useState('');
-
   // Quick Actions State
   const [quickDetailOrderId, setQuickDetailOrderId] = useState(null);
   const [quickNoteOrderId, setQuickNoteOrderId] = useState(null);
   const [quickTaskOrderId, setQuickTaskOrderId] = useState(null);
   const [users, setUsers] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [taskFilter, setTaskFilter] = useState(() => {
+    if (isTaskView && stateType === 'task_completed') return 'completed';
+    return 'pending';
+  });
+
+  useEffect(() => {
+    if (isTaskView) {
+      if (stateType === 'task_completed') setTaskFilter('completed');
+      else if (stateType === 'task_pending' || stateType === 'all') setTaskFilter('pending');
+    }
+  }, [stateType, isTaskView]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -54,14 +64,15 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await odooService.getOrders(1000, 0, 'id desc', stateType);
+      const apiStateType = isTaskView ? (taskFilter === 'completed' ? 'task_completed' : 'task_pending') : stateType;
+      const data = await odooService.getOrders(1000, 0, 'id desc', apiStateType);
       setOrders(data.orders || []);
     } catch {
       console.error("Fetch orders failed");
     } finally {
       setLoading(false);
     }
-  }, [stateType]);
+  }, [stateType, isTaskView, taskFilter]);
 
 
   useEffect(() => {
@@ -94,7 +105,9 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
 
   const filtered = orders.filter(o => {
     if (isTaskView) {
-      // Strictly show only orders that have an associated task/activity
+      // If we are in task view, only show records with activity data.
+      // For 'pending', we expect current activity data.
+      // For 'completed', we expect the [Done] prefix summary from the backend.
       if (!o.activity_date && !o.last_activity) return false;
 
       if (filterMyTasks && currentUserName) {
@@ -406,11 +419,11 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                   </button>
                   <button 
                     className="btn-ui primary" 
-                    onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : ['order', 'pending', 'completed'].includes(stateType) ? 'create-direct-order' : 'create-order')}
+                    onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : ['quotation'].includes(stateType) ? 'create-order' : 'create-direct-order')}
                   >
                     <Plus size={14} />
                     <span>
-                      {stateType === 'selection' ? 'Selection' : ['order', 'pending', 'completed'].includes(stateType) ? 'Order' : 'Quotation'}
+                      {stateType === 'selection' ? 'Selection' : 'Order'}
                     </span>
                   </button>
                 </>
@@ -617,17 +630,41 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                                 <span>Add Remark</span>
                               </button>
 
-                              <button 
-                                className="btn-action-soft"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownId(null);
-                                  setQuickTaskOrderId(order.id);
-                                }}
-                              >
-                                <Calendar size={12} className="text-orange-500" />
-                                <span>Add Task</span>
-                              </button>
+                               <button 
+                                 className="btn-action-soft"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setOpenDropdownId(null);
+                                   setQuickTaskOrderId(order.id);
+                                 }}
+                               >
+                                 <Calendar size={12} className="text-orange-500" />
+                                 <span>Add Task</span>
+                               </button>
+
+                               {order.last_activity_id && (
+                                 <button 
+                                   className="btn-action-soft"
+                                   onClick={async (e) => {
+                                     e.stopPropagation();
+                                     setOpenDropdownId(null);
+                                     if (window.confirm('Mark this task as completed?')) {
+                                       try {
+                                         setIsSubmitting(true);
+                                         await odooService.markActivityDone(order.last_activity_id);
+                                         fetchOrders();
+                                       } catch (err) {
+                                         alert('Failed to complete task: ' + err.message);
+                                       } finally {
+                                         setIsSubmitting(false);
+                                       }
+                                     }
+                                   }}
+                                 >
+                                   <CheckCircle size={12} className="text-blue-500" />
+                                   <span>Complete Task</span>
+                                 </button>
+                               )}
                             </div>
 
                             <div style={{ marginTop: '4px' }}>

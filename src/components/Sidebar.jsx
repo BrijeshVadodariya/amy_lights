@@ -36,7 +36,15 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
       isGroup: true,
       children: [
         { id: 'all-orders', label: 'All Orders', icon: FileText },
-        { id: 'tasks', label: 'Tasks', icon: Clock },
+        { 
+          id: 'tasks', 
+          label: 'Tasks', 
+          icon: Clock,
+          children: [
+            { id: 'tasks-pending', label: 'Pending', icon: Package },
+            { id: 'tasks-completed', label: 'Completed', icon: CheckCircle2 }
+          ]
+        },
         { id: 'selection', label: 'Selection', icon: Box },
         { id: 'quotations', label: 'Quotation', icon: Clock },
         { 
