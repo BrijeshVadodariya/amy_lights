@@ -415,8 +415,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
             </div>
           </div>
         </div>
-
-
+        
 
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center">

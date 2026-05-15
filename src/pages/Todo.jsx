@@ -171,61 +171,6 @@ function TodoDetailModal({ todo, onEdit, onDelete, onClose, toggling, onToggle }
   );
 }
 
-function TodoCard({ todo, onToggle, onOpen, onEdit, onDelete, toggling }) {
-  const status = deadlineStatus(todo.deadline);
-  const col = STATUS_COLOR[status];
-  const stars = parseInt(todo.priority || '0');
-
-  return (
-    <div 
-      onClick={() => onOpen(todo)}
-      style={{ 
-        background: todo.done ? '#fafafa' : '#fff', borderRadius: 22,
-        border: `1.5px solid ${todo.done ? '#e2e8f0' : '#f1f5f9'}`,
-        padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.6rem',
-        opacity: todo.done ? 0.7 : 1, transition: 'all .25s ease', cursor: 'pointer',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.02)',
-        position: 'relative'
-      }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.06)'; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.02)'; }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <button onClick={(e) => { e.stopPropagation(); onToggle(todo); }} disabled={toggling === todo.id}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: todo.done ? '#10b981' : '#cbd5e1' }}>
-          {toggling === todo.id ? <Loader2 size={22} className="animate-spin" /> : todo.done ? <CheckCircle2 size={22} /> : <Circle size={22} />}
-        </button>
-        <div style={{ display: 'flex', gap: 6 }}>
-           <button onClick={(e) => { e.stopPropagation(); onEdit(todo); }} style={iconBtnStyle} title="Edit"><Edit3 size={13}/></button>
-           <button onClick={(e) => { e.stopPropagation(); onDelete(todo.id); }} style={{ ...iconBtnStyle, color: '#dc2626' }} title="Delete"><Trash2 size={13}/></button>
-        </div>
-      </div>
-
-      <div style={{ fontSize: 17, fontWeight: 800, color: todo.done ? '#94a3b8' : '#1e293b', textDecoration: todo.done ? 'line-through' : 'none', wordBreak: 'break-word', lineHeight: 1.3 }}>
-        {todo.title}
-      </div>
-
-      {todo.note && (
-        <div style={{ fontSize: 12, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-           {todo.note.replace(/\n/g, ' ')}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.6rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-           <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={11}/></div>
-           <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>{todo.assigned_to.split(' ')[0]}</span>
-        </div>
-        {todo.deadline && (
-          <div style={{ background: col.bg, color: col.text, borderRadius: 8, padding: '2px 7px', fontSize: 10, fontWeight: 800 }}>
-            {status === 'today' ? 'Today' : todo.deadline}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 const TodoPage = () => {
   const [todos, setTodos] = useState([]);
   const [team, setTeam] = useState([]);
@@ -244,6 +189,8 @@ const TodoPage = () => {
   const [assigneeId, setAssigneeId] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const entriesPerPage = 25;
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -269,6 +216,12 @@ const TodoPage = () => {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const filtered = todos.filter(t => !search || t.title.toLowerCase().includes(search.toLowerCase()) || (t.note || '').toLowerCase().includes(search.toLowerCase()));
+  
+  const totalEntries = filtered.length;
+  const totalPages = Math.ceil(totalEntries / entriesPerPage);
+  const indexOfLastItem = currentPage * entriesPerPage;
+  const indexOfFirstItem = indexOfLastItem - entriesPerPage;
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
 
   const handleCreate = async (form) => {
     setSaving(true);
@@ -295,78 +248,157 @@ const TodoPage = () => {
     } catch {} finally { setToggling(null); }
   };
 
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    const pages = [];
+    pages.push(<button key="prev" className="page-btn prev" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1}>Previous</button>);
+    
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + 4);
+    if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <button key={i} className={`page-btn ${currentPage === i ? 'active' : ''}`} onClick={() => setCurrentPage(i)}>
+          {i}
+        </button>
+      );
+    }
+    pages.push(<button key="next" className="page-btn next" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages}>Next</button>);
+    return pages;
+  };
+
   return (
-    <div style={{ padding: '1rem', fontFamily: 'Inter, system-ui, sans-serif', maxWidth: '100%', margin: '0' }}>
+    <div className="dt-page">
       {toast && (
         <div style={{ position: 'fixed', top: 24, right: 24, zIndex: 10001, background: toast.type === 'error' ? '#dc2626' : '#10b981', color: '#fff', borderRadius: 14, padding: '14px 24px', fontWeight: 800, fontSize: 14, boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}>
           {toast.msg}
         </div>
       )}
 
-      {/* Ultra-Compact Filter Bar */}
-      <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #e2e8f0', padding: '1rem 1.25rem', marginBottom: '1.25rem', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'center' }}>
-        
-        {/* Status Tabs */}
-        <div style={{ display: 'flex', gap: 4, background: '#f8fafc', padding: 4, borderRadius: 12 }}>
-          {FILTERS.map(f => <button key={f.key} onClick={() => setFilter(f.key)} style={{ padding: '6px 14px', borderRadius: 9, border: 'none', cursor: 'pointer', background: filter === f.key ? '#fff' : 'transparent', color: filter === f.key ? '#4f46e5' : '#64748b', fontWeight: filter === f.key ? 800 : 600, fontSize: 12, boxShadow: filter === f.key ? '0 2px 6px rgba(0,0,0,0.05)' : 'none' }}>{f.label}</button>)}
+      <div className="dt-card">
+        <div className="dt-toolbar-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', gap: 4, background: '#f8fafc', padding: 4, borderRadius: 12 }}>
+            {FILTERS.map(f => (
+              <button key={f.key} onClick={() => { setFilter(f.key); setCurrentPage(1); }} style={{ padding: '6px 14px', borderRadius: 9, border: 'none', cursor: 'pointer', background: filter === f.key ? '#fff' : 'transparent', color: filter === f.key ? '#4f46e5' : '#64748b', fontWeight: filter === f.key ? 800 : 600, fontSize: 12, boxShadow: filter === f.key ? '0 2px 6px rgba(0,0,0,0.05)' : 'none' }}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 12px', background: myTasksOnly ? '#eef2ff' : '#f8fafc', borderRadius: 10, border: `1.5px solid ${myTasksOnly ? '#6366f1' : '#e2e8f0'}` }}>
+             <input type="checkbox" checked={myTasksOnly} onChange={e => { setMyTasksOnly(e.target.checked); setCurrentPage(1); }} style={{ width: 16, height: 16 }} />
+             <span style={{ fontSize: 13, fontWeight: 700, color: myTasksOnly ? '#4f46e5' : '#475569' }}>My Tasks</span>
+          </label>
+
+          {!myTasksOnly && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={labelStyle}>Assignee</span>
+              <select value={assigneeId} onChange={e => { setAssigneeId(e.target.value); setCurrentPage(1); }} style={{ ...selectStyle, width: 'auto', minWidth: 150, marginTop: 0, padding: '6px 12px' }}>
+                <option value="">All Team</option>
+                {team.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={labelStyle}>Dates</span>
+            <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setCurrentPage(1); }} style={{ ...selectStyle, width: 'auto', marginTop: 0, padding: '5px 8px' }} />
+            <span style={{ color: '#cbd5e1', fontSize: 12 }}>-</span>
+            <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setCurrentPage(1); }} style={{ ...selectStyle, width: 'auto', marginTop: 0, padding: '5px 8px' }} />
+          </div>
+
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+            <input value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} placeholder="Search tasks..." style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.4rem', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
+          </div>
+
+          <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', borderRadius: 12, padding: '0.65rem 1.25rem', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(99,102,241,0.2)' }}>
+            <Plus size={16} /> New
+          </button>
         </div>
 
-        {/* My Task Checkbox */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 12px', background: myTasksOnly ? '#eef2ff' : '#f8fafc', borderRadius: 10, border: `1.5px solid ${myTasksOnly ? '#6366f1' : '#e2e8f0'}` }}>
-           <input type="checkbox" checked={myTasksOnly} onChange={e => setMyTasksOnly(e.target.checked)} style={{ width: 16, height: 16 }} />
-           <span style={{ fontSize: 13, fontWeight: 700, color: myTasksOnly ? '#4f46e5' : '#475569' }}>My Tasks</span>
-        </label>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '100px' }}><Loader2 size={40} className="animate-spin" style={{ color: '#6366f1' }} /></div>
+        ) : (
+          <div className="table-wrapper">
+            <table className="products-datatable">
+              <thead>
+                <tr>
+                  <th style={{ width: '330px' }}>Task Title</th>
+                  <th style={{ width: '300px' }}>Note</th>
+                  <th style={{ width: '120px' }}>Assignee</th>
+                  <th style={{ width: '120px' }}>Deadline</th>
+                  <th style={{ width: '100px' }}>Priority</th>
+                  <th style={{ width: '100px' }} className="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.map((todo) => {
+                  const status = deadlineStatus(todo.deadline);
+                  const col = STATUS_COLOR[status];
+                  const stars = parseInt(todo.priority || '0');
+                  const displayDeadline = todo.deadline ? todo.deadline.split(' ')[0] : null;
 
-        {/* Assignee Filter */}
-        {!myTasksOnly && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={labelStyle}>Assignee</span>
-            <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)} style={{ ...selectStyle, width: 'auto', minWidth: 150, marginTop: 0, padding: '6px 12px' }}>
-              <option value="">All Team</option>
-              {team.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
+                  return (
+                    <tr key={todo.id} onClick={() => setViewTodo(todo)} className="row-hover" style={{ opacity: todo.done ? 0.7 : 1 }}>
+                      <td className="cell-highlight" style={{ fontWeight: 800, color: todo.done ? '#94a3b8' : '#1e293b', textDecoration: todo.done ? 'line-through' : 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleToggle(todo); }} 
+                            disabled={toggling === todo.id} 
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: todo.done ? '#10b981' : '#cbd5e1', padding: 0, display: 'flex', alignItems: 'center' }}
+                          >
+                            {toggling === todo.id ? <Loader2 size={18} className="animate-spin" /> : todo.done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                          </button>
+                          <span>{todo.title}</span>
+                        </div>
+                      </td>
+                      <td className="cell-light" style={{ fontSize: '13px', color: '#64748b' }}>
+                        <div style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{todo.note || '-'}</div>
+                      </td>
+                      <td className="cell-light">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <User size={12} color="#64748b" />
+                          </div>
+                          <span style={{ fontSize: '13px', fontWeight: 600 }}>{todo.assigned_to || '-'}</span>
+                        </div>
+                      </td>
+                      <td className="cell-light">
+                        {displayDeadline ? (
+                          <span style={{ background: col.bg, color: col.text, padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, border: `1px solid ${col.border}` }}>
+                            {status === 'today' ? 'Today' : displayDeadline}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td className="cell-light">
+                        <div style={{ fontSize: '16px', color: '#f59e0b' }}>{'★'.repeat(stars)}{'☆'.repeat(3 - stars)}</div>
+                      </td>
+                      <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                          <button onClick={() => setEditTodo(todo)} style={{ ...iconBtnStyle, background: '#eff6ff', color: '#3b82f6' }}><Edit3 size={14} /></button>
+                          <button onClick={async () => { if(window.confirm('Delete this task?')) { await odooService.deleteTodo(todo.id); setTodos(p=>p.filter(x=>x.id!==todo.id)); } }} style={{ ...iconBtnStyle, background: '#fff1f2', color: '#dc2626' }}><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* Date Range */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={labelStyle}>Dates</span>
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...selectStyle, width: 'auto', marginTop: 0, padding: '5px 8px' }} />
-          <span style={{ color: '#cbd5e1', fontSize: 12 }}>-</span>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...selectStyle, width: 'auto', marginTop: 0, padding: '5px 8px' }} />
+        <div className="datatable-footer dt-flex-between" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
+            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, totalEntries)} of {totalEntries} entries
+          </div>
+          <div className="pagination dt-flex border border-slate-300 rounded overflow-hidden">
+            {renderPagination()}
+          </div>
         </div>
-
-        {/* Search */}
-        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-          <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.4rem', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
-        </div>
-
-        {/* Add Button */}
-        <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', borderRadius: 12, padding: '0.65rem 1.25rem', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(99,102,241,0.2)' }}>
-          <Plus size={16} /> New
-        </button>
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '100px' }}><Loader2 size={40} className="animate-spin" style={{ color: '#6366f1' }} /></div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-          {filtered.map(todo => (
-            <TodoCard 
-              key={todo.id} 
-              todo={todo} 
-              onToggle={handleToggle}
-              onOpen={setViewTodo}
-              onEdit={setEditTodo}
-              onDelete={async (id) => { if(window.confirm('Delete this task?')) { await odooService.deleteTodo(id); setTodos(p=>p.filter(x=>x.id!==id)); } }}
-              toggling={toggling} 
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Modals */}
       {showForm && <TodoFormModal team={team} currentUserId={user?.id} onSave={handleCreate} onCancel={() => setShowForm(false)} saving={saving} />}
       {editTodo && <TodoFormModal initial={editTodo} team={team} currentUserId={user?.id} onSave={handleUpdate} onCancel={() => setEditTodo(null)} saving={saving} />}
       {viewTodo && <TodoDetailModal todo={viewTodo} onEdit={setEditTodo} onDelete={async (id) => { if(window.confirm('Delete this task?')) { await odooService.deleteTodo(id); setTodos(p=>p.filter(x=>x.id!==id)); setViewTodo(null); } }} onClose={() => setViewTodo(null)} toggling={toggling} onToggle={handleToggle} />}

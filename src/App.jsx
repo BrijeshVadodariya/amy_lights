@@ -260,6 +260,10 @@ function App() {
         return <Orders stateType="quotation" onNavigate={handleNavigate} />;
       case 'orders':
         return <Orders stateType="order" onNavigate={handleNavigate} />;
+      case 'pending-orders':
+        return <Orders stateType="pending" onNavigate={handleNavigate} />;
+      case 'completed-orders':
+        return <Orders stateType="completed" onNavigate={handleNavigate} />;
       case 'selection':
         return <Orders stateType="selection" onNavigate={handleNavigate} />;
       case 'cancelled':
@@ -356,6 +360,8 @@ function App() {
                   case 'tasks': return 'Tasks';
                   case 'quotations': return 'Quotations';
                   case 'orders': return 'Sales Orders';
+                  case 'pending-orders': return 'Pending Orders';
+                  case 'completed-orders': return 'Completed Orders';
                   case 'selection': return 'Selections';
                   case 'cancelled': return 'Cancelled Orders';
                   case 'customers': return 'Customers';

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ChevronLeft, Truck, Package2, CheckCircle, Printer, 
   XCircle, Calendar, FileText, User, MapPin, 
-  ArrowRight, Info, AlertCircle, MessageCircle
+  ArrowRight, Info, AlertCircle, MessageCircle,
+  Camera, Paperclip, Send, Image as ImageIcon, X
 } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
@@ -19,6 +20,11 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editVals, setEditVals] = useState({ scheduled_date: '', lines: [] });
   const [showWhatsappModal, setShowWhatsappModal] = useState(false);
+  
+  // Log Note State
+  const [logText, setLogText] = useState('');
+  const [logAttachments, setLogAttachments] = useState([]);
+  const [isLogging, setIsLogging] = useState(false);
 
   const fetchPickingDetails = useCallback(async () => {
     setLoading(true);
@@ -61,10 +67,11 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
       if (res.success) {
         await fetchPickingDetails();
       } else {
-        alert(res.error || "Action failed");
+        alert(res.error || res.message || "Action failed");
       }
     } catch (err) {
-      alert("Network error");
+      const msg = odooService.getOdooErrorMessage ? odooService.getOdooErrorMessage(err) : "Network error";
+      alert(msg);
     } finally {
       setPerformingAction(false);
     }
@@ -84,6 +91,77 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
       alert("Error updating shipment");
     } finally {
       setPerformingAction(false);
+    }
+  };
+
+  const handleFiles = (files) => {
+    Array.from(files).forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogAttachments(prev => [...prev, {
+          name: file.name || `pasted-image-${Date.now()}.png`,
+          content: reader.result,
+          type: file.type,
+          preview: URL.createObjectURL(file)
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files) handleFiles(e.target.files);
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      const files = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          files.push(items[i].getAsFile());
+        }
+      }
+      if (files.length > 0) handleFiles(files);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleLogSubmit = async () => {
+    if (!logText && logAttachments.length === 0) return;
+    setIsLogging(true);
+    try {
+      const res = await odooService.addNote({
+        res_id: pickingId,
+        res_model: 'stock.picking',
+        text: logText,
+        chatter: true,
+        validate: true, // Trigger auto-validation
+        attachments: logAttachments.map(a => ({ name: a.name, content: a.content }))
+      });
+      if (res.success) {
+        setLogText('');
+        setLogAttachments([]);
+        await fetchPickingDetails(); // Refresh to show 'Done' state and history
+        alert("Photo submitted and delivery validated successfully");
+      } else {
+        alert(res.error || "Failed to add note");
+      }
+    } catch (err) {
+      alert("Error adding note");
+    } finally {
+      setIsLogging(false);
     }
   };
 
@@ -204,7 +282,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
 
         {/* Info Cards Grid */}
         <div className="delivery-info-grid">
-            {/* Delivery Address & Carrier */}
+            {/* Delivery Details */}
             <div className="delivery-card">
                 <div className="card-header">
                     <MapPin size={18} className="text-blue-500" />
@@ -212,17 +290,13 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                 </div>
                 <div className="space-y-6">
                     <div className="info-field">
-                        <label className="field-label">Source Document</label>
-                        <div 
-                            className={`field-value ${picking.origin_id ? 'link' : ''}`} 
-                            onClick={() => {
-                                if (!picking.origin_id) return;
-                                const route = picking.origin_type === 'purchase' ? 'purchase-detail' : 'order-detail';
-                                onNavigate(route, picking.origin_id);
-                            }}
-                        >
-                            {picking.origin || 'N/A'}
-                        </div>
+                        <label className="field-label">Delivery Address</label>
+                        <div className="field-value font-bold">{picking.partner_id || 'No Address'}</div>
+                        {picking.delivery_address && (
+                            <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                                {picking.delivery_address}
+                            </div>
+                        )}
                     </div>
                     {picking.carrier && (
                         <div className="carrier-badge">
@@ -247,7 +321,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                     <Calendar size={18} className="text-amber-500" />
                     <h2>Timeline</h2>
                 </div>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-6">
                     <div className="info-field">
                         <label className="field-label">Scheduled Date</label>
                         {isEditing ? (
@@ -258,9 +332,23 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                                 onChange={(e) => setEditVals(prev => ({ ...prev, scheduled_date: e.target.value }))}
                             />
                         ) : (
-                            <div className="field-value">{picking.date || 'To be defined'}</div>
+                            <div className="field-value font-bold">{picking.date || 'To be defined'}</div>
                         )}
                     </div>
+                    {picking.state === 'done' && picking.validated_by && (
+                        <div className="info-field">
+                            <label className="field-label">Validated By</label>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+                                    {picking.validated_by.charAt(0)}
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-700">{picking.validated_by}</span>
+                                    <span className="text-[10px] text-slate-400">{picking.validated_date}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     <div className="info-field">
                         <label className="field-label">Source Document</label>
                         <div 
@@ -276,9 +364,70 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Upload Photo & Note Section moved here to utilize space */}
+            <div className="delivery-card !p-0 overflow-hidden flex flex-col border-indigo-100">
+                <div className="px-5 pt-5 pb-3 flex items-center gap-2 border-b border-slate-50">
+                    <Camera size={16} className="text-indigo-400" />
+                    <h2 className="text-[11px] font-900 uppercase tracking-wider text-slate-700">Upload Delivery Photo</h2>
+                </div>
+                
+                <div className="flex-1 flex flex-col">
+                    <textarea 
+                        className="log-textarea flex-1 !min-h-[60px]"
+                        placeholder="Add comment, or paste/drop images here..."
+                        value={logText}
+                        onChange={(e) => setLogText(e.target.value)}
+                        onPaste={handlePaste}
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                    />
+                    
+                    {logAttachments.length > 0 && (
+                        <div className="attachment-previews !px-5">
+                            {logAttachments.map((att, idx) => (
+                                <div key={idx} className="preview-item">
+                                    {att.type.startsWith('image/') ? (
+                                        <img src={att.preview} alt="preview" />
+                                    ) : (
+                                        <div className="flex items-center justify-center w-full h-full">
+                                            <FileText size={20} className="text-slate-300" />
+                                        </div>
+                                    )}
+                                    <button 
+                                        className="remove-preview"
+                                        onClick={() => setLogAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    <div className="log-footer !bg-indigo-50/30">
+                        <div className="log-actions">
+                            <label className="log-action-btn" style={{ color: '#4f46e5', background: '#eef2ff', padding: '4px 10px', borderRadius: '6px' }}>
+                                <input type="file" multiple className="hidden" onChange={handleFileChange} accept="image/*" />
+                                <Camera size={14} />
+                                <span>Capture</span>
+                            </label>
+                        </div>
+                        
+                        <button 
+                            className={`btn-log-submit ${(logText || logAttachments.length > 0) ? 'active' : 'disabled'}`}
+                            disabled={isLogging || (!logText && logAttachments.length === 0)}
+                            onClick={handleLogSubmit}
+                            style={{ padding: '0.4rem 0.8rem' }}
+                        >
+                            <Send size={12} />
+                            <span>{isLogging ? '...' : 'Submit'}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        {/* Operations Tabs */}
         <div className="delivery-tabs-container">
             <div className="tabs-nav">
                 <button 
@@ -295,7 +444,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                 </button>
             </div>
 
-            <div className="p-0 overflow-x-auto">
+            <div className="tab-content">
                 {activeTab === 'operations' ? (
                     <table className="operations-table">
                         <thead>
@@ -315,6 +464,11 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                                     </td>
                                     <td style={{ textAlign: 'right' }}>
                                         <div className="text-sm font-bold text-slate-600">{line.qty_ordered}</div>
+                                        {line.qty_available !== undefined && parseFloat(line.qty_available) < parseFloat(line.qty_ordered) && (
+                                            <div className="text-[10px] text-amber-500 font-medium whitespace-nowrap">
+                                                Avail: {line.qty_available}
+                                            </div>
+                                        )}
                                     </td>
                                     <td style={{ textAlign: 'right' }}>
                                         {isEditing ? (
@@ -348,12 +502,51 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                         </tbody>
                     </table>
                 ) : (
-                    <div className="p-12 text-center text-slate-400 italic text-sm">
-                        No additional notes for this shipment.
+                    <div className="p-4">
+                        {picking.history && picking.history.length > 0 ? (
+                            <div className="space-y-6">
+                                {picking.history.map((item) => (
+                                    <div key={item.id} className="bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-xs font-bold text-indigo-600 border border-indigo-50">
+                                                    {item.author?.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-bold text-slate-700">{item.author}</div>
+                                                    <div className="text-[10px] text-slate-400">{item.date}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {item.body && <p className="text-sm text-slate-600 leading-relaxed mb-3">{item.body}</p>}
+                                        {item.attachments && item.attachments.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {item.attachments.map((att) => (
+                                                    <a 
+                                                        key={att.id} 
+                                                        href={att.url} 
+                                                        target="_blank" 
+                                                        rel="noreferrer"
+                                                        className="block w-20 h-20 rounded-lg overflow-hidden border border-white shadow-sm hover:shadow-md transition-shadow"
+                                                    >
+                                                        <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="p-12 text-center text-slate-400 italic text-sm">
+                                No photo history found for this shipment.
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
         </div>
+
       <WhatsappModal 
         isOpen={showWhatsappModal} 
         onClose={() => setShowWhatsappModal(false)}

@@ -193,6 +193,33 @@
   cursor: not-allowed;
 }
 
+/* Nested Submenu Styles */
+.submenu-container {
+  display: block !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.submenu-container:hover {
+  background-color: transparent !important;
+}
+
+.nested-submenu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background-color: #f8fafc;
+}
+
+.submenu-item.nested {
+  padding-left: 4.5rem !important;
+  font-size: 0.8rem !important;
+}
+
+.submenu-item.nested:hover {
+  background-color: #f1f5f9 !important;
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding: 1rem;
