@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   ChevronLeft, Truck, Package2, CheckCircle, Printer, 
   XCircle, Calendar, FileText, User, MapPin, 
   ArrowRight, Info, AlertCircle, MessageCircle,
-  Camera, Paperclip, Send, Image as ImageIcon, X
+  Camera, Paperclip, Send, Image as ImageIcon, X, ArrowLeft
 } from 'lucide-react';
 import { odooService } from '../services/odoo';
 import Loader from '../components/Loader';
@@ -25,6 +25,10 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
   const [logText, setLogText] = useState('');
   const [logAttachments, setLogAttachments] = useState([]);
   const [isLogging, setIsLogging] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const captureInputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const fetchPickingDetails = useCallback(async () => {
     setLoading(true);
@@ -136,6 +140,10 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handleCapture = () => {
+    if (captureInputRef.current) captureInputRef.current.click();
   };
 
   const handleLogSubmit = async () => {
@@ -365,16 +373,54 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                 </div>
             </div>
 
-            {/* Upload Photo & Note Section moved here to utilize space */}
-            <div className="delivery-card !p-0 overflow-hidden flex flex-col border-indigo-100">
-                <div className="px-5 pt-5 pb-3 flex items-center gap-2 border-b border-slate-50">
+            {/* Delivery Evidence Preview */}
+            {picking.all_attachments?.length > 0 && (
+                <div className="delivery-card">
+                    <div className="card-header">
+                        <Camera size={18} className="text-indigo-500" />
+                        <h2>Delivery Evidence</h2>
+                    </div>
+                    <div className="evidence-preview-grid">
+                        {picking.all_attachments.slice(0, 3).map((att, idx) => (
+                            <a 
+                                key={idx} 
+                                href={att.url} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="evidence-img-box"
+                            >
+                                <img src={att.url} alt="evidence" />
+                            </a>
+                        ))}
+                        {picking.all_attachments.length > 3 && (
+                            <div 
+                                className="evidence-more-box"
+                                onClick={() => setActiveTab('notes')}
+                            >
+                                <span className="evidence-more-count">+{picking.all_attachments.length - 3}</span>
+                                <span className="evidence-more-label">More</span>
+                            </div>
+                        )}
+                    </div>
+                    <button 
+                        className="view-history-btn"
+                        onClick={() => setActiveTab('notes')}
+                    >
+                        View Full History <ArrowLeft size={12} className="rotate-180" />
+                    </button>
+                </div>
+            )}
+
+            {/* Upload Photo & Note Section */}
+            <div className="delivery-card delivery-card-full">
+                <div className="upload-header">
                     <Camera size={16} className="text-indigo-400" />
-                    <h2 className="text-[11px] font-900 uppercase tracking-wider text-slate-700">Upload Delivery Photo</h2>
+                    <h2>Upload Delivery Photo</h2>
                 </div>
                 
-                <div className="flex-1 flex flex-col">
+                <div className="log-form-container">
                     <textarea 
-                        className="log-textarea flex-1 !min-h-[60px]"
+                        className="log-textarea"
                         placeholder="Add comment, or paste/drop images here..."
                         value={logText}
                         onChange={(e) => setLogText(e.target.value)}
@@ -384,7 +430,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                     />
                     
                     {logAttachments.length > 0 && (
-                        <div className="attachment-previews !px-5">
+                        <div className="attachment-previews" style={{ padding: '0 1.25rem' }}>
                             {logAttachments.map((att, idx) => (
                                 <div key={idx} className="preview-item">
                                     {att.type.startsWith('image/') ? (
@@ -404,26 +450,47 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             ))}
                         </div>
                     )}
+                    <input 
+                        type="file" 
+                        ref={captureInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleFileChange}
+                    />
+                    <input 
+                        type="file" 
+                        ref={fileInputRef}
+                        multiple
+                        className="hidden"
+                        onChange={handleFileChange}
+                        accept="image/*"
+                    />
+                </div>
+
+                <div className="log-footer">
+                    <button 
+                        className="btn-capture"
+                        onClick={handleCapture}
+                    >
+                        <Camera size={16} />
+                        <span>Capture</span>
+                    </button>
                     
-                    <div className="log-footer !bg-indigo-50/30">
-                        <div className="log-actions">
-                            <label className="log-action-btn" style={{ color: '#4f46e5', background: '#eef2ff', padding: '4px 10px', borderRadius: '6px' }}>
-                                <input type="file" multiple className="hidden" onChange={handleFileChange} accept="image/*" />
-                                <Camera size={14} />
-                                <span>Capture</span>
-                            </label>
-                        </div>
-                        
-                        <button 
-                            className={`btn-log-submit ${(logText || logAttachments.length > 0) ? 'active' : 'disabled'}`}
-                            disabled={isLogging || (!logText && logAttachments.length === 0)}
-                            onClick={handleLogSubmit}
-                            style={{ padding: '0.4rem 0.8rem' }}
-                        >
-                            <Send size={12} />
-                            <span>{isLogging ? '...' : 'Submit'}</span>
-                        </button>
-                    </div>
+                    <button 
+                        className="btn-submit-log"
+                        disabled={isSubmitting || (!logText.trim() && logAttachments.length === 0)}
+                        onClick={handleLogSubmit}
+                    >
+                        {isSubmitting ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <Send size={16} />
+                                <span>Submit</span>
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
         </div>
@@ -503,45 +570,47 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                     </table>
                 ) : (
                     <div className="p-4">
+                    <div className="history-feed">
                         {picking.history && picking.history.length > 0 ? (
-                            <div className="space-y-6">
+                            <>
                                 {picking.history.map((item) => (
-                                    <div key={item.id} className="bg-slate-50/50 rounded-xl p-4 border border-slate-100">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-xs font-bold text-indigo-600 border border-indigo-50">
+                                    <div key={item.id} className="history-item">
+                                        <div className="history-item-header">
+                                            <div className="history-author-box">
+                                                <div className="author-avatar">
                                                     {item.author?.charAt(0)}
                                                 </div>
-                                                <div>
-                                                    <div className="text-xs font-bold text-slate-700">{item.author}</div>
-                                                    <div className="text-[10px] text-slate-400">{item.date}</div>
+                                                <div className="author-info">
+                                                    <div className="author-name">{item.author}</div>
+                                                    <div className="history-date">{item.date}</div>
                                                 </div>
                                             </div>
                                         </div>
-                                        {item.body && <p className="text-sm text-slate-600 leading-relaxed mb-3">{item.body}</p>}
+                                        {item.body && <p className="history-body">{item.body}</p>}
                                         {item.attachments && item.attachments.length > 0 && (
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="history-attachments">
                                                 {item.attachments.map((att) => (
                                                     <a 
                                                         key={att.id} 
                                                         href={att.url} 
                                                         target="_blank" 
                                                         rel="noreferrer"
-                                                        className="block w-20 h-20 rounded-lg overflow-hidden border border-white shadow-sm hover:shadow-md transition-shadow"
+                                                        className="history-att-link"
                                                     >
-                                                        <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                                                        <img src={att.url} alt={att.name} />
                                                     </a>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
                                 ))}
-                            </div>
+                            </>
                         ) : (
                             <div className="p-12 text-center text-slate-400 italic text-sm">
                                 No photo history found for this shipment.
                             </div>
                         )}
+                    </div>
                     </div>
                 )}
             </div>

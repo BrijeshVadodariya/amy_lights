@@ -94,6 +94,9 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
 
   const filtered = orders.filter(o => {
     if (isTaskView) {
+      // Strictly show only orders that have an associated task/activity
+      if (!o.activity_date && !o.last_activity) return false;
+
       if (filterMyTasks && currentUserName) {
          if (!String(o.last_activity || '').includes(currentUserName)) return false;
       }
@@ -403,11 +406,11 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                   </button>
                   <button 
                     className="btn-ui primary" 
-                    onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : stateType === 'order' ? 'create-direct-order' : 'create-order')}
+                    onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : ['order', 'pending', 'completed'].includes(stateType) ? 'create-direct-order' : 'create-order')}
                   >
                     <Plus size={14} />
                     <span>
-                      {stateType === 'selection' ? 'Selection' : stateType === 'order' ? 'Order' : 'Quotation'}
+                      {stateType === 'selection' ? 'Selection' : ['order', 'pending', 'completed'].includes(stateType) ? 'Order' : 'Quotation'}
                     </span>
                   </button>
                 </>
