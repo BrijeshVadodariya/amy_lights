@@ -36,6 +36,7 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
   // Add note inline
   const [noteInput, setNoteInput] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [completedTaskIds, setCompletedTaskIds] = useState(new Set());
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 1024);
@@ -160,12 +161,11 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
             <button className="btn-ui primary" onClick={() => onNavigate('create-crm', leadId)} style={{ height: '32px' }}>
               <Edit size={14} /><span>Edit Lead</span>
             </button>
-            {lead.activities && lead.activities.length > 0 && (
+            {lead.activities && lead.activities.length > 0 ? (
               <button 
                 className="btn-ui" 
                 onClick={async () => {
                   const lastAct = lead.activities[0];
-                  if (!window.confirm(`Mark task "${lastAct.summary || 'Task'}" as completed?`)) return;
                   try {
                     setLoading(true);
                     const res = await odooService.markActivityDone(lastAct.id);
@@ -178,6 +178,13 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
               >
                 <CheckCircle size={14} /><span>Complete Task</span>
               </button>
+            ) : (
+              <div 
+                className="btn-ui" 
+                style={{ height: '32px', background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0', cursor: 'default', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <CheckCircle size={14} /><span>Done</span>
+              </div>
             )}
             <button className="btn-ui" onClick={() => handleConvertToOrder('draft')} style={{ height: '32px', background: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' }}>
               <Plus size={14} /><span>New Quotation</span>
@@ -327,29 +334,62 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#666', fontWeight: 600 }}>
-                               <Calendar size={12} className="text-slate-400" />
-                               <span>{act.date_deadline || 'No Date'}</span>
+                              <Calendar size={12} className="text-slate-400" />
+                              <span>{act.date_deadline || 'No Date'}</span>
                             </div>
-                             <button 
-                               onClick={async () => {
-                                 if (!window.confirm('Mark this task as completed?')) return;
-                                 try {
-                                   const res = await odooService.markActivityDone(act.id);
-                                   if (res.success || !res.error) await fetchLead();
-                                   else alert(res.error || 'Completion failed');
-                                 } catch { alert('Network error'); }
-                               }}
-                               style={{ border: 'none', background: 'none', color: '#3b82f6', cursor: 'pointer' }} 
-                               title="Complete Task"
-                             >
-                               <CheckCircle size={13} />
-                             </button>
-                            <button onClick={() => handleStartEditTask(act)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Edit">
-                              <Edit2 size={13} />
-                            </button>
-                            <button onClick={() => handleDeleteTask(act.id)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Delete">
-                              <Trash size={13} />
-                            </button>
+                            {(act.state !== 'completed' && !completedTaskIds.has(act.id)) ? (
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    setCompletedTaskIds(prev => {
+                                      const next = new Set(prev);
+                                      next.add(act.id);
+                                      return next;
+                                    });
+                                    const res = await odooService.markActivityDone(act.id);
+                                    if (res.success || !res.error) {
+                                      await fetchLead();
+                                    } else {
+                                      setCompletedTaskIds(prev => {
+                                        const next = new Set(prev);
+                                        next.delete(act.id);
+                                        return next;
+                                      });
+                                      alert(res.error || 'Completion failed');
+                                    }
+                                  } catch { 
+                                    setCompletedTaskIds(prev => {
+                                      const next = new Set(prev);
+                                      next.delete(act.id);
+                                      return next;
+                                    });
+                                    alert('Network error'); 
+                                  }
+                                }}
+                                style={{ border: 'none', background: 'none', color: '#3b82f6', cursor: 'pointer' }} 
+                                title="Complete Task"
+                              >
+                                <CheckCircle size={13} />
+                              </button>
+                            ) : (
+                              <div 
+                                style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', fontWeight: 700 }}
+                                title="Completed"
+                              >
+                                <CheckCircle size={13} />
+                                <span>Done</span>
+                              </div>
+                            )}
+                            {act.state !== 'completed' && (
+                              <>
+                                <button onClick={() => handleStartEditTask(act)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Edit">
+                                  <Edit2 size={13} />
+                                </button>
+                                <button onClick={() => handleDeleteTask(act.id)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Delete">
+                                  <Trash size={13} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                         {act.note && (

@@ -188,21 +188,21 @@ const Team = () => {
                           {(u.name || '?').charAt(0).toUpperCase()}
                         </div>
                         <div className="team-member-info">
-                          <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>{u.name}</span>
-                          <span className="role-badge"><Shield size={10} /> Portal Staff</span>
+                          <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '15.5px' }}>{u.name}</span>
+                          <span className="role-badge"><Shield size={11} /> Portal Staff</span>
                         </div>
                       </div>
                     </td>
                     <td>
-                      <div className="flex items-center gap-3 text-slate-600 pl-4">
-                        <span className="truncate">{u.email || u.login}</span>
+                      <div className="flex items-center gap-3 pl-4">
+                        <span className="truncate" style={{ fontSize: '14px', color: '#334155', fontWeight: 500 }}>{u.email || u.login}</span>
                       </div>
                     </td>
-                    <td className="text-slate-500 text-[13px]">{u.last_login}</td>
+                    <td style={{ fontSize: '13.5px', color: '#475569', fontWeight: 500 }}>{u.last_login}</td>
                     <td>
                       {u.active
-                        ? <span className="badge badge-success">Active</span>
-                        : <span className="badge badge-error">Inactive</span>}
+                        ? <span className="badge badge-success" style={{ fontSize: '12px', padding: '6px 10px', fontWeight: 700 }}>Active</span>
+                        : <span className="badge badge-error" style={{ fontSize: '12px', padding: '6px 10px', fontWeight: 700 }}>Inactive</span>}
                     </td>
                     <td className="text-right" style={{ paddingRight: '24px' }}>
                       <div className="flex items-center justify-end" style={{ gap: '8px' }}>
@@ -211,14 +211,14 @@ const Team = () => {
                           title="Edit Member"
                           onClick={(e) => { e.stopPropagation(); handleOpenEdit(u); }}
                         >
-                          <Edit2 size={14} />
+                          <Edit2 size={16} />
                         </button>
                         <button
                           className="team-action-btn delete"
                           title="Delete Member"
                           onClick={(e) => { e.stopPropagation(); handleDeleteUser(u); }}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>

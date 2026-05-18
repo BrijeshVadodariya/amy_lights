@@ -29,6 +29,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   const [remarkEditText, setRemarkEditText] = useState('');
   const [noteInput, setNoteInput] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [completedTaskIds, setCompletedTaskIds] = useState(new Set());
 
   useEffect(() => {
     const fetch = async () => {
@@ -667,54 +668,87 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                             />
                             {act.summary && !['task', 'to do', 'todo'].includes(act.summary.toLowerCase()) && (
                               <div style={{ fontWeight: 800, fontSize: '11px', color: '#94a3b8', marginTop: '4px', textTransform: 'uppercase' }}>
-                                {act.summary}
+                              {act.summary}
                               </div>
                             )}
                           </div>
                           <div style={{ display: 'flex', gap: '4px', marginLeft: '12px' }}>
-                            <button
-                              onClick={async () => {
-                                if (!window.confirm('Mark this task as completed?')) return;
-                                try {
-                                  const res = await odooService.markActivityDone(act.id);
-                                  if (res.success || !res.error) fetchOrder();
-                                  else alert(res.error || 'Completion failed');
-                                } catch { alert('Network error'); }
-                              }}
-                              style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
-                              title="Complete Task"
-                            >
-                              <CheckCircle size={13} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEditingActivityId(act.id);
-                                setActivityEditVals({
-                                  summary: act.summary || '',
-                                  note: (act.note || '').replace(/<[^>]*>/g, '').trim(),
-                                  date_deadline: act.date_deadline || '',
-                                  user_id: act.user_id ? String(act.user_id) : ''
-                                });
-                              }}
-                              style={{ border: 'none', background: '#f1f5f9', color: '#64748b', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
-                              title="Edit Task"
-                            >
-                              <Edit2 size={13} />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                if (!window.confirm('Delete this task?')) return;
-                                try {
-                                  const res = await odooService.deleteActivity(act.id);
-                                  if (res.success || !res.error) fetchOrder();
-                                  else alert(res.error || 'Delete failed');
-                                } catch { alert('Network error'); }
-                              }}
-                              style={{ border: 'none', background: '#f1f5f9', color: '#94a3b8', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
-                              title="Delete Task"
-                            >
-                              <Trash size={13} />
-                            </button>
+                             {(act.state !== 'completed' && !completedTaskIds.has(act.id)) ? (
+                               <button
+                                 onClick={async () => {
+                                   try {
+                                     setCompletedTaskIds(prev => {
+                                       const next = new Set(prev);
+                                       next.add(act.id);
+                                       return next;
+                                     });
+                                     const res = await odooService.markActivityDone(act.id);
+                                     if (res.success || !res.error) {
+                                       fetchOrder();
+                                     } else {
+                                       setCompletedTaskIds(prev => {
+                                         const next = new Set(prev);
+                                         next.delete(act.id);
+                                         return next;
+                                       });
+                                       alert(res.error || 'Completion failed');
+                                     }
+                                   } catch { 
+                                     setCompletedTaskIds(prev => {
+                                       const next = new Set(prev);
+                                       next.delete(act.id);
+                                       return next;
+                                     });
+                                     alert('Network error'); 
+                                   }
+                                 }}
+                                 style={{ border: 'none', background: '#f1f5f9', color: '#3b82f6', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                                 title="Complete Task"
+                               >
+                                 <CheckCircle size={13} />
+                               </button>
+                             ) : (
+                               <div 
+                                 style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', fontWeight: 700, padding: '6px', background: '#f0fdf4', borderRadius: '6px' }}
+                                 title="Completed"
+                               >
+                                 <CheckCircle size={13} />
+                                 <span>Done</span>
+                               </div>
+                             )}
+                             {act.state !== 'completed' && (
+                               <>
+                                 <button
+                                   onClick={() => {
+                                     setEditingActivityId(act.id);
+                                     setActivityEditVals({
+                                       summary: act.summary || '',
+                                       note: (act.note || '').replace(/<[^>]*>/g, '').trim(),
+                                       date_deadline: act.date_deadline || '',
+                                       user_id: act.user_id ? String(act.user_id) : ''
+                                     });
+                                   }}
+                                   style={{ border: 'none', background: '#f1f5f9', color: '#64748b', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                                   title="Edit Task"
+                                 >
+                                   <Edit2 size={13} />
+                                 </button>
+                                 <button
+                                   onClick={async () => {
+                                     if (!window.confirm('Delete this task?')) return;
+                                     try {
+                                       const res = await odooService.deleteActivity(act.id);
+                                       if (res.success || !res.error) fetchOrder();
+                                       else alert(res.error || 'Delete failed');
+                                     } catch { alert('Network error'); }
+                                   }}
+                                   style={{ border: 'none', background: '#f1f5f9', color: '#94a3b8', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                                   title="Delete Task"
+                                 >
+                                   <Trash size={13} />
+                                 </button>
+                               </>
+                             )}
                           </div>
                         </div>
                         <div style={{ display: 'flex', width: '100%', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid #f8fafc', marginTop: '4px' }}>

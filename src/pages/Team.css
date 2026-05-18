@@ -6,16 +6,18 @@
 /* ── Table row alignment fix ─────────────────────────── */
 .team-container .products-datatable td {
   vertical-align: middle !important;
-  padding: 16px 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid #f1f5f9;
+  font-size: 14px !important;
 }
 
 .team-container .products-datatable th {
-  padding: 14px 12px;
+  padding: 11px 12px;
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 800;
   letter-spacing: 0.05em;
-  color: #64748b;
+  color: #475569;
   background: #f8fafc;
   border-bottom: 2px solid #edf2f7;
 }
@@ -69,7 +71,7 @@ tr:hover .user-card-avatar {
   background: #f0f7ff;
   color: #3b82f6;
   border-radius: 8px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -218,11 +220,7 @@ tr:hover .user-card-avatar {
   transform: translateY(0);
 }
 
-.team-container .products-datatable td {
-  vertical-align: middle !important;
-  padding: 16px 12px;
-  border-bottom: 1px solid #f1f5f9;
-}
+
 
 /* Actions Column specific styling */
 .team-action-btn {

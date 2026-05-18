@@ -11,6 +11,14 @@ import WhatsappModal from '../components/WhatsappModal';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import './DeliveryDetail.css';
 
+const getAuthorizedImageUrl = (url) => {
+  if (!url) return '';
+  const token = localStorage.getItem('odoo_session_id') || '';
+  const db = import.meta.env.VITE_ODOO_DB || 'stage';
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}token=${token}&db=${db}`;
+};
+
 const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
   const [picking, setPicking] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +28,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editVals, setEditVals] = useState({ scheduled_date: '', lines: [] });
   const [showWhatsappModal, setShowWhatsappModal] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
   
   // Log Note State
   const [logText, setLogText] = useState('');
@@ -221,12 +230,11 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             <span>Edit Delivery</span>
                         </button>
                     )}
-                    {picking.activities && picking.activities.length > 0 && (
+                    {picking.activities && picking.activities.length > 0 ? (
                         <button 
                             className="btn-ui hover:bg-blue-50 hover:text-blue-600 border-blue-100"
                             onClick={async () => {
                                 const lastAct = picking.activities[0];
-                                if (!window.confirm(`Mark task "${lastAct.summary || 'Task'}" as completed?`)) return;
                                 try {
                                     setPerformingAction(true);
                                     const res = await odooService.markActivityDone(lastAct.id);
@@ -243,6 +251,13 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             <CheckCircle size={16} className="text-blue-500" />
                             <span>Complete Task</span>
                         </button>
+                    ) : (
+                        <div 
+                            className="btn-ui" 
+                            style={{ height: '38px', background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0', cursor: 'default', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                            <CheckCircle size={16} /><span>Done</span>
+                        </div>
                     )}
                     <button 
                         className="btn-ui hover:bg-[#25D366] hover:text-white border-transparent" 
@@ -396,24 +411,27 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                 </div>
             </div>
 
-            {/* Delivery Evidence Preview */}
-            {picking.all_attachments?.length > 0 && (
-                <div className="delivery-card">
-                    <div className="card-header">
-                        <Camera size={18} className="text-indigo-500" />
-                        <h2>Delivery Evidence</h2>
-                    </div>
+            {/* Combined Delivery Evidence & Upload Card */}
+            <div className="delivery-card">
+                <div className="card-header">
+                    <Camera size={18} className="text-indigo-500" />
+                    <h2>Delivery Evidence</h2>
+                </div>
+
+                {/* Previews of Already Uploaded Evidence */}
+                {picking.all_attachments?.length > 0 ? (
                     <div className="evidence-preview-grid">
                         {picking.all_attachments.slice(0, 3).map((att, idx) => (
-                            <a 
+                            <div 
                                 key={idx} 
-                                href={att.url} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="evidence-img-box"
+                                className="evidence-img-box cursor-pointer"
+                                onClick={() => setPreviewImageUrl(getAuthorizedImageUrl(att.url))}
+                                style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1.0)'}
                             >
-                                <img src={att.url} alt="evidence" />
-                            </a>
+                                <img src={getAuthorizedImageUrl(att.url)} alt="evidence" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
                         ))}
                         {picking.all_attachments.length > 3 && (
                             <div 
@@ -425,96 +443,104 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             </div>
                         )}
                     </div>
-                    <button 
-                        className="view-history-btn"
-                        onClick={() => setActiveTab('notes')}
-                    >
-                        View Full History <ArrowLeft size={12} className="rotate-180" />
-                    </button>
-                </div>
-            )}
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', border: '1px dashed #cbd5e1', borderRadius: '12px', background: '#f8fafc', color: '#94a3b8' }}>
+                        <Camera size={24} className="mb-1 opacity-60" />
+                        <span style={{ fontSize: '11px', fontWeight: 600 }}>No photos uploaded yet</span>
+                    </div>
+                )}
 
-            {/* Upload Photo & Note Section */}
-            <div className="delivery-card delivery-card-full">
-                <div className="upload-header">
-                    <Camera size={16} className="text-indigo-400" />
-                    <h2>Upload Delivery Photo</h2>
-                </div>
-                
-                <div className="log-form-container">
-                    <textarea 
-                        className="log-textarea"
-                        placeholder="Add comment, or paste/drop images here..."
-                        value={logText}
-                        onChange={(e) => setLogText(e.target.value)}
-                        onPaste={handlePaste}
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                    />
+                {/* Upload & Capture Form for New Evidence */}
+                <div className="evidence-upload-section" style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #f1f5f9' }}>
+                    <label className="field-label" style={{ marginBottom: '8px' }}>Upload New Photo</label>
                     
-                    {logAttachments.length > 0 && (
-                        <div className="attachment-previews" style={{ padding: '0 1.25rem' }}>
-                            {logAttachments.map((att, idx) => (
-                                <div key={idx} className="preview-item">
-                                    {att.type.startsWith('image/') ? (
-                                        <img src={att.preview} alt="preview" />
-                                    ) : (
-                                        <div className="flex items-center justify-center w-full h-full">
-                                            <FileText size={20} className="text-slate-300" />
-                                        </div>
-                                    )}
-                                    <button 
-                                        className="remove-preview"
-                                        onClick={() => setLogAttachments(prev => prev.filter((_, i) => i !== idx))}
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    <input 
-                        type="file" 
-                        ref={captureInputRef}
-                        className="hidden"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleFileChange}
-                    />
-                    <input 
-                        type="file" 
-                        ref={fileInputRef}
-                        multiple
-                        className="hidden"
-                        onChange={handleFileChange}
-                        accept="image/*"
-                    />
-                </div>
-
-                <div className="log-footer">
-                    <button 
-                        className="btn-capture"
-                        onClick={handleCapture}
-                    >
-                        <Camera size={16} />
-                        <span>Capture</span>
-                    </button>
-                    
-                    <button 
-                        className="btn-submit-log"
-                        disabled={isSubmitting || (!logText.trim() && logAttachments.length === 0)}
-                        onClick={handleLogSubmit}
-                    >
-                        {isSubmitting ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <>
-                                <Send size={16} />
-                                <span>Submit</span>
-                            </>
+                    <div className="log-form-container" style={{ borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                        <textarea 
+                            className="log-textarea"
+                            placeholder="Add comments here..."
+                            value={logText}
+                            onChange={(e) => setLogText(e.target.value)}
+                            onPaste={handlePaste}
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                            style={{ minHeight: '60px', padding: '10px 12px', fontSize: '12px' }}
+                        />
+                        
+                        {logAttachments.length > 0 && (
+                            <div className="attachment-previews" style={{ padding: '0 12px 10px' }}>
+                                {logAttachments.map((att, idx) => (
+                                    <div key={idx} className="preview-item" style={{ width: '40px', height: '40px' }}>
+                                        {att.type.startsWith('image/') ? (
+                                            <img src={att.preview} alt="preview" />
+                                        ) : (
+                                            <div className="flex items-center justify-center w-full h-full">
+                                                <FileText size={16} className="text-slate-300" />
+                                            </div>
+                                        )}
+                                        <button 
+                                            className="remove-preview"
+                                            onClick={() => setLogAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                        >
+                                            <X size={10} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         )}
-                    </button>
+                        
+                        <input 
+                            type="file" 
+                            ref={captureInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={handleFileChange}
+                        />
+                        <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            multiple
+                            className="hidden"
+                            onChange={handleFileChange}
+                            accept="image/*"
+                        />
+                    </div>
+
+                    <div className="log-footer" style={{ padding: '8px 12px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '-1px', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px', border: '1px solid #e2e8f0', borderTop: 'none' }}>
+                        <button 
+                            className="btn-capture"
+                            onClick={handleCapture}
+                            style={{ padding: '6px 12px', fontSize: '10px' }}
+                        >
+                            <Camera size={14} />
+                            <span>Capture</span>
+                        </button>
+                        
+                        <button 
+                            className="btn-submit-log"
+                            disabled={isLogging || isSubmitting || (!logText.trim() && logAttachments.length === 0)}
+                            onClick={handleLogSubmit}
+                            style={{ padding: '6px 12px', fontSize: '10px' }}
+                        >
+                            {isLogging || isSubmitting ? (
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <Send size={12} />
+                                    <span>Submit</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
+
+                <button 
+                    className="view-history-btn"
+                    onClick={() => setActiveTab('notes')}
+                    style={{ marginTop: '1rem', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#4f46e5', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+                >
+                    View Full History <ArrowLeft size={12} className="rotate-180" />
+                </button>
             </div>
         </div>
 
@@ -615,12 +641,14 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                                                 {item.attachments.map((att) => (
                                                     <a 
                                                         key={att.id} 
-                                                        href={att.url} 
-                                                        target="_blank" 
-                                                        rel="noreferrer"
+                                                        href={getAuthorizedImageUrl(att.url)} 
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setPreviewImageUrl(getAuthorizedImageUrl(att.url));
+                                                        }}
                                                         className="history-att-link"
                                                     >
-                                                        <img src={att.url} alt={att.name} />
+                                                        <img src={getAuthorizedImageUrl(att.url)} alt={att.name} />
                                                     </a>
                                                 ))}
                                             </div>
@@ -647,6 +675,100 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
         defaultMobile={picking.partner_phone}
         defaultMessage={`Hello, here is the delivery slip for ${picking.name}.`}
       />
+
+      {/* Photo Preview Lightbox Overlay */}
+      {previewImageUrl && (
+          <div 
+              style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  width: '100vw',
+                  height: '100vh',
+                  background: 'rgba(15, 23, 42, 0.92)',
+                  backdropFilter: 'blur(12px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 9999,
+                  transition: 'opacity 0.2s ease-out'
+              }}
+              onClick={() => setPreviewImageUrl(null)}
+          >
+              <div 
+                  style={{
+                      position: 'relative',
+                      maxWidth: '90%',
+                      maxHeight: '90%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'column',
+                      gap: '16px'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+              >
+                  <button 
+                      style={{
+                          position: 'absolute',
+                          top: '-48px',
+                          right: '0px',
+                          background: 'white',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '36px',
+                          height: '36px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#0f172a',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          transition: 'all 0.2s'
+                      }}
+                      onClick={() => setPreviewImageUrl(null)}
+                  >
+                      <X size={20} />
+                  </button>
+                  <img 
+                      src={previewImageUrl} 
+                      alt="Full Evidence Preview" 
+                      style={{
+                          maxWidth: '100%',
+                          maxHeight: '75vh',
+                          borderRadius: '16px',
+                          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)',
+                          objectFit: 'contain',
+                          border: '2px solid rgba(255,255,255,0.15)'
+                      }}
+                  />
+                  <a 
+                      href={previewImageUrl} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          borderRadius: '10px',
+                          padding: '8px 16px',
+                          color: 'white',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          textDecoration: 'none',
+                          marginTop: '4px',
+                          transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                  >
+                      Open Original Image
+                  </a>
+              </div>
+          </div>
+      )}
     </div>
   </div>
   );
