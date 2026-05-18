@@ -282,19 +282,25 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
               </button>
             </div>
             <div style={{ padding: '14px 14px 0 14px', borderBottom: '14px solid transparent', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', boxSizing: 'border-box' }}>
-              {(!lead.activities || lead.activities.length === 0) ? (
-                <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px' }}>No planned tasks found.</div>
-              ) : (
-                (() => {
-                  const seen = new Set();
-                  return lead.activities.filter(act => {
-                    const cleanNote = (act.note || '').replace(/<[^>]*>?/gm, '').trim().toLowerCase();
-                    const key = `${act.summary}-${cleanNote}-${act.date_deadline}`.toLowerCase();
-                    if (seen.has(key)) return false;
-                    seen.add(key);
-                    return true;
-                  });
-                })().map(act => (
+              {(() => {
+                const seen = new Set();
+                const pendingActivities = (lead.activities || []).filter(act => 
+                  act.state !== 'completed' && !completedTaskIds.has(act.id)
+                ).filter(act => {
+                  const cleanNote = (act.note || '').replace(/<[^>]*>?/gm, '').trim().toLowerCase();
+                  const key = `${act.summary}-${cleanNote}-${act.date_deadline}`.toLowerCase();
+                  if (seen.has(key)) return false;
+                  seen.add(key);
+                  return true;
+                });
+
+                if (pendingActivities.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px' }}>No planned tasks found.</div>
+                  );
+                }
+
+                return pendingActivities.map(act => (
                   <div key={act.id} style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexShrink: 0 }}>
                     {editingTaskId === act.id ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -405,7 +411,7 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                     )}
                   </div>
                 ))
-              )}
+              })()}
             </div>
           </div>
 

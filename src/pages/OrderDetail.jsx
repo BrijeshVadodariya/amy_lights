@@ -592,21 +592,27 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               </button>
             </div>
             <div style={{ padding: '0 14px', borderBottom: '14px solid transparent', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', minHeight: '0', boxSizing: 'border-box' }}>
-              {(!order.activities || order.activities.length === 0) ? (
-                <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
-                  No planned tasks found.
-                </div>
-              ) : (
-                (() => {
-                  const seen = new Set();
-                  return order.activities.filter(act => {
-                    const cleanNote = (act.note || '').replace(/<[^>]*>?/gm, '').trim().toLowerCase();
-                    const key = `${act.summary}-${cleanNote}-${act.date_deadline}`.toLowerCase();
-                    if (seen.has(key)) return false;
-                    seen.add(key);
-                    return true;
-                  });
-                })().map((act, idx) => (
+              {(() => {
+                const seen = new Set();
+                const pendingActivities = (order.activities || []).filter(act => 
+                  act.state !== 'completed' && !completedTaskIds.has(act.id)
+                ).filter(act => {
+                  const cleanNote = (act.note || '').replace(/<[^>]*>?/gm, '').trim().toLowerCase();
+                  const key = `${act.summary}-${cleanNote}-${act.date_deadline}`.toLowerCase();
+                  if (seen.has(key)) return false;
+                  seen.add(key);
+                  return true;
+                });
+
+                if (pendingActivities.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px', fontWeight: 500 }}>
+                      No planned tasks found.
+                    </div>
+                  );
+                }
+
+                return pendingActivities.map((act, idx) => (
                   <div key={act.id || idx} className="field-value-box" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
                     {editingActivityId === act.id ? (
                       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -767,7 +773,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                     )}
                   </div>
                 ))
-              )}
+              })()}
             </div>
           </div>
 

@@ -648,45 +648,47 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                                    setOpenDropdownId(null);
                                    setQuickTaskOrderId(order.id);
                                  }}
-                               >/
+                               >
                                  <Calendar size={12} className="text-orange-500" />
                                  <span>Add Task</span>
                                </button>
 
-                               {((order.last_activity_id && !completedOrderIds.has(order.id) && !String(order.last_activity || '').startsWith('[Done]')) ? (
-                                 <button 
-                                   className="btn-action-soft"
-                                   onClick={async (e) => {
-                                     e.stopPropagation();
-                                     setOpenDropdownId(null);
-                                     try {
-                                       setIsSubmitting(true);
-                                       await odooService.markActivityDone(order.last_activity_id);
-                                       setCompletedOrderIds(prev => {
-                                         const next = new Set(prev);
-                                         next.add(order.id);
-                                         return next;
-                                       });
-                                       fetchOrders();
-                                     } catch (err) {
-                                       alert('Failed to complete task: ' + err.message);
-                                     } finally {
-                                       setIsSubmitting(false);
-                                     }
-                                   }}
-                                 >
-                                   <CheckCircle size={12} className="text-blue-500" />
-                                   <span>Complete Task</span>
-                                 </button>
-                               ) : (completedOrderIds.has(order.id) || String(order.last_activity || '').startsWith('[Done]')) && (
-                                 <div 
-                                   className="btn-action-soft"
-                                   style={{ color: '#16a34a', cursor: 'default', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px' }}
-                                 >
-                                   <CheckCircle size={12} />
-                                   <span>Done</span>
-                                 </div>
-                               ))}
+                               {isTaskView && (
+                                 (order.last_activity_id && !completedOrderIds.has(order.id) && !String(order.last_activity || '').startsWith('[Done]')) ? (
+                                   <button 
+                                     className="btn-action-soft"
+                                     onClick={async (e) => {
+                                       e.stopPropagation();
+                                       setOpenDropdownId(null);
+                                       try {
+                                         setIsSubmitting(true);
+                                         await odooService.markActivityDone(order.last_activity_id);
+                                         setCompletedOrderIds(prev => {
+                                           const next = new Set(prev);
+                                           next.add(order.id);
+                                           return next;
+                                         });
+                                         fetchOrders();
+                                       } catch (err) {
+                                         alert('Failed to complete task: ' + err.message);
+                                       } finally {
+                                         setIsSubmitting(false);
+                                       }
+                                     }}
+                                   >
+                                     <CheckCircle size={12} className="text-blue-500" />
+                                     <span>Complete Task</span>
+                                   </button>
+                                 ) : (completedOrderIds.has(order.id) || String(order.last_activity || '').startsWith('[Done]')) && (
+                                   <div 
+                                     className="btn-action-soft"
+                                     style={{ color: '#16a34a', cursor: 'default', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px' }}
+                                   >
+                                     <CheckCircle size={12} />
+                                     <span>Done</span>
+                                   </div>
+                                 )
+                               )}
                             </div>
 
                             <div style={{ marginTop: '4px' }}>
