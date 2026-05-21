@@ -22,6 +22,7 @@ import './Sidebar.css';
 const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, onCloseSidebar, isCollapsed }) => {
   const [isSaleOrderOpen, setIsSaleOrderOpen] = useState(true);
   const [openSubmenuId, setOpenSubmenuId] = useState(null);
+  const [openDeepSubmenuId, setOpenDeepSubmenuId] = useState(null);
 
   // Check if we are in mobile view to show the X button
   const isMobile = window.innerWidth <= 768;
@@ -35,7 +36,25 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
       icon: ShoppingCart,
       isGroup: true,
       children: [
-        { id: 'all-orders', label: 'All Orders', icon: FileText },
+        { 
+          id: 'all-orders', 
+          label: 'All Orders', 
+          icon: FileText,
+          children: [
+            { id: 'selection', label: 'Selection', icon: Box },
+            { id: 'quotations', label: 'Quotation', icon: Clock },
+            { 
+              id: 'orders', 
+              label: 'Orders', 
+              icon: FileText,
+              children: [
+                { id: 'pending-orders', label: 'Pending', icon: Package },
+                { id: 'completed-orders', label: 'Completed', icon: CheckCircle2 }
+              ]
+            },
+            { id: 'cancelled', label: 'Cancelled', icon: XCircle }
+          ]
+        },
         { 
           id: 'tasks', 
           label: 'Tasks', 
@@ -44,19 +63,7 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
             { id: 'tasks-pending', label: 'Pending', icon: Package },
             { id: 'tasks-completed', label: 'Completed', icon: CheckCircle2 }
           ]
-        },
-        { id: 'selection', label: 'Selection', icon: Box },
-        { id: 'quotations', label: 'Quotation', icon: Clock },
-        { 
-          id: 'orders', 
-          label: 'Orders', 
-          icon: FileText,
-          children: [
-            { id: 'pending-orders', label: 'Pending', icon: Package },
-            { id: 'completed-orders', label: 'Completed', icon: CheckCircle2 }
-          ]
-        },
-        { id: 'cancelled', label: 'Cancelled', icon: XCircle }
+        }
       ]
     },
     { id: 'crm', label: 'CRM', icon: Target },
@@ -174,21 +181,51 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
                             
                             {hasNested && isNestedOpen && (
                               <ul className="nested-submenu">
-                                {child.children.map((nestedChild) => (
-                                  <li 
-                                    key={nestedChild.id}
-                                    className={`submenu-item nested ${activeTab === nestedChild.id ? 'active' : ''}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleTabClick(nestedChild);
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <nestedChild.icon size={14} />
-                                      <span>{nestedChild.label}</span>
-                                    </div>
-                                  </li>
-                                ))}
+                                {child.children.map((nestedChild) => {
+                                  const hasDeepNested = nestedChild.children && nestedChild.children.length > 0;
+                                  const isDeepChildActive = nestedChild.children?.some(c => c.id === activeTab);
+                                  const isDeepNestedOpen = openDeepSubmenuId === nestedChild.id || isDeepChildActive;
+
+                                  return (
+                                    <React.Fragment key={nestedChild.id}>
+                                      <li 
+                                        className={`submenu-item nested ${activeTab === nestedChild.id ? 'active' : ''}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (hasDeepNested) {
+                                            setOpenDeepSubmenuId(isDeepNestedOpen && !isDeepChildActive ? null : nestedChild.id);
+                                            handleTabClick(nestedChild);
+                                          } else {
+                                            handleTabClick(nestedChild);
+                                          }
+                                        }}
+                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '1rem' }}
+                                      >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <nestedChild.icon size={14} />
+                                          <span>{nestedChild.label}</span>
+                                        </div>
+                                        {hasDeepNested && (isDeepNestedOpen ? <ChevronDown size={14} /> : <ChevronDown size={14} style={{ transform: 'rotate(-90deg)', opacity: 0.5 }} />)}
+                                      </li>
+                                      {hasDeepNested && isDeepNestedOpen && (
+                                        <ul className="nested-submenu deep-nested" style={{ backgroundColor: '#f1f5f9' }}>
+                                          {nestedChild.children.map(deep => (
+                                            <li 
+                                              key={deep.id}
+                                              className={`submenu-item nested deep ${activeTab === deep.id ? 'active' : ''}`}
+                                              onClick={(e) => { e.stopPropagation(); handleTabClick(deep); }}
+                                            >
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <deep.icon size={12} />
+                                                <span>{deep.label}</span>
+                                              </div>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </React.Fragment>
+                                  );
+                                })}
                               </ul>
                             )}
                           </li>

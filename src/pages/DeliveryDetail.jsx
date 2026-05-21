@@ -109,11 +109,12 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
 
   const handleFiles = (files) => {
     Array.from(files).forEach(file => {
-      if (!file.type.startsWith('image/')) return;
+      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') return;
       const reader = new FileReader();
       reader.onloadend = () => {
+        const ext = file.type === 'application/pdf' ? 'pdf' : 'png';
         setLogAttachments(prev => [...prev, {
-          name: file.name || `pasted-image-${Date.now()}.png`,
+          name: file.name || `pasted-file-${Date.now()}.${ext}`,
           content: reader.result,
           type: file.type,
           preview: URL.createObjectURL(file)
@@ -132,7 +133,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
     if (items) {
       const files = [];
       for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
+        if (items[i].type.indexOf('image') !== -1 || items[i].type === 'application/pdf') {
           files.push(items[i].getAsFile());
         }
       }
@@ -289,7 +290,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             disabled={performingAction}
                         >
                             <CheckCircle size={18} />
-                            <span>Validate</span>
+                            <span>Delivery</span>
                         </button>
                     )}
                     {picking.action_buttons?.cancel && (
@@ -492,7 +493,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             type="file" 
                             ref={captureInputRef}
                             className="hidden"
-                            accept="image/*"
+                            accept="image/*,.pdf"
                             capture="environment"
                             onChange={handleFileChange}
                         />
@@ -502,7 +503,7 @@ const DeliveryDetail = ({ pickingId, onBack, onNavigate }) => {
                             multiple
                             className="hidden"
                             onChange={handleFileChange}
-                            accept="image/*"
+                            accept="image/*,.pdf"
                         />
                     </div>
 

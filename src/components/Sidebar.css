@@ -169,7 +169,7 @@
 }
 
 .submenu-item {
-  padding: 0.75rem 1.5rem 0.75rem 3.5rem !important;
+  padding: 0.75rem 1.5rem 0.75rem 3rem !important;
   font-size: 0.85rem !important;
   color: #64748b !important;
   border-left: 3px solid transparent !important;
@@ -209,11 +209,32 @@
   padding: 0;
   margin: 0;
   background-color: #f8fafc;
+  position: relative;
+}
+
+.nested-submenu::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2.2rem;
+  width: 1px;
+  background-color: #e2e8f0;
+  z-index: 1;
+}
+
+.nested-submenu.deep-nested::before {
+  left: 3.2rem;
 }
 
 .submenu-item.nested {
   padding-left: 4.5rem !important;
   font-size: 0.8rem !important;
+}
+
+.submenu-item.deep {
+  padding-left: 6rem !important;
+  font-size: 0.78rem !important;
 }
 
 .submenu-item.nested:hover {

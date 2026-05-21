@@ -1141,6 +1141,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = (e) => {
+        if (file.type === 'application/pdf') {
+          resolve(e.target.result);
+          return;
+        }
+
         const img = new Image();
         img.src = e.target.result;
         img.onload = () => {
@@ -1191,7 +1196,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
     
     const imageFiles = [];
     for (const item of items) {
-      if (item.type.startsWith('image/')) {
+      if (item.type.startsWith('image/') || item.type === 'application/pdf') {
         const file = item.getAsFile();
         if (file) imageFiles.push(file);
       }
@@ -1539,10 +1544,11 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       let chatterText = "";
 
       // Helper to generate a unique filename
-      const genName = (type, i) => {
+      const genName = (type, i, isPdf) => {
         const typeInfo = masterData.amy_note_types?.find(t => String(t.id) === String(type));
         const typeLabel = typeInfo ? typeInfo.title : type;
-        return `${typeLabel}_note_${Date.now()}_${i}.png`;
+        const ext = isPdf ? 'pdf' : 'png';
+        return `${typeLabel}_note_${Date.now()}_${i}.${ext}`;
       };
 
       // â”€â”€ GRANULAR UPDATE STRATEGY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1554,15 +1560,16 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       // Step 2: Update existing or create new notes (from both categorized activities and general generalNotes)
       Object.keys(activityHistory).forEach(type => {
         (activityHistory[type] || []).forEach(hNote => {
-          const base64Images = (hNote.images || []).map(img => {
+          const formattedImages = (hNote.images || []).map((img, i) => {
             if (typeof img !== 'string' || !img.includes(',')) return null;
-            return img.split(',')[1];
+            const isPdf = img.startsWith('data:application/pdf');
+            return [0, 0, { datas: img.split(',')[1], name: genName(type, i, isPdf) }];
           }).filter(Boolean);
 
           const payload = {
             note_type: type,
             text: hNote.text || '',
-            image: base64Images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
+            image: formattedImages
           };
 
           if (hNote.is_from_backend && hNote.id && typeof hNote.id === 'number') {
@@ -1586,13 +1593,18 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       Object.keys(activityInputs).forEach(type => {
         const input = activityInputs[type];
         if (input && (input.text || (input.images && input.images.length > 0))) {
-          const base64Images = (input.images || []).map(img =>
-            (typeof img === 'string' && img.includes(',')) ? img.split(',')[1] : null
-          ).filter(Boolean);
+          const formattedImages = (input.images || []).map((img, i) => {
+            if (typeof img === 'string' && img.includes(',')) {
+              const isPdf = img.startsWith('data:application/pdf');
+              return [0, 0, { datas: img.split(',')[1], name: genName(type, i, isPdf) }];
+            }
+            return null;
+          }).filter(Boolean);
+
           amyNoteLines.push([0, 0, {
             note_type: type,
             text: input.text || '',
-            image: base64Images.map((img, i) => [0, 0, { datas: img, name: genName(type, i) }])
+            image: formattedImages
           }]);
         }
       });
@@ -2562,14 +2574,20 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                             {dragActiveId === act.id ? 'Drop images here' : 'Upload or Paste Images'}
                           </span>
                           {!isMobile && <span className="upload-hint">or Drag & Drop</span>}
-                          <input type="file" multiple accept="image/*" className="hidden-file-input" onChange={e => handleImageUpload(act.id, e.target.files)} />
+                          <input type="file" multiple accept="image/*,.pdf" className="hidden-file-input" onChange={e => handleImageUpload(act.id, e.target.files)} />
                         </label>
 
                         {activityInputs[act.id]?.images?.length > 0 && (
                           <div className="v2-image-previews">
                             {activityInputs[act.id].images.map((img, i) => (
                               <div key={i} className="v2-img-item">
-                                <img src={img} alt="attachment" />
+                                {img.startsWith('data:application/pdf') ? (
+                                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9' }}>
+                                    <FileText size={24} className="text-slate-400" />
+                                  </div>
+                                ) : (
+                                  <img src={img} alt="attachment" />
+                                )}
                                 <button className="v2-img-remove" onClick={() => handleRemoveImageInput(act.id, i)}><X size={10} /></button>
                               </div>
                             ))}
