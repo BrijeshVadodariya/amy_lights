@@ -280,7 +280,7 @@ const TodoPage = () => {
         <div className="dt-toolbar-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9' }}>
           <div style={{ display: 'flex', gap: 4, background: '#f8fafc', padding: 4, borderRadius: 12 }}>
             {FILTERS.map(f => (
-              <button key={f.key} onClick={() => { setFilter(f.key); setCurrentPage(1); }} style={{ padding: '6px 14px', borderRadius: 9, border: 'none', cursor: 'pointer', background: filter === f.key ? '#fff' : 'transparent', color: filter === f.key ? '#4f46e5' : '#64748b', fontWeight: filter === f.key ? 800 : 600, fontSize: 12, boxShadow: filter === f.key ? '0 2px 6px rgba(0,0,0,0.05)' : 'none' }}>
+              <button key={f.key} onClick={() => { setFilter(f.key); setCurrentPage(1); }} className={`dt-filter-pill ${filter === f.key ? 'active' : ''}`}>
                 {f.label}
               </button>
             ))}
@@ -313,7 +313,7 @@ const TodoPage = () => {
             <input value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} placeholder="Search tasks..." style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.4rem', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
           </div>
 
-          <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', borderRadius: 12, padding: '0.65rem 1.25rem', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(99,102,241,0.2)' }}>
+          <button onClick={() => setShowForm(true)} className="dt-gradient-btn">
             <Plus size={16} /> New
           </button>
         </div>
@@ -342,7 +342,7 @@ const TodoPage = () => {
 
                   return (
                     <tr key={todo.id} onClick={() => setViewTodo(todo)} className="row-hover" style={{ opacity: todo.done ? 0.7 : 1 }}>
-                      <td className="cell-highlight" style={{ fontWeight: 800, color: todo.done ? '#94a3b8' : '#1e293b', textDecoration: todo.done ? 'line-through' : 'none' }}>
+                      <td className="cell-highlight dt-primary-text" style={{ color: todo.done ? '#94a3b8' : undefined, textDecoration: todo.done ? 'line-through' : 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleToggle(todo); }} 
@@ -354,7 +354,7 @@ const TodoPage = () => {
                           <span>{todo.title}</span>
                         </div>
                       </td>
-                      <td className="cell-light" style={{ fontSize: '13px', color: '#64748b' }}>
+                      <td className="cell-light dt-secondary-text">
                         <div style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{todo.note || '-'}</div>
                       </td>
                       <td className="cell-light">
@@ -377,8 +377,8 @@ const TodoPage = () => {
                       </td>
                       <td className="text-center" onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                          <button onClick={() => setEditTodo(todo)} style={{ ...iconBtnStyle, background: '#eff6ff', color: '#3b82f6' }}><Edit3 size={14} /></button>
-                          <button onClick={async () => { if(window.confirm('Delete this task?')) { await odooService.deleteTodo(todo.id); setTodos(p=>p.filter(x=>x.id!==todo.id)); } }} style={{ ...iconBtnStyle, background: '#fff1f2', color: '#dc2626' }}><Trash2 size={14} /></button>
+                          <button onClick={() => setEditTodo(todo)} className="dt-action-btn edit"><Edit3 size={14} /></button>
+                          <button onClick={async () => { if(window.confirm('Delete this task?')) { await odooService.deleteTodo(todo.id); setTodos(p=>p.filter(x=>x.id!==todo.id)); } }} className="dt-action-btn delete"><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>

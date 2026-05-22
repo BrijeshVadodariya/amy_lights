@@ -15,7 +15,9 @@ import {
   Target,
   X,
   Package,
-  CheckCircle2
+  CheckCircle2,
+  CreditCard,
+  Bell
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -70,6 +72,7 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
     { id: 'todo', label: 'To-Do', icon: CheckSquare },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'purchases', label: 'Purchases', icon: ShoppingBag },
+    { id: 'payments', label: 'Payments', icon: CreditCard },
     ...(user?.is_parent_dealer ? [{ id: 'team', label: 'Team', icon: Users }] : []),
   ];
 
@@ -85,6 +88,14 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
   const toggleSaleOrder = (e) => {
     e.stopPropagation();
     setIsSaleOrderOpen(!isSaleOrderOpen);
+  };
+
+  const getGroupToggle = (itemId) => {
+    return toggleSaleOrder;
+  };
+
+  const isGroupOpen = (itemId) => {
+    return isSaleOrderOpen;
   };
 
   const renderLogo = () => {
@@ -143,15 +154,15 @@ const Sidebar = ({ user, companyInfo, activeTab, onTabChange, onLogout, isOpen, 
                 <li key={item.id} className={`menu-group ${isCollapsed ? 'collapsed-group' : ''}`}>
                   <div 
                     className={`group-header ${isActive ? 'active' : ''}`}
-                    onClick={isCollapsed ? () => handleTabClick(item.children[0]) : toggleSaleOrder}
+                    onClick={isCollapsed ? () => handleTabClick(item.children[0]) : getGroupToggle(item.id)}
                   >
                     <div className="group-title">
                       <item.icon size={20} />
                       {!isCollapsed && <span>{item.label}</span>}
                     </div>
-                    {!isCollapsed && (isSaleOrderOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+                    {!isCollapsed && (isGroupOpen(item.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
                   </div>
-                  {!isCollapsed && isSaleOrderOpen && (
+                  {!isCollapsed && isGroupOpen(item.id) && (
                     <ul className="submenu">
                       {item.children.map((child) => {
                         const hasNested = child.children && child.children.length > 0;

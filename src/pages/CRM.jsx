@@ -311,7 +311,7 @@ const CRM = ({ onNavigate }) => {
                   <span>{isBulkDeleting ? 'Deleting...' : `Delete (${selectedIds.size})`}</span>
                 </button>
               ) : (
-                <button className="btn-ui primary" onClick={() => onNavigate('create-crm')}>
+                <button className="dt-gradient-btn" onClick={() => onNavigate('create-crm')}>
                   <Plus size={14} />
                   <span>New Lead</span>
                 </button>
@@ -343,6 +343,7 @@ const CRM = ({ onNavigate }) => {
                   <th style={{ width: '90px' }}>Date</th>
                   <th style={{ width: '100px' }}>Salesperson</th>
                   <th style={{ minWidth: '220px' }}>Customer</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>Priority</th>
                   <th style={{ minWidth: '140px' }}>Address</th>
                   {showFollowups && (
                     <>
@@ -358,7 +359,7 @@ const CRM = ({ onNavigate }) => {
               <tbody> 
                 {currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan={showFollowups ? "11" : "8"} style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
+                    <td colSpan={showFollowups ? "12" : "9"} style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
                       No leads found.
                     </td>
                   </tr>
@@ -392,40 +393,43 @@ const CRM = ({ onNavigate }) => {
                     <td className="cell-light" style={{ width: '110px', fontSize: '11px', color: '#64748b' }}>
                       <div className="note-truncate" title={lead.salesperson}>{lead.salesperson || '—'}</div>
                     </td>
-                    <td className="cell-highlight" style={{ minWidth: '200px' }}>
-                      <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
-                        {lead.contact_name || lead.name || '—'}
-                      </div>
-                      {lead.phone && (
-                        <div style={{ fontSize: '14px', color: '#64748b', marginTop: '2px' }}>
-                          {lead.phone}
+                    <td className="cell-highlight" style={{ minWidth: '250px', maxWidth: '350px' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {lead.contact_name || lead.name || '—'}
                         </div>
-                      )}
-                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
-                         {lead.priority !== undefined && (
-                          <div className="priority-stars" style={{ fontSize: '12px' }}>
-                            {getPriorityStars(lead.priority)}
+                        {lead.phone && (
+                          <div style={{ fontSize: '14px', color: '#64748b', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            {lead.phone}
                           </div>
                         )}
-                        <span className={`crm-stage-badge stage-default`} style={{ fontSize: '9px', padding: '2px 6px', fontWeight: 600 }}>
-                          {lead.stage}
-                        </span>
                       </div>
                     </td>
-                    <td className="cell-light" style={{ minWidth: '150px', fontSize: '30px', color: '#334155', fontWeight: 700 }}>
-                      <div className="note-truncate" title={lead.address}>
+                    <td className="cell-light" style={{ width: '80px', textAlign: 'center' }}>
+                      {lead.priority !== undefined ? (
+                        <div className="priority-stars" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                          {getPriorityStars(lead.priority)}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#cbd5e1' }}>—</span>
+                      )}
+                    </td>
+                    <td className="cell-light" style={{ minWidth: '150px', maxWidth: '200px', fontSize: '14px', color: '#334155', fontWeight: 700 }}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.address}>
                         {lead.address || '—'}
                       </div>
                     </td>
                     {showFollowups && (
                       <>
-                        <td className="cell-highlight" style={{ minWidth: '150px' }}>
-                          <div className="customer-main" style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-                            {lead.architect_name || '—'}
+                        <td className="cell-highlight" style={{ minWidth: '150px', maxWidth: '200px' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            <div className="customer-main" style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {lead.architect_name || '—'}
+                            </div>
+                            {lead.architect_number && (
+                              <div style={{ fontSize: '13px', color: '#64748b' }}>{lead.architect_number}</div>
+                            )}
                           </div>
-                          {lead.architect_number && (
-                            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{lead.architect_number}</div>
-                          )}
                         </td>
                         <td className="cell-light" style={{ minWidth: '180px' }}>
                            {lead.architect_follow_up && (
@@ -442,8 +446,8 @@ const CRM = ({ onNavigate }) => {
                         </td>
                       </>
                     )}
-                    <td className="cell-highlight" style={{ minWidth: '180px', padding: '12px' }}>
-                      <div className="note-truncate" title={lead.last_activity} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <td className="cell-highlight" style={{ minWidth: '180px', maxWidth: '250px', padding: '12px' }}>
+                      <div title={lead.last_activity} style={{ display: 'flex', flexDirection: 'row', alignItems: 'baseline', gap: '6px', overflow: 'hidden' }}>
                         {(() => {
                           const text = lead.last_activity;
                           if (!text) return <span style={{ color: '#cbd5e1' }}>-</span>;
@@ -451,12 +455,12 @@ const CRM = ({ onNavigate }) => {
                           if (parts.length > 1) {
                             return (
                               <>
-                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{parts[0]}</span>
-                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b' }}>{parts.slice(1).join(':').trim()}</span>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>{parts[0]}:</span>
+                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{parts.slice(1).join(':').trim()}</span>
                               </>
                             );
                           }
-                          return <span style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>{text}</span>;
+                          return <span style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>;
                         })()}
                       </div>
                     </td>

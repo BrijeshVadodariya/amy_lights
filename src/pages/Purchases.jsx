@@ -160,7 +160,7 @@ const Purchases = ({ onNavigate }) => {
           </div>
           <div className="dt-toolbar-right">
               <button 
-                className="btn-ui primary h-[42px] px-6"
+                className="dt-gradient-btn"
                 onClick={() => onNavigate('create-purchase')}
               >
                 <Plus size={18} />

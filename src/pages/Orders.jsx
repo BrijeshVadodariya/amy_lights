@@ -104,10 +104,10 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
 
   const filtered = orders.filter(o => {
     if (isTaskView) {
-      // If we are in task view, only show records with activity data.
-      // For 'pending', we expect current activity data.
-      // For 'completed', we expect the [Done] prefix summary from the backend.
-      if (!o.activity_date && !o.last_activity) return false;
+      const isCompletedView = stateType === 'task_completed';
+      // Pending: must have activity data. Completed: allow [Done] entries even without activity_date.
+      if (!isCompletedView && !o.activity_date && !o.last_activity) return false;
+      if (isCompletedView && !o.last_activity) return false;
 
       if (filterMyTasks && currentUserName) {
          if (!String(o.last_activity || '').includes(currentUserName)) return false;
@@ -417,7 +417,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                     <span>Catalog</span>
                   </button>
                   <button 
-                    className="btn-ui primary" 
+                    className="dt-gradient-btn" 
                     onClick={() => onNavigate(stateType === 'selection' ? 'create-selection' : ['quotation'].includes(stateType) ? 'create-order' : 'create-direct-order')}
                   >
                     <Plus size={14} />
@@ -454,7 +454,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                     />
                   </th>
                   <th className="text-center" style={{ width: '40px' }}>Sr.No</th>
-                  <th style={{ width: '230px' }}>Customer</th>
+                  <th style={{ minWidth: '350px' }}>Customer</th>
                   <th style={{ width: '120px', fontSize: '11px' }}>Sale Person</th>
                   <th style={{ width: '80px', fontSize: '11px' }}>Date</th>
                   {stateType === 'all' && <th style={{ width: '100px', fontSize: '11px' }}>Stage</th>}
@@ -484,8 +484,10 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                       {indexOfFirstItem + idx + 1}
                     </td>
                     <td className="cell-highlight" data-label="Customer">
-                      <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>{order.customer || '-'}</div>
-                      {order.phone && <div className="cell-light" style={{ fontSize: '14px', marginTop: '2px', color: '#64748b' }}>{order.phone}</div>}
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', overflow: 'hidden' }}>
+                        <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{order.customer || '-'}</div>
+                        {order.phone && <div className="cell-light" style={{ fontSize: '14px', color: '#64748b', whiteSpace: 'nowrap', flexShrink: 0 }}>{order.phone}</div>}
+                      </div>
                     </td>
                     <td className="cell-light" data-label="Sale Person" style={{ fontSize: '11px', color: '#64748b', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {order.salesperson || '-'}
@@ -543,21 +545,21 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                         }
                         
                         return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                            <div className="note-truncate" title={cleanText} style={{ fontWeight: 700, color: '#334155', fontSize: '15px', lineHeight: '1.4' }}>
-                              {cleanText}
-                            </div>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', overflow: 'hidden' }}>
                             {authorName && (
-                              <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
-                                By {authorName}
+                              <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                                {authorName}:
                               </div>
                             )}
+                            <div title={cleanText} style={{ fontWeight: 700, color: '#334155', fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {cleanText}
+                            </div>
                           </div>
                         );
                       })()}
                     </td>
                     <td className="cell-highlight" data-label="Task" style={{ padding: '12px' }}>
-                      <div className="note-truncate" title={order.last_activity} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div title={order.last_activity} style={{ display: 'flex', flexDirection: 'row', alignItems: 'baseline', gap: '6px', overflow: 'hidden' }}>
                         {(() => {
                           const text = order.last_activity;
                           const isDone = completedOrderIds.has(order.id) || String(text || '').startsWith('[Done]');
@@ -565,10 +567,10 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                             const cleanText = String(text || '').replace('[Done]', '').trim() || 'Task completed';
                             return (
                               <>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
                                   <CheckCircle size={10} /> Done
                                 </span>
-                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#16a34a' }}>{cleanText}</span>
+                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#16a34a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cleanText}</span>
                               </>
                             );
                           }
@@ -577,12 +579,12 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                           if (parts.length > 1) {
                             return (
                               <>
-                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{parts[0]}</span>
-                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b' }}>{parts.slice(1).join(':').trim()}</span>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>{parts[0]}:</span>
+                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{parts.slice(1).join(':').trim()}</span>
                               </>
                             );
                           }
-                          return <span style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>{text}</span>;
+                          return <span style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>;
                         })()}
                       </div>
                     </td>

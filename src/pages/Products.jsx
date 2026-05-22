@@ -164,7 +164,7 @@ const Products = ({ onNavigate }) => {
           </div>
 
           <div className="dt-toolbar-right flex gap-2">
-            <button className="btn-ui primary" onClick={() => onNavigate('create-product')}>
+            <button className="dt-gradient-btn" onClick={() => onNavigate('create-product')}>
               <Plus size={18} />
               <span>Add Product</span>
             </button>

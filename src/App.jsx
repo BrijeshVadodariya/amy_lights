@@ -26,6 +26,7 @@ import Purchases from './pages/Purchases';
 import CreatePurchase from './pages/CreatePurchase';
 import Team from './pages/Team';
 import NotFound from './pages/NotFound';
+import Payments from './pages/Payments';
 import { Menu } from 'lucide-react';
 import './App.css';
 
@@ -255,6 +256,7 @@ function App() {
       case 'all-orders':
         return <Orders stateType="all" onNavigate={handleNavigate} />;
       case 'tasks':
+        return <Orders stateType="task_all" isTaskView={true} onNavigate={handleNavigate} />;
       case 'tasks-pending':
         return <Orders stateType="task_pending" isTaskView={true} onNavigate={handleNavigate} />;
       case 'tasks-completed':
@@ -313,6 +315,8 @@ function App() {
         return <PurchaseDetail purchaseId={selectedId} onBack={() => handleBack('purchase-list')} onNavigate={handleNavigate} />;
       case 'create-purchase':
         return <CreatePurchase key={`create-purchase-${selectedId || 'new'}`} editId={selectedId} onNavigate={handleNavigate} extraData={extraData} onBack={() => handleBack('purchases')} />;
+      case 'payments':
+        return <Payments onNavigate={handleNavigate} />;
       case 'not-found':
         return <NotFound onNavigate={handleNavigate} />;
       default:
@@ -380,6 +384,7 @@ function App() {
                   case 'catalog': return 'Product Catalog';
                   case 'crm-detail': return 'Lead CRM Detail';
                   case 'create-crm': return isEdit ? 'Edit CRM Lead' : 'Create CRM Lead';
+                  case 'payments': return 'Payments';
                   default: return activeTab.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                 }
               })()}

@@ -452,5 +452,27 @@ export const odooService = {
     const url = `${baseUrl}/api/purchase/print?purchase_id=${purchaseId}&token=${token}&db=${db}`;
     window.open(url, '_blank');
   },
+
+  // ── Payments ─────────────────────────────────────────────
+  getPayments: async (params = {}) => {
+    const res = await api.post('/api/payments', { params });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  getPaymentDetail: async (paymentId) => {
+    const res = await api.post('/api/payments/detail', { params: { payment_id: paymentId } });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  createOrUpdatePayment: async (data) => {
+    const res = await api.post('/api/payment/create', { params: data });
+    const result = res.data.result || { success: false, error: res.data.error };
+    return result.data || result;
+  },
+  deletePayment: async (paymentId) => {
+    const res = await api.post('/api/payment/delete', { params: { payment_id: paymentId } });
+    return res.data.result || { success: false, error: res.data.error };
+  },
+
 };
 

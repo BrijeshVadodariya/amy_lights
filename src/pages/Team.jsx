@@ -156,7 +156,7 @@ const Team = () => {
             </div>
           </div>
           <div className="dt-toolbar-right">
-            <button className="btn-ui primary h-[42px] px-6" onClick={handleOpenCreate}>
+            <button className="dt-gradient-btn" onClick={handleOpenCreate}>
               <UserPlus size={18} />
               <span>Add Team Member</span>
             </button>
@@ -207,18 +207,18 @@ const Team = () => {
                     <td className="text-right" style={{ paddingRight: '24px' }}>
                       <div className="flex items-center justify-end" style={{ gap: '8px' }}>
                         <button
-                          className="team-action-btn edit"
+                          className="dt-action-btn edit"
                           title="Edit Member"
                           onClick={(e) => { e.stopPropagation(); handleOpenEdit(u); }}
                         >
-                          <Edit2 size={16} />
+                          <Edit2 size={14} />
                         </button>
                         <button
-                          className="team-action-btn delete"
+                          className="dt-action-btn delete"
                           title="Delete Member"
                           onClick={(e) => { e.stopPropagation(); handleDeleteUser(u); }}
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
