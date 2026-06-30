@@ -567,7 +567,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                   </div>
                 )}
                 <div style={{ display: 'flex', width: isMobile ? '100%' : '260px', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
-                  <span>Taxes:</span>
+                  <span>Taxes {order?.is_tax_paid ? <span style={{color: '#059669', fontWeight: 600}}>(Paid)</span> : (order?.global_tax_rate ? `(${order.global_tax_rate}%)` : '')}:</span>
                   <span style={{ fontWeight: 600, color: '#000' }}>
                     {formatCurrency((order?.amount_total || 0) - orderLines.reduce((acc, l) => acc + (Number(l.qty || 0) * Number(l.price_unit || 0) * (1 - (Number(l.discount || 0) / 100))), 0))}
                   </span>

@@ -409,6 +409,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       is_image: false,
       is_beam: false,
       is_automate: false,
+      is_tax_paid: false,
+      global_tax_rate: '',
       opportunity_id: extraData?.opportunity_id || ''
     };
   });
@@ -760,6 +762,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
           is_image: data.is_image ?? true,
           is_beam: data.is_beam ?? false,
           is_automate: data.is_automate ?? false,
+          is_tax_paid: data.is_tax_paid ?? false,
+          global_tax_rate: data.global_tax_rate || '',
           amount_total: data.amount_total || 0,
           currency_symbol: data.currency_symbol || '$'
         });
@@ -1320,14 +1324,14 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
           const parsedId = /^\d+$/.test(value) ? parseInt(value) : value;
           const prod = masterData.products.find(p => String(p.id) === String(parsedId));
           const baseDesc = prod ? (prod.description || prod.description_sale || '') : '';
-          const baseBeam = prod ? (prod.beam || '-') : '-';
+          
           return { 
             ...r, 
             productId: value, 
             productName: prod ? prod.name : r.productName,
             price: prod ? prod.price : 0,
             description: baseDesc,
-            beam: baseBeam
+            beam: '-' // Do not auto-select beam, user wants to manually pick it
           };
         }
 
@@ -1361,8 +1365,13 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   }, [masterData.electricians, masterData.partners, orderHeader.electricianId]);
 
   const total = useMemo(() => {
-    return rows.reduce((sum, row) => sum + ((parseFloat(row.price) || 0) * (parseFloat(row.qty) || 0) * (1 - (parseFloat(row.discount) || 0) / 100)), 0);
-  }, [rows]);
+    const untaxedTotal = rows.reduce((sum, row) => sum + ((parseFloat(row.price) || 0) * (parseFloat(row.qty) || 0) * (1 - (parseFloat(row.discount) || 0) / 100)), 0);
+    if (!orderHeader.is_tax_paid && orderHeader.global_tax_rate) {
+      const taxRate = parseFloat(orderHeader.global_tax_rate) || 0;
+      return untaxedTotal * (1 + taxRate / 100);
+    }
+    return untaxedTotal;
+  }, [rows, orderHeader.is_tax_paid, orderHeader.global_tax_rate]);
 
   const addRow = () => {
     const newId = Date.now();
@@ -1677,6 +1686,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
         is_image: !!orderHeader.is_image,
         is_beam: !!orderHeader.is_beam,
         is_automate: !!orderHeader.is_automate,
+        is_tax_paid: !!orderHeader.is_tax_paid,
+        global_tax_rate: orderHeader.global_tax_rate,
         state: targetState || (isSelection ? 'selection' : isOrder ? 'sale' : 'draft'),
         date_order: ensureIsoDate(orderHeader.date),
         opportunity_id: orderHeader.opportunity_id || false,
@@ -1959,6 +1970,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                   <input type="checkbox" checked={orderHeader.is_automate} onChange={(e) => setOrderHeader({...orderHeader, is_automate: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                   Automation
                 </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={orderHeader.is_tax_paid} onChange={(e) => setOrderHeader({...orderHeader, is_tax_paid: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                  Tax Paid
+                </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: isMobile ? '0' : 'auto', background: '#f8fafc', padding: '6px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', width: isMobile ? '100%' : 'auto' }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748b' }}>Global Disc %</span>
                   <input 
@@ -1977,6 +1992,19 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                   />
                   <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>(Enter to apply)</span>
                 </div>
+                {!orderHeader.is_tax_paid && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '6px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', width: isMobile ? '100%' : 'auto' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#64748b' }}>Global Tax %</span>
+                    <input 
+                      type="number" 
+                      placeholder="e.g. 18"
+                      value={orderHeader.global_tax_rate}
+                      onChange={(e) => setOrderHeader({...orderHeader, global_tax_rate: e.target.value})}
+                      style={{ width: '80px', height: '32px', border: '1px solid #d7dee8', borderRadius: '8px', textAlign: 'center', fontWeight: 800, color: '#1e293b' }}
+                      onWheel={(e) => e.target.blur()}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="product-scroll-wrapper" style={{ overflowX: isMobile ? 'visible' : 'auto', paddingBottom: '0.5rem', marginTop: '0.5rem' }}>
@@ -2090,6 +2118,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.02em' }}>DISC:</span>
                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#ef4444' }}>-Rs.{rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0)*(parseFloat(r.discount)||0)/100, 0).toLocaleString()}</span>
                      </div>
+                     {!orderHeader.is_tax_paid && orderHeader.global_tax_rate && (
+                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                         <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.02em' }}>TAX ({orderHeader.global_tax_rate}%):</span>
+                         <span style={{ fontSize: '13px', fontWeight: 700, color: '#eab308' }}>+Rs.{(rows.reduce((s, r) => s + (parseFloat(r.price)||0)*(parseFloat(r.qty)||0)*(1 - (parseFloat(r.discount)||0)/100), 0) * (parseFloat(orderHeader.global_tax_rate)||0)/100).toLocaleString()}</span>
+                       </div>
+                     )}
                    </div>
                    {!isMobile && <div style={{ width: '1px', height: '16px', backgroundColor: '#e2e8f0' }} />}
                    {isMobile && <div style={{ width: '100%', height: '1px', backgroundColor: '#e2e8f0' }} />}
