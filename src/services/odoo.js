@@ -328,6 +328,18 @@ export const odooService = {
     });
     return res.data.result || { success: false, error: res.data.error };
   },
+  addQuickNote: async (resId, text, resModel = 'sale.order') => {
+    const res = await api.post('/api/order/add_note', { 
+      params: { 
+        res_id: resId, 
+        text, 
+        res_model: resModel,
+        chatter: false,
+        attachments: []
+      } 
+    });
+    return res.data.result || { success: false, error: res.data.error };
+  },
   addQuickActivity: async (resId, summary, note, deadline, userId, resModel = 'sale.order') => {
     const res = await api.post('/api/order/add_activity', {
       params: {

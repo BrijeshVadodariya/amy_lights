@@ -195,7 +195,7 @@ const Purchases = ({ onNavigate }) => {
                     onClick={() => onNavigate('purchase-detail', po.id)}
                     className="hover:bg-slate-50 transition-colors cursor-pointer"
                   >
-                    <td className="text-center cell-light" style={{ fontSize: '12px' }}>
+                    <td className="text-center cell-light" style={{ fontSize: '11px' }}>
                       {indexOfFirstItem + idx + 1}
                     </td>
                     <td className="cell-highlight font-black">
@@ -204,10 +204,10 @@ const Purchases = ({ onNavigate }) => {
                     <td className="cell-highlight">
                       <div className="font-bold text-slate-800">{po.partner_name}</div>
                     </td>
-                    <td className="cell-light" style={{ fontSize: '12px' }}>
+                    <td className="cell-light" style={{ fontSize: '11px' }}>
                       {po.origin || '-'}
                     </td>
-                    <td className="cell-light" style={{ fontSize: '12px' }}>
+                    <td className="cell-light" style={{ fontSize: '11px' }}>
                       {po.date_order}
                     </td>
                     <td className="cell-highlight text-indigo-600 font-bold">

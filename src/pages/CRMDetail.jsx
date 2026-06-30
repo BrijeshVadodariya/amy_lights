@@ -332,11 +332,24 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                       </div>
                     ) : (
                       <>
-                        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontWeight: 800, fontSize: '13px', color: '#000' }}>
-                            {(act.summary || act.activity_type_name) === 'To Do' ? 'Task' : (act.summary || act.activity_type_name || 'Task')}
+                        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                          <div style={{ flex: 1 }}>
+                            <div 
+                              style={{ 
+                                fontSize: '14px',
+                                color: '#0f172a',
+                                lineHeight: '1.5',
+                                fontWeight: 600,
+                              }} 
+                              dangerouslySetInnerHTML={{ __html: act.note || act.summary || 'Task' }} 
+                            />
+                            {act.summary && act.note && !['task', 'to do', 'todo'].includes(act.summary.toLowerCase()) && (
+                              <div style={{ fontWeight: 800, fontSize: '11px', color: '#94a3b8', marginTop: '4px', textTransform: 'uppercase' }}>
+                                {act.summary}
+                              </div>
+                            )}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#666', fontWeight: 600 }}>
                               <Calendar size={12} className="text-slate-400" />
                               <span>{act.date_deadline || 'No Date'}</span>
@@ -396,9 +409,6 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                             )}
                           </div>
                         </div>
-                        {act.note && (
-                          <div style={{ fontSize: '12px', color: '#475569', lineHeight: '1.4', marginTop: '6px' }} dangerouslySetInnerHTML={{ __html: act.note }} />
-                        )}
                         {act.user_name && (
                           <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                              <User size={12} />
@@ -442,19 +452,6 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                   });
                 })().map(r => (
                   <div key={r.id} style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #eee', flexShrink: 0 }}>
-                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, textTransform: 'uppercase' }}>
-                        {r.salesperson} · {r.date}
-                      </span>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={() => handleStartEditRemark(r)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Edit">
-                          <Edit2 size={13} />
-                        </button>
-                        <button onClick={() => handleDeleteRemark(r.id)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Delete">
-                          <Trash size={13} />
-                        </button>
-                      </div>
-                    </div>
                     {editingRemarkId === r.id ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <textarea
@@ -472,6 +469,19 @@ const CRMDetail = ({ leadId, onBack, onNavigate }) => {
                     ) : (
                       <p style={{ margin: 0, fontSize: '13px', color: '#000', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{r.remark}</p>
                     )}
+                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '10px', color: '#666', fontWeight: 800, textTransform: 'uppercase' }}>
+                        {r.salesperson} · {r.date}
+                      </span>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button onClick={() => handleStartEditRemark(r)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Edit">
+                          <Edit2 size={13} />
+                        </button>
+                        <button onClick={() => handleDeleteRemark(r.id)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }} title="Delete">
+                          <Trash size={13} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))
               )}

@@ -188,21 +188,21 @@ const Team = () => {
                           {(u.name || '?').charAt(0).toUpperCase()}
                         </div>
                         <div className="team-member-info">
-                          <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '15.5px' }}>{u.name}</span>
+                          <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '13px' }}>{u.name}</span>
                           <span className="role-badge"><Shield size={11} /> Portal Staff</span>
                         </div>
                       </div>
                     </td>
                     <td>
                       <div className="flex items-center gap-3 pl-4">
-                        <span className="truncate" style={{ fontSize: '14px', color: '#334155', fontWeight: 500 }}>{u.email || u.login}</span>
+                        <span className="truncate" style={{ fontSize: '13px', color: '#334155', fontWeight: 500 }}>{u.email || u.login}</span>
                       </div>
                     </td>
                     <td style={{ fontSize: '13.5px', color: '#475569', fontWeight: 500 }}>{u.last_login}</td>
                     <td>
                       {u.active
-                        ? <span className="badge badge-success" style={{ fontSize: '12px', padding: '6px 10px', fontWeight: 700 }}>Active</span>
-                        : <span className="badge badge-error" style={{ fontSize: '12px', padding: '6px 10px', fontWeight: 700 }}>Inactive</span>}
+                        ? <span className="badge badge-success" style={{ fontSize: '11px', padding: '6px 10px', fontWeight: 700 }}>Active</span>
+                        : <span className="badge badge-error" style={{ fontSize: '11px', padding: '6px 10px', fontWeight: 700 }}>Inactive</span>}
                     </td>
                     <td className="text-right" style={{ paddingRight: '24px' }}>
                       <div className="flex items-center justify-end" style={{ gap: '8px' }}>

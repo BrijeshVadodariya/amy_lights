@@ -359,7 +359,7 @@ const CRM = ({ onNavigate }) => {
               <tbody> 
                 {currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan={showFollowups ? "12" : "9"} style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '12px' }}>
+                    <td colSpan={showFollowups ? "12" : "9"} style={{ textAlign: 'center', padding: '32px', color: '#999', fontSize: '11px' }}>
                       No leads found.
                     </td>
                   </tr>
@@ -378,7 +378,7 @@ const CRM = ({ onNavigate }) => {
                         style={{ width: '15px', height: '15px', accentColor: '#3b82f6', cursor: 'pointer' }}
                       />
                     </td>
-                    <td className="text-center cell-light" style={{ width: '40px', fontSize: '12px', fontWeight: 600, color: '#000' }}>
+                    <td className="text-center cell-light" style={{ width: '40px', fontSize: '11px', fontWeight: 600, color: '#000' }}>
                       {indexOfFirstItem + idx + 1}
                     </td>
                     <td className="cell-light" style={{ width: '85px', fontSize: '11px' }}>
@@ -395,11 +395,11 @@ const CRM = ({ onNavigate }) => {
                     </td>
                     <td className="cell-highlight" style={{ minWidth: '250px', maxWidth: '350px' }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                        <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div className="customer-main" style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {lead.contact_name || lead.name || '—'}
                         </div>
                         {lead.phone && (
-                          <div style={{ fontSize: '14px', color: '#64748b', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          <div style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap', flexShrink: 0 }}>
                             {lead.phone}
                           </div>
                         )}
@@ -407,14 +407,14 @@ const CRM = ({ onNavigate }) => {
                     </td>
                     <td className="cell-light" style={{ width: '80px', textAlign: 'center' }}>
                       {lead.priority !== undefined ? (
-                        <div className="priority-stars" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                        <div className="priority-stars" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
                           {getPriorityStars(lead.priority)}
                         </div>
                       ) : (
                         <span style={{ color: '#cbd5e1' }}>—</span>
                       )}
                     </td>
-                    <td className="cell-light" style={{ minWidth: '150px', maxWidth: '200px', fontSize: '14px', color: '#334155', fontWeight: 700 }}>
+                    <td className="cell-light" style={{ minWidth: '150px', maxWidth: '200px', fontSize: '13px', color: '#334155', fontWeight: 700 }}>
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.address}>
                         {lead.address || '—'}
                       </div>
@@ -423,7 +423,7 @@ const CRM = ({ onNavigate }) => {
                       <>
                         <td className="cell-highlight" style={{ minWidth: '150px', maxWidth: '200px' }}>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            <div className="customer-main" style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div className="customer-main" style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {lead.architect_name || '—'}
                             </div>
                             {lead.architect_number && (
@@ -433,14 +433,14 @@ const CRM = ({ onNavigate }) => {
                         </td>
                         <td className="cell-light" style={{ minWidth: '180px' }}>
                            {lead.architect_follow_up && (
-                             <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '14px' }}>{lead.architect_follow_up}</div>
+                             <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px' }}>{lead.architect_follow_up}</div>
                            )}
-                           <div className="note-truncate" title={stripHtml(lead.architect_remark)} style={{ color: '#64748b', fontStyle: 'italic', fontSize: '12px', marginTop: '2px' }}>
+                           <div className="note-truncate" title={stripHtml(lead.architect_remark)} style={{ color: '#64748b', fontStyle: 'italic', fontSize: '11px', marginTop: '2px' }}>
                              {stripHtml(lead.architect_remark) || '—'}
                            </div>
                         </td>
                         <td className="cell-highlight" style={{ minWidth: '180px', padding: '12px' }}>
-                          <div className="note-truncate" title={stripHtml(lead.notes)} style={{ fontSize: '15px', fontWeight: 700, color: '#475569', lineHeight: '1.4' }}>
+                          <div className="note-truncate" title={stripHtml(lead.notes)} style={{ fontSize: '13px', fontWeight: 700, color: '#475569', lineHeight: '1.4' }}>
                             {stripHtml(lead.notes) || <span style={{ color: '#cbd5e1' }}>-</span>}
                           </div>
                         </td>
@@ -456,11 +456,11 @@ const CRM = ({ onNavigate }) => {
                             return (
                               <>
                                 <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>{parts[0]}:</span>
-                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{parts.slice(1).join(':').trim()}</span>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{parts.slice(1).join(':').trim()}</span>
                               </>
                             );
                           }
-                          return <span style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>;
+                          return <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>;
                         })()}
                       </div>
                     </td>

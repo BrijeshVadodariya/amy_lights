@@ -41,6 +41,9 @@ import {
 import { Reorder, useDragControls } from 'framer-motion';
 import './CreateOrder.css';
 
+
+
+
 const createProductRow = () => ({
   id: Date.now(),
   productId: '',
@@ -49,6 +52,7 @@ const createProductRow = () => ({
   discount: 0,
   remark: '',
   line_note: '',
+  beam: '-',
   uom: 'Units'
 });
 
@@ -61,7 +65,7 @@ const dataCache = {
 };
 
 // Helper sub-component for product rows to handle drag controls independently
-const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterData, productOptions, orderHeader, handleRowChange, addRow, onNavigate }) => {
+const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterData, productOptions, beamOptions, orderHeader, handleRowChange, addRow, onNavigate }) => {
   const dragControls = useDragControls();
   const selectedProduct = masterData.products.find(p => String(p.id) === String(r.productId)) || {
     id: r.productId,
@@ -134,7 +138,14 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
             display: isMobile ? 'flex' : 'grid', 
             gridTemplateColumns: r.display_type === 'line_section' 
               ? `1fr 40px` 
-              : isMobile ? 'none' : `1.2fr 1fr 300px ${orderHeader.is_image ? '120px' : ''} 40px`.trim().replace(/\s+/g, ' '),
+              : isMobile ? 'none' : [
+                  '1.2fr',
+                  '1fr',
+                  orderHeader.is_beam ? '150px' : '',
+                  '300px',
+                  orderHeader.is_image ? '120px' : '',
+                  '40px'
+                ].filter(Boolean).join(' '),
             alignItems: 'flex-start', 
             gap: isMobile ? '4px' : '8px', 
             flexWrap: isMobile ? 'wrap' : 'nowrap',
@@ -240,6 +251,21 @@ const ProductRow = ({ r, idx, rows, setRows, isMobile, isOrder, editId, masterDa
                    }}
                  />
                </div>
+
+                {orderHeader.is_beam && (
+                  <div className="pi-beam-col" style={{ display: 'block', width: '100%', minWidth: 0 }}>
+                    {isMobile && <label className="pi-small-label">Beam</label>}
+                    <SearchableSelect
+                      placeholder="Select Beam"
+                      options={beamOptions}
+                      value={r.beam}
+                      defaultValue={r.beam || '-'}
+                      onChange={(val) => handleRowChange(r.id, 'beam', val)}
+                      small
+                    />
+                  </div>
+                )}
+
                <div className="pi-sub-grid" style={{ width: '100%', minWidth: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: isMobile ? '0.5rem' : '4px', marginTop: isMobile ? '0.5rem' : '0' }}>
                  <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
                   {isMobile && <label className="pi-small-label">Qty</label>}
@@ -357,7 +383,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
     users: [],
     activity_types: [],
     architects: [],
-    electricians: []
+    electricians: [],
+    beams: []
   });
 
   const [orderHeader, setOrderHeader] = useState(() => {
@@ -380,6 +407,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
       electricianId: '',
       is_desc: false,
       is_image: false,
+      is_beam: false,
       is_automate: false,
       opportunity_id: extraData?.opportunity_id || ''
     };
@@ -502,6 +530,12 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
   }, [masterData.users, user]);
 
   const userOptions = filteredUsers;
+
+  const beamOptions = useMemo(() => {
+    const list = (masterData.beams || []).map(b => ({ value: b.name, label: b.name }));
+    if (!list.find(o => o.value === '-')) list.push({ value: '-', label: '-' });
+    return list;
+  }, [masterData.beams]);
 
   const getFormDataStats = () => {
     const productLines = rows.filter(r => r.display_type === 'line_section' || (r.productId !== '' && r.productId !== null && r.productId !== undefined));
@@ -724,7 +758,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
           remark: data.remark || '',
           is_desc: data.is_desc ?? true,
           is_image: data.is_image ?? true,
-          is_beam: data.is_beam ?? true,
+          is_beam: data.is_beam ?? false,
           is_automate: data.is_automate ?? false,
           amount_total: data.amount_total || 0,
           currency_symbol: data.currency_symbol || '$'
@@ -858,18 +892,19 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
             }
           }
 
-          return {
-            id: l.id || `edit-${Date.now()}-${i}`,
-            productId: prodId || '',
-            productName: searchName || '', // Persistent fallback name
-            qty: l.product_uom_qty || l.qty || l.product_qty || 1,
-            price: l.price_unit ?? l.price ?? 0,
-            discount: l.discount || 0,
-            remark: l.remark || l.name || '',
-            line_note: l.line_note || '',
-            display_type: l.display_type || false,
-            description: l.description || l.remark || ''
-          };
+           return {
+             id: l.id || `edit-${Date.now()}-${i}`,
+             productId: prodId || '',
+             productName: searchName || '', // Persistent fallback name
+             qty: l.product_uom_qty || l.qty || l.product_qty || 1,
+             price: l.price_unit ?? l.price ?? 0,
+             discount: l.discount || 0,
+             remark: l.remark || l.name || '',
+             line_note: l.line_note || '',
+             display_type: l.display_type || false,
+             beam: l.beam || l.beam_angle || '-',
+             description: l.description || l.remark || ''
+           };
         });
 
         if (missingPartners.length > 0 || missingProducts.length > 0) {
@@ -1291,7 +1326,8 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
             productId: value, 
             productName: prod ? prod.name : r.productName,
             price: prod ? prod.price : 0,
-            description: baseDesc
+            description: baseDesc,
+            beam: baseBeam
           };
         }
 
@@ -1526,6 +1562,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
           discount: parseFloat(r.discount) || 0,
           name: r.description || r.productName || r.remark || '', 
           line_note: r.line_note || '',
+          beam: r.beam || '-',
           architect_id: parseInt(orderHeader.architectId) || false,
           electrician_id: parseInt(orderHeader.electricianId) || false,
           sequence: idx * 10
@@ -1638,6 +1675,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
         chatter_notes: chatterNotes,
         is_desc: !!orderHeader.is_desc,
         is_image: !!orderHeader.is_image,
+        is_beam: !!orderHeader.is_beam,
         is_automate: !!orderHeader.is_automate,
         state: targetState || (isSelection ? 'selection' : isOrder ? 'sale' : 'draft'),
         date_order: ensureIsoDate(orderHeader.date),
@@ -1912,6 +1950,10 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                   <input type="checkbox" checked={orderHeader.is_image} onChange={(e) => setOrderHeader({...orderHeader, is_image: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                   Image
                 </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={orderHeader.is_beam} onChange={(e) => setOrderHeader({...orderHeader, is_beam: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                  Beam
+                </label>
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
                   <input type="checkbox" checked={orderHeader.is_automate} onChange={(e) => setOrderHeader({...orderHeader, is_automate: e.target.checked})} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
@@ -1944,12 +1986,22 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                         padding: '0.25rem 0.5rem', 
                         borderBottom: '2px solid #f8fafc', 
                         display: 'grid',
-                        gridTemplateColumns: `1.2fr 1fr 300px ${orderHeader.is_image ? '120px' : ''} 40px`.trim().replace(/\s+/g, ' '),
+                        gridTemplateColumns: [
+                          '1.2fr',
+                          '1fr',
+                          orderHeader.is_beam ? '150px' : '',
+                          '300px',
+                          orderHeader.is_image ? '120px' : '',
+                          '40px'
+                        ].filter(Boolean).join(' '),
                         gap: '8px',
                         alignItems: 'center'
                     }}>
                       <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Product</div>
                       <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Note</div>
+                      {orderHeader.is_beam && (
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Beam</div>
+                      )}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Qty</div>
                         <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Disc</div>
@@ -1982,6 +2034,7 @@ const CreateOrder = ({ editId, onNavigate, isSelection, isOrder, extraData, onBa
                         editId={editId}
                         masterData={masterData}
                         productOptions={productOptions}
+                        beamOptions={beamOptions}
                         orderHeader={orderHeader}
                         handleRowChange={handleRowChange}
                         addRow={addRow}

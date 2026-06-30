@@ -480,13 +480,13 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                         style={{ width: '15px', height: '15px', accentColor: '#3b82f6', cursor: 'pointer' }}
                       />
                     </td>
-                    <td className="text-center cell-light" data-label="Sr.No" style={{ fontSize: '12px' }}>
+                    <td className="text-center cell-light" data-label="Sr.No" style={{ fontSize: '11px' }}>
                       {indexOfFirstItem + idx + 1}
                     </td>
                     <td className="cell-highlight" data-label="Customer">
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', overflow: 'hidden' }}>
-                        <div className="customer-main" style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{order.customer || '-'}</div>
-                        {order.phone && <div className="cell-light" style={{ fontSize: '14px', color: '#64748b', whiteSpace: 'nowrap', flexShrink: 0 }}>{order.phone}</div>}
+                        <div className="customer-main" style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{order.customer || '-'}</div>
+                        {order.phone && <div className="cell-light" style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap', flexShrink: 0 }}>{order.phone}</div>}
                       </div>
                     </td>
                     <td className="cell-light" data-label="Sale Person" style={{ fontSize: '11px', color: '#64748b', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -499,7 +499,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                       }
                     </td>
                     {stateType === 'all' && (
-                      <td className="cell-light" data-label="Stage" style={{ fontSize: '12px', fontWeight: 600 }}>
+                      <td className="cell-light" data-label="Stage" style={{ fontSize: '11px', fontWeight: 600 }}>
                         <span className={`status-badge ${order.status}`}>
                           {order.status === 'draft' ? 'Quotation' : 
                            order.status === 'sent' ? 'Quotation Sent' : 
@@ -530,8 +530,23 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                     )}
                     <td className="cell-highlight" data-label="Note" style={{ padding: '12px' }}>
                       {(() => {
-                        if (!order.note) return <span style={{ color: '#cbd5e1' }}>-</span>;
-                        const parts = order.note.split(/\n?---\n?|<br\s*\/?>/).filter(Boolean);
+                        const noteText = order.remark || order.note;
+                        if (!noteText) return <span style={{ color: '#cbd5e1' }}>-</span>;
+                        
+                        // If backend already provided a clean remark string
+                        if (order.remark) {
+                          const parts = order.remark.split(' | ');
+                          const latestClean = parts[parts.length - 1];
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', overflow: 'hidden' }}>
+                              <div title={order.remark} style={{ fontWeight: 700, color: '#334155', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {latestClean}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        const parts = noteText.split(/\n?---\n?|<br\s*\/?>/).filter(Boolean);
                         if (parts.length === 0) return '-';
                         
                         const latestRaw = parts[parts.length - 1];
@@ -551,7 +566,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                                 {authorName}:
                               </div>
                             )}
-                            <div title={cleanText} style={{ fontWeight: 700, color: '#334155', fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div title={cleanText} style={{ fontWeight: 700, color: '#334155', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {cleanText}
                             </div>
                           </div>
@@ -570,7 +585,7 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
                                   <CheckCircle size={10} /> Done
                                 </span>
-                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#16a34a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cleanText}</span>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#16a34a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cleanText}</span>
                               </>
                             );
                           }
@@ -580,11 +595,11 @@ const Orders = ({ stateType = 'all', isTaskView = false, onNavigate }) => {
                             return (
                               <>
                                 <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>{parts[0]}:</span>
-                                <span style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{parts.slice(1).join(':').trim()}</span>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{parts.slice(1).join(':').trim()}</span>
                               </>
                             );
                           }
-                          return <span style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>;
+                          return <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>;
                         })()}
                       </div>
                     </td>

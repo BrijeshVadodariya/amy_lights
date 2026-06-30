@@ -45,6 +45,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
   // Column-visibility toggles — initialised from backend flags, user can override locally
   const [showDesc, setShowDesc]   = useState(false);
   const [showImg,  setShowImg]    = useState(false);
+  const [showBeam, setShowBeam]   = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 1024);
@@ -74,6 +75,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
         setOrder(res);
         setShowDesc(!!res.is_desc);
         setShowImg(!!res.is_image);
+        setShowBeam(!!res.is_beam);
       }
     } catch (err) {
       console.error('Error fetching order details', err);
@@ -445,7 +447,10 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
               <input type="checkbox" checked={showImg} onChange={e => setShowImg(e.target.checked)} className="pro-checkbox" />
               <span className="pro-toggle-label">Image</span>
             </label>
-
+            <label className="pro-toggle-wrap">
+              <input type="checkbox" checked={showBeam} onChange={e => setShowBeam(e.target.checked)} className="pro-checkbox" />
+              <span className="pro-toggle-label">Beam</span>
+            </label>
           </div>
 
           {orderLines.length > 0 ? (
@@ -456,6 +461,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                     <tr>
                       <th style={{ textAlign: 'left', minWidth: '320px', width: '350px' }}>Product</th>
                       <th style={{ textAlign: 'left', width: '150px' }}>Notes</th>
+                      {showBeam && <th style={{ textAlign: 'left', width: '120px' }}>Beam</th>}
                       {showImg  && <th className="text-center" style={{ width: '60px' }}>Img</th>}
 
                       <th className="text-center" style={{ width: '50px' }}>Qty</th>
@@ -465,7 +471,7 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {orderLines.map((line, idx) => {
-                      const colCount = 5 + (showImg ? 1 : 0);
+                      const colCount = 5 + (showImg ? 1 : 0) + (showBeam ? 1 : 0);
                       const isSection = line.display_type === 'line_section' || (!line.product_id && line.product_name && line.qty === 0);
                       const isNote    = line.display_type === 'line_note';
 
@@ -515,6 +521,13 @@ const OrderDetail = ({ orderId, onBack, onNavigate }) => {
                               </div>
                             )}
                           </td>
+                          {showBeam && (
+                            <td className="py-2 px-4" style={{ verticalAlign: 'top', textAlign: 'left' }}>
+                              <span style={{ fontSize: '12px', color: '#1e293b', fontWeight: 600 }}>
+                                {line.beam || '-'}
+                              </span>
+                            </td>
+                          )}
                           {showImg && (
                             <td className="py-2 px-4" style={{ verticalAlign: 'top' }}>
                               <div style={{ width: '40px', height: '40px', borderRadius: '4px', border: '1px solid #eee', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
